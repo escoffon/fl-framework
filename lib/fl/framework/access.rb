@@ -6,3 +6,4 @@ module Fl::Framework
 end
 
 require 'fl/framework/access/access'
+require 'fl/framework/access/grants'

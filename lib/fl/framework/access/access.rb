@@ -6,6 +6,99 @@ module Fl::Framework::Access
   # 2. Instance (and class) methods to check if an actor has access to an object.
   #    See {Fl::Framework::Access::Access::InstanceMethods#permission?} and
   #    {Fl::Framework::Access::Access::ClassMethods#default_access_checker}.
+  # The methods in this module define and implement a framework for standardizing access control
+  # management, but don't provide a specific access control algorithm.
+  # Classes that include this module are expected to implement their own access check algorithms, typically
+  # by overriding the default implementation of
+  # {Fl::Framework::Access::Access::ClassMethods::default_access_checker}, or by
+  # registering specialized access checker procs with
+  # {Fl::Framework::Access::Access::ClassMethods::access_op}.
+  #
+  # The APIs use a generic object called an _actor_ as the entity that requests permission to perform
+  # a given operation on an object. The type of _actor_ is left undefined, and it is expected that
+  # users of this framework will provide their own specific types. Typically, this will be some kind of
+  # user object, but it may be a software agent as well. The framework mostly passes the actor parameter
+  # down to the methods that implement the specialized access control algorithms; these methods should
+  # be aware of the nature of the actor entity.
+  #
+  # === Examples
+  # There are a few ways to use this framework. One is to define a mixin module that contains the access
+  # algorithms, and include it to override the defaults:
+  #   module MyAccess
+  #     module ClassMethods
+  #       def default_access_checker(op, obj, actor, context = nil)
+  #         # (access check code here ...)
+  #       end
+  #     end
+  #
+  #     module InstanceMethods
+  #     end
+  #
+  #     def self.included(base)
+  #       base.extend ClassMethods
+  #       base.instance_eval do
+  #       end
+  #       base.class_eval do
+  #         include InstanceMethods
+  #       end
+  #     end
+  #   end
+  #
+  #   class MyClass
+  #     include Fl::Framework::Access::Access
+  #     include MyAccess
+  #   end
+  # A variation on this is to override some default checks:
+  #   class MyClass
+  #     include Fl::Framework::Access::Access
+  #     include MyAccess
+  #
+  #     access_op :read, :my_read_check
+  #
+  #     private
+  #
+  #     def my_write_check(op, obj, actor, context = nil)
+  #       # (overridden check for :write ...)
+  #     end
+  #   end
+  # You can also extend the set of operations for which access checks are implemented:
+  #   module ExtendAccess
+  #     CLASS_OP = :class_op
+  #     INSTANCE_OP = :instance_op
+  #   
+  #     module ClassMethods
+  #       def default_access_checker(op, obj, actor, context = nil)
+  #         # (access check code here includes support for CLASS_OP and INSTANCE_OP ...)
+  #       end
+  #     end
+  #   
+  #     module InstanceMethods
+  #     end
+  #   
+  #     def self.included(base)
+  #       base.extend ClassMethods
+  #   
+  #       base.instance_eval do
+  #       end
+  #   
+  #       base.class_eval do
+  #         include InstanceMethods
+  #   
+  #         access_op(ExtendAccess::CLASS_OP, :default_access_checker, { context: :class })
+  #         access_op(ExtendAccess::INSTANCE_OP, :default_access_checker, { context: :instance })
+  #       end
+  #     end
+  #   end
+  #   
+  #   class ExtendAsset
+  #     include Fl::Framework::Access::Access
+  #     include ExtendAccess
+  #   end
+  # The ExtendAsset class will support access checks for the additional two operations; for example:
+  #   actor = get_actor()
+  #   if ExtendAsset.permission?(ExtendAccess::CLASS_OP, actor)
+  #     # (get the list of ExtendAsset instances)
+  #   end
 
   module Access
     # A class to store access check information.
@@ -43,8 +136,8 @@ module Fl::Framework::Access
       # Initialize the object.
       #
       # @param op [Symbol, String] The operation name; the value is converted to a Symbol.
-      # @param checker The name of the check method or body of the check Proc.
-      # @param config [hash] A Hash of configuration parameters.
+      # @param checker [Symbol, Proc] The name of the check method or body of the check Proc.
+      # @param config [Hash] A Hash of configuration parameters.
       # @option config [Symbol] :context The context of the check call; currently
       #  two contexts are supported:
       #  - +:class+ The check call is made by a class object; for example, the +:index+ operation is
@@ -63,14 +156,14 @@ module Fl::Framework::Access
         @config = config.is_a?(Hash) ? config.dup : {}
       end
 
-      # @!attribute [r]
+      # @!attribute [r] context
       # @return [Symbol] the execution context for this access check.
 
       def context()
         return (@config.has_key?(:context)) ? @config[:context] : :instance
       end
 
-      # @!attribute [r]
+      # @!attribute [r] grants
       # @return [Array<Symbol>] the list of permissions that are implicitly granted by thie access check;
       #  for example, a +:write+ permission also grants :+read+ permission.
 
@@ -78,7 +171,7 @@ module Fl::Framework::Access
         return (@config[:grants].is_a?(Array)) ? @config[:grants] : []
       end
 
-      # @!attribute [r]
+      # @!attribute [r] public
       # @return [Boolean] +true+ if this check grants access to public objects, +false+ otherwise.
 
       def public()
@@ -99,7 +192,7 @@ module Fl::Framework::Access
       # The arguments come from the #permission? call.
       #
       # @param obj The object granting (or denying) access.
-      # @param actor [Fl::Core::Actor]: The actor requesting access.
+      # @param actor [Object] The actor requesting access.
       # @param context The context in which to do the check.
       #
       # @return Returns the return value from the call to the checker.
@@ -159,9 +252,10 @@ module Fl::Framework::Access
       #   This is the instance that contains the operation's
       #   registration info, which includes the symbolized name of the operation and the configuration.
       # - *obj* The object granting permission.
-      # - *actor* The instance of {Fl::Core::Actor} (the actor) requesting permission.
+      # - *actor* The actor requesting permission.
       # - *ctx* The context that was passed to the permission call.
-      # If we compare these to the arguments to the {Fl::Framework::Access::InstanceMethods#permission?} method, then:
+      # If we compare these to the arguments to the {Fl::Framework::Access::InstanceMethods#permission?}
+      # method, then:
       # - *op* is derived from the _op_ parameter of {Fl::Framework::Access::InstanceMethods#permission?}.
       # - *obj* is +self+ in {Fl::Framework::Access::InstanceMethods#permission?}.
       # - *actor* is _actor_ in {Fl::Framework::Access::InstanceMethods#permission?}.
@@ -187,15 +281,12 @@ module Fl::Framework::Access
       #       # cusom check for :read here ...
       #     end
       #   end
-      # The return value of the checker is one of the following symbols if the access rights are granted:
-      # - +:private+ The +actor+ owns the object.
-      # - +:group+ The +actor+ is a member of one of the owner's groups.
-      # - +:friends+ The +actor+ is a member of one of the owner's friends.
-      # - +:public+ The object (+self+) is publicly accessible.
-      # Otherwise, the return value is +nil+ to indicate that access rights were not granted.
+      # If the access rights are granted, the return value of the checker is a symbol describing the type
+      # of permission that was granted; these symbols are implementation-dependent.
+      # If access rights are not granted, the return value is +nil+.
       # Under some circumstances, the checker may elect to return +false+ to indicate that access was not
       # granted because of an error.
-      # This value is returned by {Fl::Framework::Access::InstanceMethods#permission?}.
+      # This return value is returned by {Fl::Framework::Access::InstanceMethods#permission?}.
       #
       # @overload access_op(op, checker, opts)
       #  Registers a new access control operation where the check implementation is provided as an
@@ -285,20 +376,17 @@ module Fl::Framework::Access
       # than a specific object; for example, the +:index+ operation falls under this category.
       # See the documentation for the instance method by the same name.
       #
-      # @param actor [Fl::Core::Actor] The actor requesting permission; this is typically a [Fl::Core::User].
+      # @param actor [Object] The actor requesting permission.
       # @param op [Symbol, String] The requested operation.
       # @param context The context in which to do the check; this is typically used with nested resources,
       #  where a class operation (say, +:index+) is performed in the context of a nesting resource (for 
       #  example, indexing the comments associated with an asset). In that case, we need to specify
       #  the instance of the nesting class.
       #
-      # @return [Symbol, nil, +false+] If +actor+ can perform the operation on the object, based on ownership,
-      #  access grants, and visibility attributes, returns the visibility level that allowed the operation:
-      #  - +:private+ The +actor+ owns the object.
-      #  - +:group+ The +actor+ is a member of one of the owner's groups.
-      #  - +:friends+ The +actor+ is a member of one of the owner's friends.
-      #  - +:public+ The object (+self+) is publicly accessible.
-      #  Otherwise, the return value is +nil+ to indicate that access rights were not granted.
+      # @return [Symbol, nil, +false+] If _actor_ can perform the operation on the object, the return
+      #  value is a symbol; the actual values returned are implementation-dependent, but the fact that a
+      #  symbol is returned implies that permission was granted.
+      #  If access rights were not granted, +nil+ is returned.
       #  Under some circumstances, +false+ may be returned to indicate an error while determining access;
       #  this *must* be interpreted as a denial of grants.
 
@@ -307,8 +395,7 @@ module Fl::Framework::Access
         if p
           p.run_check(self, actor, context)
         else
-          default_access_checker(Checker.new(op.to_sym, :default_access_checker, {}),
-                                 self, actor, context)
+          default_access_checker(Checker.new(op.to_sym, :default_access_checker, {}), self, actor, context)
         end
       end
 
@@ -324,196 +411,22 @@ module Fl::Framework::Access
         permission?(actor, op, context)
       end
 
-      # The standard access rights checker.
-      # The standard access rights grant algorithm defines the following rules:
-      # - An object with private visibility grants rights only to its owners.
-      # - An object with group visibility grants rights to members of the owners' groups.
-      #   The list of access grants restricts both the groups whose members will be granted rights,
-      #   and the rights themselves. For example, if the grants are +:read+ to +group1+ and +:write+
-      #   to +group2+, members of +group1+ and +group2+ are granted +:read+ access, and members of
-      #   +group2+ are also granted +:write+. (+group2+ is granted +:read+ access because +:write+
-      #   is a forward grant for +:read+.)
-      # - An object with group visibility grants rights to members of the owners' groups and to members
-      #   of groups linked with the owners' groups. The list of access grants restricts groups and rights
-      #   as described above.
-      # - An object with public visibility grants rights to anyone, but the right being requested must
-      #   have allowed public access (for example, the +:write+ grant does not allow public access, so
-      #   that public visibility objects cannot be modified by anyone).
-      # - An object with direct visibility grants rights to anyone, but restricted to the object's access
-      #   rights. This visibility can be use to grant access to arbitrary actors, for example to groups
-      #   or individual users that are not in the owner's groups or friends.
-      # The method implements these rules as follows:
-      # 1. If the access grants or visibility for _obj_ have changed, and _obj_ has not been saved,
-      #    return +false+. This is done to ensure that _obj_ is in a consistent and valid state when
-      #    access is checked.
-      # 2. If _actor_ is +nil?+, return +nil+ unless the object's visibility is {Fl::Framework::Visibility::PUBLIC}.
-      #    If _obj_ has public visibility, run the same check as in 5., below.
-      # 3. If _actor_ is one of of the owners of _obj_, returns {Fl::Framework::Visibility::PRIVATE}, since owners
-      #    have full access for any operation.
-      # 4. If the object visibility is {Fl::Framework::Visibility::PRIVATE}, return +nil+, since _actor_ is not an
-      #    owner, and the object is only accessible to owners.
-      # 5. If the object visibility is {Fl::Framework::Visibility::PUBLIC}, check if _op_ allows public access
-      #    (the +public+ attribute is +true+), and if so return {Fl::Framework::Visibility::PUBLIC}.
-      #    Otherwise, look at the forward grants for _op_ (the list of other registered operations that
-      #    grant _op_.op access), and check if any of them allow public access: if so, return 
-      #    {Fl::Framework::Visibility::PUBLIC}. If all checks fail, return +nil+.
-      # 6. For {Fl::Framework::Visibility::GROUP} visibility, first iterate over all access grants associated with _obj_
-      #    (if _obj_ responds to {Fl::Framework::Access::Grants::InstanceMethods#access_grants}).
-      #    If the grant's operation matches _op_.op, and the grantee matches _actor_, return
-      #    {Fl::Framework::Visibility::GROUP}. If _actor_ is a user and the grantee is a group, check if _actor_ is
-      #    a member of the grantee group; if so, return {Fl::Framework::Visibility::GROUP}.
-      #    If there was no match with _op_.op, try all the forward grants and return {Fl::Framework::Visibility::GROUP}
-      #    if any of the forward grant checks return non-nil.
-      #    Note that the object's access grants are in a valid state as determined in step 1., and therefore
-      #    all groups in the access grants are owners' groups; therefore, _actor_ is granted access only if
-      #    it is a member of the owners' groups that are granted access.
-      # 7. The algorithm for {Fl::Framework::Visibility::FRIENDS} visibility is the same as for {Fl::Framework::Visibility::GROUP}.
-      #    The only difference is that the access grants now may include groups that are linked to the
-      #    owners' groups.
-      #    Note that the object's access grants are in a valid state as determined in step 1., and therefore
-      #    all groups in the access grants are either owners' groups, or linked to owners' groups; therefore,
-      #    _actor_ is granted access only if it is a member of the owners' groups or owners' friends that
-      #    are granted access.
-      # 8. The algorithm for {Fl::Framework::Visibility::DIRECT} visibility is also the same as for
-      #    {Fl::Framework::Visibility::GROUP}.
-      #    The only difference is that the access grants now may include arbitrary actors.
+      # The default access rights checker.
+      # This is the access checker that is registered with the standard permission checks;
+      # it is the heart of the access control mechanism.
       #
-      # @param op [Fl::Framework::Access::Checker] An instance of {Fl::Framework::Access::Checker} that describes
-      #  the access check configuration in use.
-      #  If the operation has not been registered, this is a fabricated (and temporary) object;
-      #  otherwise it is one of the registered operations.
-      # @param obj The object that grants or denies access rights.
-      # @param actor [Fl::Core::Actor] The object requesting the access rights.
-      # @param context Additional context passed to {#permission?}.
+      # The default implementation is rather restrictive: it simply returns +nil+ to indicate that
+      # no access has been granted. Classes or modules that include the access control framework module
+      # are expected to override it.
       #
-      # @return Returns a Symbol corresponding to the visibility lavel for which access was granted.
-      #  If access was denied, the return value is +nil+. If the access rights or the visibility are
-      #  marked changed, the return value is +false+; see below for a discussion of why this is done.
-      #
-      # This method uses a Template Method pattern; it calls +visibility+ to obtain the object's
-      # visibility setting, {Fl::Framework::Access::InstanceMethods#access_grants} to obtain the list of actors that
-      # were grantes some access to the object, +owners+ to obtain the actors that own the object.
-      #
-      # It is possible for the object to be set up in an (invalid) state that gives more access than the
-      # object's visibility setting. For example, when the visibility is set to +:group+, a valid object
-      # includes only owner groups in the access rights, because of the semantics of +:group+ visibility;
-      # this condition is enforced by a validation callback installed by {Fl::Framework::Access}.
-      # In order to speed up access determination, the default checker does not confirm that the current
-      # state of the object is consistent with the visibility settings, so that a client could add access
-      # rights to, say, an arbitrary group and gain access to the object.
-      # In order to prevent this, the checker code returns +false+ if it detects that the visibility
-      # or the access grants have been modified and not saved to persistent storage. This forces clients to
-      # save the object, which is possible only with valid contents.
-      # Of course this is somewhat specious, since a malicious client coul just bypass the access control
-      # layer altoghether, but at least it makes us feel good about ourselves that we did the right thing.
+      # @return [Symbol, nil, Boolean] An operational default access checker is expected to return a symbol if
+      #  access rights were granted. It returns +nil+ if access grants were not granted.
+      #  Under some conditions, it may elect to return +false+ to indicate that there was some kind of error
+      #  when checking for access; a +false+ return value indicates that access rights were not granted,
+      #  and it *must* be interpreted as such.
 
       def default_access_checker(op, obj, actor, context = nil)
-        return false if obj.access_grants_changed? || obj.visibility_changed?
-
-        # a nil actor makes access checks a lot less complex, since only objects with :public
-        # visibility can be accessible. An object is publicly accessible if it has an access grant
-        # for _op_ to the public group. A :public access grant is equivalent to a :read operation.
-
-        if actor.nil?
-          # a :public object is accessible only if the operation or forwarded operations allow :public
-          # access, and if the object visibility is :public
-
-          return nil unless obj.visibility == Fl::Framework::Visibility::PUBLIC
-
-          # This is a duplicate of the :public visibility branch below; see the discussion of access grants
-          # there for some additional work that should be done, for example to grant access on an object
-          # by object basis (say, to make object O writeable publicly).
-
-          return Fl::Framework::Visibility::PUBLIC if op.public
-
-          forward_grants_for_op(op.op).each do |f|
-            f_op = config_for_op(f)
-            return Fl::Framework::Visibility::PUBLIC if f_op && f_op.run_check(obj, actor, context)
-          end
-
-          return nil
-        end
-
-        # owners have full access. we check the grants first, and then the owners
-
-        if obj.respond_to?(:access_grants)
-          sop = op.op
-          obj.access_grants.each do |aa|
-            if (aa.rel.grant.to_sym == :owner) && (aa.actor.id == actor.id)
-              return Fl::Framework::Visibility::PRIVATE
-            end
-          end
-        else
-          obj.owners.each do |o|
-            return Fl::Framework::Visibility::PRIVATE if o.id == actor.id
-          end
-        end
-
-        case obj.visibility
-        when Fl::Framework::Visibility::PRIVATE
-          # since actor is not an owner, and the object has :private visibility, there is no access
-
-          return nil
-        when Fl::Framework::Visibility::GROUP, Fl::Framework::Visibility::FRIENDS, Fl::Framework::Visibility::DIRECT
-          # a :group object is accessible if it grants op.op access to the actor, and if the access is
-          # granted to one of actor's groups.
-          # A valid _obj_ includes only groups and users from the owners, so we don't check here.
-          #
-          # a :friends object is accessible with the same algorithm, except that now we allow both owners'
-          # groups and owners' friends.
-          # Again, a valid object includes only groups and friends from the owners.
-          #
-          # a :direct object uses the same check as :group and :public; in this case, any actor can be in
-          # the access grants, but the algorithm is the same
-
-          if obj.respond_to?(:access_grants)
-            sop = op.op
-            obj.access_grants.each do |aa|
-              if aa.rel.grant.to_sym == sop
-                if aa.actor.id == actor.id
-                  return obj.visibility
-                elsif aa.actor.is_a?(Fl::Core::Group) && actor.is_a?(Fl::Core::User)
-                  if aa.actor.has_role?(actor, [Fl::Core::Group::ROLE_MEMBER, Fl::Core::Group::ROLE_ADMIN])
-                    return obj.visibility
-                  end
-                end
-              end
-            end
-          end
-          
-          # If we are here, no direct grant was found. Let's see if we can find a forward grant
-
-          forward_grants_for_op(op.op).each do |f|
-            f_op = config_for_op(f)
-            return obj.visibility if f_op && f_op.run_check(obj, actor, context)
-          end
-
-          return nil
-        when Fl::Framework::Visibility::PUBLIC
-          # a :public object is accessible only if the operation or forwarded operations allow :public access
-
-          # but we should filter by access grants: if the object defines access grants, we grant access only
-          # if the grant is present. In other words, if the operation allows :public access, and there are
-          # grants present, then we grant access only if the grant allow the operation. This makes it possible
-          # to mark something :public and then restrict access to a subset of users or groups.
-          # I'm not sure that there is another way to address the following problem: I want to grant :read
-          # access to object O to group G which is not one of my groups.
-          # But I think that granting access to group G directly should cover that...
-          # These notes are here to remind me to tackle the problem.
-
-          return Fl::Framework::Visibility::PUBLIC if op.public
-
-          forward_grants_for_op(op.op).each do |f|
-            f_op = config_for_op(f)
-            return Fl::Framework::Visibility::PUBLIC if f_op && f_op.run_check(obj, actor, context)
-          end
-
-          return nil
-        end
-
-        # nothing worked
-
-        return nil        
+        return nil
       end
 
       private
@@ -549,92 +462,14 @@ module Fl::Framework::Access
       # Check if this object is visible to an actor.
       # This method is currently a wrapper around {#permission?} using the +:read+ operation.
       #
-      # @param actor [Fl::Core::Actor] The actor for which to check visibility; if this is +nil+, there is no
-      #  actor and only +:public+ objects are visible.
+      # @param actor [Object] The actor for which to check visibility; if this is +nil+, there is no
+      #  actor and only publicly visible objects are visible.
       #
       # @return If the internal call to #permission? returns a non-+nil+ value, returns +true+; otherwise,
       #  return +false+.
 
       def visible?(actor)
         return permission?(actor, Fl::Framework::Access::Grants::READ).nil? ? false : true
-      end
-
-      # @!visibility private
-      # Tag-based visibility check.
-      # This method checks if the user's tags (if any) allow or prohibit visibility to self, based
-      # on self's white and black lists. The algorithm is as follows:
-      # 1. if the object's tag list ie empty, check the whitelist: if the whitelist is also empty,
-      #    then the object is visible. If the whitelist is nonempty, the object is not visible,
-      #    since no tags match those in the whitelist (there are no tags).
-      # 2. If the object's tag list is nonempty, check the blacklist:
-      #    a. The blacklist is empty: move to step 3, where we check the whitelist.
-      #    b. The blacklist is nonempty: if any of the object's tags are in
-      #       the blacklist, the object is not visible.
-      #       Otherwise, move to step 3, where we check the whitelist.
-      # 3. Now check the whitelist:
-      #    a. If the whitelist is empty, the object is visible.
-      #    b. If the whitelist is nonempty, the object is visible only if one of its tags is in the
-      #       whitelist.
-      # This algorithm has the following characteristics:
-      # 1. If both blacklist and whitelist are empty, no tag-based access control is done.
-      #    Essentially, we assume that empty lists mean "don't do tag-based access control."
-      # 2. If the user's tag list is empty, the only tag-based access is based on whitelists, and
-      #    it is quite restrictive: if the whitelist is nonempty, access is denied.
-      #    The reason for this behavior is that whitelists are restrictive by nature, since they
-      #    specify the class of users who have explicit access to the object; therefore, the algorithm
-      #    is as restrictive as the intended purpose of whitelisting.
-      #    Note also that blacklists are ignored; this is also as expected, based on the semantics of
-      #    a blacklist.
-      # 3. With a nonempty user's tag list, blacklists are checked first, and therefore override
-      #    possible permissions from whitelists. For example, if the user's tag list is [ tag1 ],
-      #    and the object's blacklist and whitelist are [ tag1 ] and [ tag1 ], respectively, then
-      #    access is denied. Note that this is not a common (or logical!) situation.
-      #
-      # visibility:: The visibility to return on success.
-      # actor:: The actor to check (may be +nil+).
-      #
-      # Returns the value of the visibility argument if the tags lists allow it, or +nil+ otherwise.
-      #
-      # @note This method is temporarily disabled, until we reintroduce tags in the Neo4j DB.
-
-      def check_tags(visibility, actor)
-        return visibility
-
-        actor_tags = if actor
-                       actor.tag_names
-                     else
-                       []
-                     end
-
-        if actor_tags.length > 0
-          # OK, so this actor has tags. If any of the actor tags are in the blacklist, we fail
-
-          blacklist = self.blacktag_names
-          if blacklist.length > 0
-            actor_tags.each do |t|
-              return nil if blacklist.include?(t)
-            end
-          end
-
-          # If none of the actor tags are in the whitelist, we fail
-
-          whitelist = self.whitetag_names
-          if whitelist.length > 0
-            actor_tags.each do |t|
-              return visibility if whitelist.include?(t)
-            end
-
-            nil
-          else
-            visibility
-          end
-        else
-          # if no actor tags, the blacklist does not apply.
-          # If the whitelist is nonempty, then the object is not visible to this actor, since no actor
-          # tags match an entry in the whitelist
-
-          return (self.whitetags.length > 0) ? nil : visibility
-        end
       end
 
       # Check if an actor has permission to perform an operation on an object.
@@ -646,92 +481,32 @@ module Fl::Framework::Access
       # - *:destroy* Destroy the object. Uses the same permission algorithm as *:write*.
       # - *:index* List objects. Note that *:index* does not request access for a specific instance,
       #   but rather for a class of objects. Therefore, one uses the class object in the call.
-      # However, clients of this module can use the {Fl::Framework::Access::Access::ClassMethods#access_op} class
-      # method to register new operations (or to overwrite the default access check for the standard
+      # Clients of this module can use the {Fl::Framework::Access::Access::ClassMethods#access_op}
+      # class method to register new operations (or to overwrite the default access check for the standard
       # operations).
       #
-      # @param actor [Fl::Core::Actor] The actor requesting permissions.
+      # @param actor [Object] The actor requesting permissions.
       # @param op [Symbol, String] The name of the requested operation.
       # @param context Additional context information for the call. For example, the comment checks
       #  call the commentable's +permission?+ method, passing the comment in the context.
       #
-      # @return If _actor_ can perform the operation on the object, based on ownership, access grants,
-      #  and visibility attributes, returns the visibility level that allowed the operation:
-      #  - *:private* The _actor_ owns the object.
-      #  - *:group* The _actor_ is a member of one of the owner's groups.
-      #  - *:friends* The _actor_ is a member of one of the owner's friends.
-      #  - *:public* The object (+self+) is publicly accessible.
-      #  Otherwise, the return value is +nil+ to indicate that access rights were not granted.
+      # @return [Symbol, nil, +false+] If _actor_ can perform the operation on the object, the return
+      #  value is a symbol; the actual values returned are implementation-dependent, but the fact that a
+      #  symbol is returned implies that permission was granted.
+      #  If access rights were not granted, +nil+ is returned.
+      #  Under some circumstances, +false+ may be returned to indicate an error while determining access;
+      #  this *must* be interpreted as a denial of grants.
 
       def permission?(actor, op, context = nil)
         p = self.class.config_for_op(op)
         if p
           p.run_check(self, actor, context)
         else
-          default_access_checker(Checker.new(op.to_sym, :default_access_checker, {}),
-                                 self, actor, context)
+          default_access_checker(Checker.new(op.to_sym, :default_access_checker, {}), self, actor, context)
         end
       end
 
       private
-
-      def _clear_access_relationships()
-        if self.persisted?
-          self.query_as(:o)\
-            .match('(o)-[r:ACCESS]->(a)')\
-            .where('(r.grant <> {owner_grant})', owner_grant: Fl::Framework::Access::Grants::OWNER)\
-            .delete(:r)\
-            .exec
-        end
-      end
-
-      def _access_owner_groups(reload = false)
-        if reload || @access_owner_groups.nil?
-          @access_owner_groups = []
-          gids = {
-            Fl::Core::Group.public_group.id => true
-          }
-          self.owners.each do |o|
-            o.groups.each do |g|
-              unless gids.has_key?(g.id)
-                @access_owner_groups << g
-                gids[g.id] = true
-              end
-            end
-          end
-        end
-        @access_owner_groups
-      end
-
-      def _access_owner_friends(reload = false)
-        if reload || @access_owner_friends.nil?
-          @access_owner_friends = []
-          gids = {
-            Fl::Core::Group.public_group.id => true
-          }
-          self.owners.each do |o|
-            o.groups.each do |g|
-              g.friends.each do |f|
-                unless gids.has_key?(f.id)
-                  @access_owner_friends << f
-                  gids[f.id] = true
-                end
-              end
-            end
-          end
-        end
-        @access_owner_friends
-      end
-
-      def _clear_owner_caches()
-        @access_owner_groups = nil
-        @access_owner_friends = nil
-      end
-
-      def _clear_caches()
-        _clear_access_caches() if respond_to?(:_clear_access_caches, true)
-        _clear_owner_caches()
-      end
     end
 
     # Perform actions when the module is included.
@@ -751,34 +526,6 @@ module Fl::Framework::Access
       base.extend ClassMethods
 
       base.instance_eval do
-        # The default access checker method for +:index+.
-        # The default policy is open access to anyone.
-        #
-        # op: The operation configuration.
-        # obj:: The object for which to check for access.
-        # actor:: The actor requesting the access.
-        # context:: The context in which to do the check.
-        #
-        # Returns a symbol corresponding to the access level granted, or nil if access was denied.
-
-        def self.access_op_index(op, obj, actor, context = nil)
-          :public
-        end
-
-        # The default access checker method for +:create+.
-        # The default policy is open access to anyone, but only if logged in.
-        #
-        # op: The operation configuration.
-        # obj:: The object for which to check for access.
-        # actor:: The actor requesting the access.
-        # context:: The context in which to do the check.
-        #
-        # Returns a symbol corresponding to the access level granted, or nil if access was denied.
-
-        def self.access_op_create(op, obj, actor, context = nil)
-          (actor.nil?) ? nil : :public
-        end
-
         # Get the registered operations.
         # Returns a Hash where the keys are operation nmes (as Symbol), and the values the corresponding
         # Fl::Framework::Access::Checker instance.
@@ -797,8 +544,8 @@ module Fl::Framework::Access
 
         @access_control_ops = {}
 
-        access_op(Fl::Framework::Access::Grants::INDEX, :access_op_index, { context: :class })
-        access_op(Fl::Framework::Access::Grants::CREATE, :access_op_create, { context: :class })
+        access_op(Fl::Framework::Access::Grants::INDEX, :default_access_checker, { context: :class })
+        access_op(Fl::Framework::Access::Grants::CREATE, :default_access_checker, { context: :class })
         access_op(Fl::Framework::Access::Grants::READ, :default_access_checker, {
                     context: :instance, public: true })
         access_op(Fl::Framework::Access::Grants::WRITE, :default_access_checker, {
@@ -817,15 +564,6 @@ module Fl::Framework::Access
         alias accessible? visible?
         alias execute? permission?
         alias operate? permission?
-
-        alias _original_reload reload
-
-        # Extends the base +:reload+ method to clear the access caches.
-
-        def reload()
-          _original_reload()
-          _clear_caches()
-        end
       end
     end
   end

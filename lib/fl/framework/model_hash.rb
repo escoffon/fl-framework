@@ -1,5 +1,11 @@
 module Fl::Framework
   # A module to provide mixins for converting an object to a hash.
+  # The API implemented by this module introduces the notion of an _actor_: this is the entity that makes
+  # the request to build hash representations of an object. The framework itself does not define a specific
+  # class for actors, but it assumes that the framework implementations are aware of its properties and
+  # behave accordingly. (The framework code more or less passes the actor arguments down to the specific
+  # implementations.)
+  # A typical implementation of an actor is the object that stores and manages user information.
 
   module ModelHash
     # The methods in this module are installed as class method of an including class.
@@ -19,7 +25,7 @@ module Fl::Framework
       # Then, it calls {#to_hash_base} to generate an initial base representation, and
       # then  merges the value returned by {#to_hash_local} into the hash.
       # Subclasses override {#to_hash_local} to add their own additional properties, like this:
-      #   def to_hash_local(user, keys, opts = {})
+      #   def to_hash_local(actor, keys, opts = {})
       #     {
       #       :my_key => self.my_value
       #     }
@@ -43,16 +49,14 @@ module Fl::Framework
       #
       # If the +:verbosity+ option is not present, the method behaves as if its value was set to +:standard+.
       #
-      # @param user [Fl::Core::User] The user for which we are building the hash representation. Some
-      #  objects may return different contents, based on the requesting user. For example, the
-      #  Fl::Core::User model adds the +:selected_persona_id+ key/value pair, which contains
-      #  the object identifier for the persona that is delivered to +user+.
+      # @param actor [Object] The actor for which we are building the hash representation. Some
+      #  objects may return different contents, based on the requesting actor.
       # @param opts [Hash] Options for the method; this is an object-specific set of options.
       #  The following options are considered to be standard and either processed the same way,
       #  or ignored, by the subclasses:
-      #  - *:as_visible_to: A user object to use for access determination instead of +user+; when
-      #    this option is present, it will be used instead of +user+ to determine the set of permissions
-      #    granted to the user.
+      #  - *:as_visible_to: An actor object to use for access determination instead of +actor+; when
+      #    this option is present, it will be used instead of +actor+ to determine the set of permissions
+      #    granted to the actor.
       #  - *:verbosity* A symbol describing the verbosity level for the generated hash; this option
       #    controls the list of attributes that are added to the return value. The following
       #    values are supported:
@@ -77,17 +81,17 @@ module Fl::Framework
       #  - *:except* An array containing a list of keys that will not be returned. This value
       #    is removed from the +:only+ and +:include+ lists.
       #  - *:image_sizes* An array listing the image sizes whose URLs are returned for objects that
-      #    contain images (pictures, places, group avatars, user avatars, and so on).
+      #    contain images (pictures, group avatars, user avatars, and so on).
       #  - *:to_hash* A Hash containing options to pass to nested calls to this method for other
       #    objects in the representation. The keys are attribute names, and the values are hashes
       #    containing the options to pass to {#to_hash}. For example, say that the +subobj+ attribute
       #    maps to an object of class Fl::Core::MyClass; in this case, +subobj+ is converted to
-      #    a hash representation via a call to +self.subobj.to_hash+ which is passed the value of
-      #    +user+ and <tt>opts[:to_hash][:subobj]</tt>, if present.
+      #    a hash representation via a call to +self.subobj.to_hash+, which is passed the value of
+      #    +actor+ and <tt>opts[:to_hash][:subobj]</tt>, if present.
       #
       # @return [Hash] Returns a hash containing the object representation.
 
-      def to_hash(user, opts = nil)
+      def to_hash(actor, opts = nil)
         opts = opts || {}
 
         # make sure the keys are symbols. Hash behavior changed a bit between 1.8 and 1.9
@@ -95,7 +99,7 @@ module Fl::Framework
         t_opts = {}
         opts.each { |k, v| t_opts[k.to_sym] = v }
 
-        # make sure verbosity is stored as a Symbol; it may have come from a controller, and have been
+        # make sure verbosity is stored as a Symbol; it may have come from a controller, and been
         # stored as a String.
 
         if t_opts.has_key?(:verbosity) && t_opts[:verbosity]
@@ -210,7 +214,7 @@ module Fl::Framework
           c_keys << e
         end
 
-        rv = to_hash_base(user, c_keys, n_opts)
+        rv = to_hash_base(actor, c_keys, n_opts)
 
         # We must remove the keys we added in the to_hash_base.
 
@@ -220,7 +224,7 @@ module Fl::Framework
           l_keys << e unless remove.include?(e)
         end
 
-        to_hash_local(user, l_keys, n_opts).each do |k, v|
+        to_hash_local(actor, l_keys, n_opts).each do |k, v|
           rv[k] = v
         end
 
@@ -422,15 +426,15 @@ module Fl::Framework
 
       # Base implementation of the class-specific hash method, in case classes do not override it.
       #
-      # @param [Fl::Core::User] user The user for which we are building the hash representation. Some
-      #  objects may return different contents, based on the requesting user.
+      # @param actor [Object] The actor for which we are building the hash representation. Some
+      #  objects may return different contents, based on the requesting actor.
       #  See the documentation for {#to_hash}.
       # @param keys [Array<Symbol>] An array containing the list of keys to place in the hash.
       # @param opts [Hash] The options that were passed to #to_hash.
       #
       # @return [Hash] Returns an empty hash; subclasses override it to generate type-specific return values.
 
-      def to_hash_local(user, keys, opts)
+      def to_hash_local(actor, keys, opts)
         {}
       end
       
@@ -512,45 +516,21 @@ module Fl::Framework
         klist
       end
 
-      # Filter the box list for an object.
-      #
-      # @param user [Fl::Core::User] The user requesting the hash.
-      #
-      # @return If +self+ is a boxable object, returns the list of boxes to which the object belongs
-      #  that are visible to +user+. If not a boxable, returns an empty array.
-
-      def to_hash_filter_boxes(user)
-        blist = []
-        if self.respond_to?(:boxable?) && self.boxable?
-          self.boxes.each do |b|
-            if b.permission?(user, :show)
-              blist << {
-                :type => b.class.name,
-                :id => b.id,
-                :title => b.title
-              }
-            end
-          end
-        end
-
-        blist
-      end
-
       # Generate a permission hash for +self+.
       #
-      # @param user [Fl::Core::User] The user requesting the hash.
+      # @param actor [Object] The actor requesting the hash.
       # @param plist [Array<Symbol>] The list of operations for which to return permissions; if +nil+, the 
       #  value is obtained via a call to {#to_hash_operations_list}.
       #
       # @return [Hash] Returns a hash where the keys are permission names, and the values the permissions;
       #  a +nil+ value indicates no permission.
 
-      def to_hash_permission_list(user, plist = nil)
+      def to_hash_permission_list(actor, plist = nil)
         plist = self.to_hash_operations_list unless plist
         rv = {}
         plist.each do |p|
           ps = p.to_sym
-          rv[ps] = self.permission?(user, ps)
+          rv[ps] = self.permission?(actor, ps)
         end
 
         rv
@@ -561,14 +541,14 @@ module Fl::Framework
       # If you override this method, you should either make sure that the new implementation
       # returns at least the key/value pairs from this method, or you should chain the old one:
       #   alias original_to_hash_base to_hash_base
-      #   def to_hash_base(user, keys, opts)
-      #     rv = original_to_hash_base(user, keys, opts)
+      #   def to_hash_base(actor, keys, opts)
+      #     rv = original_to_hash_base(actor, keys, opts)
       #     rv[:my_key] = my_value
       #     rv
       #   end
       #
-      # @param user [Fl::Core::User] The user for which we are building the hash representation. Some
-      #  objects may return different contents, based on the requesting user.
+      # @param actor [Object] The object for which we are building the hash representation. Some
+      #  objects may return different contents, based on the requesting actor.
       #  See the documentation for {#to_hash}.
       # @param keys [Array<Symbol>] An array containing the list of keys to return in the hash.
       # @param opts [Hash] Options for the method; this is an object-specific set of options.
@@ -585,11 +565,9 @@ module Fl::Framework
       #  - *:permissions* A dictionary whose keys are permission names (+:edit+, +:destroy+), and the values
       #    the permissions granted; see Fl::Access#permission? for details. In particular, a +nil+
       #    value indicates that the operation is not allowed.
-      #    If +opts+ contains the +as_visible_to+ key, it will be used instead of +user+ for access control.
-      #  - *:boxes* The list of boxes in which it has been placed.
-      #    This list is user specific: only boxes visible to +user+ are returned.
+      #    If +opts+ contains the +as_visible_to+ key, it will be used instead of +actor+ for access control.
 
-      def to_hash_base(user, keys, opts = {})
+      def to_hash_base(actor, keys, opts = {})
         base = {}
 
         keys.each do |k|
@@ -608,10 +586,8 @@ module Fl::Framework
             base[:permissions] = if opts.has_key?(:as_visible_to)
                                    to_hash_permission_list(opts[:as_visible_to])
                                  else
-                                   to_hash_permission_list(user)
+                                   to_hash_permission_list(actor)
                                  end
-          when :boxes
-            base[:boxes] = to_hash_filter_boxes(user)
           end
         end
 
