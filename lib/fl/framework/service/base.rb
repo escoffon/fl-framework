@@ -177,7 +177,6 @@ module Fl::Framework::Service
 
     def allow_op?(obj, op)
       if do_access_checks?(obj)
-        print("++++++++++ allow_op? 1 #{self.actor} #{obj}\n")
         if !obj.permission?(self.actor, op)
           self.set_status(Fl::Framework::Service::FORBIDDEN,
                           I18n.tx(localization_key('forbidden'), id: self.params[:id], op: op) )
@@ -220,9 +219,7 @@ module Fl::Framework::Service
         return nil
       end
 
-        print("++++++++++ #{obj}\n")
       self.clear_status if allow_op?(obj, op)
-        print("++++++++++ #{obj}\n")
       obj
     end
 
