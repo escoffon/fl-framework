@@ -43,8 +43,6 @@ module Fl::Framework
       #   responds to +created_at+ and +updated_at+, respectively.
       # - *:permissions* if the verbosity is +:minimal+, +:standard+, +:verbose+, or +:complete+, the key
       #   is not in the except list, and the object responds to +permission?+.
-      # - *:boxes* if the verbosity is +:verbose+ or +:complete+, the key is not in the except list,
-      #   the object responds to +boxable?+, and a call to +boxable?+ returns @c true.
       # Additional keys will be placed as determined by +opts+ and {#to_hash_options_for_verbosity}.
       #
       # If the +:verbosity+ option is not present, the method behaves as if its value was set to +:standard+.
@@ -54,9 +52,11 @@ module Fl::Framework
       # @param opts [Hash] Options for the method; this is an object-specific set of options.
       #  The following options are considered to be standard and either processed the same way,
       #  or ignored, by the subclasses:
-      #  - *:as_visible_to: An actor object to use for access determination instead of +actor+; when
-      #    this option is present, it will be used instead of +actor+ to determine the set of permissions
-      #    granted to the actor.
+      #  - *:as_visible_to* An actor object to use for access determination instead of _actor_; when
+      #    this option is present, the return value will contain the "slice" of the object that is
+      #    visible to the actor in *:as_visible_to*, as opposed to the actor in _actor_.
+      #    This is useful for objects that present themselves differently to different entities that
+      #    access them.
       #  - *:verbosity* A symbol describing the verbosity level for the generated hash; this option
       #    controls the list of attributes that are added to the return value. The following
       #    values are supported:
@@ -67,19 +67,20 @@ module Fl::Framework
       #    - *:verbose* a more complete set.
       #    - *:complete* the full set.
       #    - *:ignore* ignore the verbosity setting and build the list of keys in the hash representation
-      #      based on the +:only+, and +:except+ options.
+      #      based on the *:only* and *:except* options.
       #      The lists associated with each value are object-dependent, although +:id+ typically returns
       #      +:type+, +:id+, and +:url_path+.
-      #      Since the value defaults to +:standard+ if not specified, you can use the value +:ignore+
+      #      Since the value defaults to *:standard* if not specified, you can use the value *:ignore*
       #      to instruct the method to ignore the value of the verbosity when building the options
       #      hash and generating the key list.
       #  - *:only* An array containing the exact list of attributes to return.
       #  - *:include* An array containing a list of attributes to include in addition to those that the
       #    code returns by default (based on the verbosity level).
-      #    If the +:only+ list is defined, this value is ignored: callers
-      #    that specify +:only+ can just as easily place the contents of +:include+ there.
+      #    If the *:only* list is defined, this value is ignored: callers
+      #    that specify *:only* can just as easily place the contents of *:include* there.
       #  - *:except* An array containing a list of keys that will not be returned. This value
-      #    is removed from the +:only+ and +:include+ lists.
+      #    is removed from the final list of keys after the *:only* and *:include* lists have been taken into
+      #    consideration.
       #  - *:image_sizes* An array listing the image sizes whose URLs are returned for objects that
       #    contain images (pictures, group avatars, user avatars, and so on).
       #  - *:to_hash* A Hash containing options to pass to nested calls to this method for other
@@ -87,7 +88,7 @@ module Fl::Framework
       #    containing the options to pass to {#to_hash}. For example, say that the +subobj+ attribute
       #    maps to an object of class Fl::Core::MyClass; in this case, +subobj+ is converted to
       #    a hash representation via a call to +self.subobj.to_hash+, which is passed the value of
-      #    +actor+ and <tt>opts[:to_hash][:subobj]</tt>, if present.
+      #    _actor_ and <tt>opts[:to_hash][:subobj]</tt>, if present.
       #
       # @return [Hash] Returns a hash containing the object representation.
 
@@ -174,11 +175,10 @@ module Fl::Framework
 
         # Now that we have the merged options, let's build the list of keys that will be returned.
         # The keys :type, :id (if defined), and :url_path are always present.
-        # Also, :created_at, :updated_at, :permisison, :boxes are treated specially:
+        # Also, :created_at, :updated_at, :permisison, are treated specially:
         # - :created_at and :updated_at are added for higher verbosity than :id, if the object responds
         #   to those two methods.
         # - :permissions are added for higher verbosity than :id, and if the object responds to :permission?
-        # - :boxes are added if the object responds to :boxable?, and if the method returns @c true.
 
         l_only = n_opts.has_key?(:only) ? to_hash_normalize_list(n_opts[:only]) : []
         l_include = n_opts.has_key?(:include) ? n_opts[:include] : []
@@ -191,15 +191,10 @@ module Fl::Framework
           if (verbosity == :minimal) || (verbosity == :standard) || (verbosity == :verbose) \
             	|| (verbosity == :complete)
             l_include << :permissions if self.respond_to?(:permission?)
-
-            if (verbosity == :verbose) || (verbosity == :complete)
-              l_include << :boxes if self.respond_to?(:boxable?) && self.boxable?
-            end
           end
         end
 
-        c_keys = [ :type, :url_path ]
-        c_keys << :id if self.respond_to?(:id)
+        c_keys = to_hash_id_keys()
 
         l_only.each do |e|
           c_keys << e if !l_except.include?(e) && !c_keys.include?(e)
@@ -390,7 +385,7 @@ module Fl::Framework
       #  to download the image or tweet it out.
 
       def to_hash_operations_list
-        [ Fl::Access::Grants::READ, Fl::Access::Grants::WRITE, Fl::Access::Grants::DESTROY ]
+        [ Fl::Framework::Access::Grants::READ, Fl::Framework::Access::Grants::WRITE, Fl::Framework::Access::Grants::DESTROY ]
       end
 
       # Get the options to pass to {#to_hash_url_path}.
@@ -404,10 +399,12 @@ module Fl::Framework
       end
 
       # Get the URL to the object.
-      # The base implementation derives the URL path helpwe from the class name, checks if the method
+      # The base implementation derives the URL path helper from the class name, checks if the method
       # is present, and if so it calls it to get the URL path.
       # For example, the {Fl::Asset::Post} class will trigger a call to +fl_asset_post_path+.
       # Because of this behavior, subclasses will typically not need to override this implementation.
+      # This assumes that a +Rails+ environment has been loaded; if no +Rails+ is present, then the
+      # URL is the name of the path helper, followed by the value of the +id+ method if one is present.
       #
       # @param opts [Hash] Options to pass to the URL constructor.
       # @option opts [Symbol, String] :format The format to place in the URL; for example, specifying
@@ -417,11 +414,20 @@ module Fl::Framework
 
       def to_hash_url_path(opts = {})
         helper = self.class.name.gsub('::', '_').downcase + '_path'
-        if Rails.application.routes.url_helpers.method_defined?(helper)
-          Rails.application.routes.url_helpers.send(helper, self, opts)
-        else
-          nil
+        url = if defined?(Rails)
+                if Rails.application.routes.url_helpers.method_defined?(helper)
+                  Rails.application.routes.url_helpers.send(helper, self, opts)
+                end
+              else
+                nil
+              end
+        
+        unless url
+          url = helper + '/'
+          url += self.id.to_s if self.respond_to?(:id)
         end
+
+        url
       end
 
       # Base implementation of the class-specific hash method, in case classes do not override it.
@@ -447,6 +453,17 @@ module Fl::Framework
       # In general, these methods are not meant to be overridden; however, subclasses may override
       # #to_hash_base to implement specialized functionality. See the documentation for #to_hash_base
       # for details.
+
+      # Get the list of keys for the +:id+ verbosity.
+      #
+      # @return [Array<Symbol>] Returns an array containing the symbols +:type+, +:url_path+, and +:id+
+      #  (if the object responds to the +id+ method).
+
+      def to_hash_id_keys()
+        c_keys = [ :type, :url_path ]
+        c_keys << :id if self.respond_to?(:id)
+        c_keys
+      end
 
       # Extract to_hash options and use default values if not present.
       #
@@ -563,7 +580,7 @@ module Fl::Framework
       #  - *:updated_at* The last time of modification for the object, if the object responds to
       #    the +updated_at+ method.
       #  - *:permissions* A dictionary whose keys are permission names (+:edit+, +:destroy+), and the values
-      #    the permissions granted; see Fl::Access#permission? for details. In particular, a +nil+
+      #    the permissions granted; see Fl::Framework::Access#permission? for details. In particular, a +nil+
       #    value indicates that the operation is not allowed.
       #    If +opts+ contains the +as_visible_to+ key, it will be used instead of +actor+ for access control.
 

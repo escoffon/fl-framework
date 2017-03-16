@@ -2,8 +2,8 @@
 
 Gem::Specification.new do |s|
   s.name        = 'fl-framework'
-  s.version     = '0.2.0'
-  s.date        = '2017-03-09'
+  s.version     = '0.2.3'
+  s.date        = '2017-03-15'
   s.summary     = "Floopstreet application framework"
   s.description = "A gem of framework code for implementing standardized Rails applications."
   s.authors     = [ "Emil Scoffone" ]
@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
                     'lib/fl/framework/service.rb', 'lib/fl/framework/service/base.rb',
                     'lib/fl/framework/visibility.rb',
                     'Rakefile',
-                    'test/test_access.rb',
+                    'test/test_classes_helper.rb', 'test/test_access.rb', 'test/test_model_hash.rb',
                     '.yardopts'
                   ]
   s.homepage    = 'http://rubygems.org/gems/fl-framework'

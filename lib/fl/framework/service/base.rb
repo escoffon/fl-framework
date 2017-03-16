@@ -177,6 +177,7 @@ module Fl::Framework::Service
 
     def allow_op?(obj, op)
       if do_access_checks?(obj)
+        print("++++++++++ allow_op? 1 #{self.actor} #{obj}\n")
         if !obj.permission?(self.actor, op)
           self.set_status(Fl::Framework::Service::FORBIDDEN,
                           I18n.tx(localization_key('forbidden'), id: self.params[:id], op: op) )
@@ -213,13 +214,15 @@ module Fl::Framework::Service
 
       begin
         obj = self.model_class.find(params[idname])
-      rescue Neo4j::ActiveNode::Labels::RecordNotFound => ex
+      rescue => ex
         self.set_status(Fl::Framework::Service::NOT_FOUND,
                         I18n.tx(localization_key('not_found'), id: params[idname]))
         return nil
       end
 
+        print("++++++++++ #{obj}\n")
       self.clear_status if allow_op?(obj, op)
+        print("++++++++++ #{obj}\n")
       obj
     end
 
