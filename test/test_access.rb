@@ -54,6 +54,57 @@ class AccessTest < Minitest::Test
     assert_nil a4_200.permission?(u3_145, Fl::Framework::Access::Grants::WRITE)
   end
 
+  def test_inline_access
+    u1_50 = User.new('u1_50', 50)
+    u2_120 = User.new('u2_120', 120)
+    u3_145 = User.new('u3_145', 145)
+
+    a1_10 = InlineAsset.new('a1_10', 10)
+    a2_80 = InlineAsset.new('a2_80', 80)
+    a3_110 = InlineAsset.new('a3_110', 110)
+    a4_200 = InlineAsset.new('a4_200', 200)
+
+    assert_nil InlineAsset.permission?(u1_50, Fl::Framework::Access::Grants::INDEX)
+    assert_equal :ok, InlineAsset.permission?(u2_120, Fl::Framework::Access::Grants::INDEX)
+    assert_equal :ok, InlineAsset.permission?(u3_145, Fl::Framework::Access::Grants::INDEX)
+
+    assert_nil InlineAsset.permission?(u1_50, Fl::Framework::Access::Grants::CREATE)
+    assert_nil InlineAsset.permission?(u2_120, Fl::Framework::Access::Grants::CREATE)
+    assert_equal :ok, InlineAsset.permission?(u3_145, Fl::Framework::Access::Grants::CREATE)
+
+    assert_equal :ok, a1_10.permission?(u1_50, Fl::Framework::Access::Grants::READ)
+    assert_equal :ok, a1_10.permission?(u2_120, Fl::Framework::Access::Grants::READ)
+    assert_equal :ok, a1_10.permission?(u3_145, Fl::Framework::Access::Grants::READ)
+
+    assert_nil a2_80.permission?(u1_50, Fl::Framework::Access::Grants::READ)
+    assert_equal :ok, a2_80.permission?(u2_120, Fl::Framework::Access::Grants::READ)
+    assert_equal :ok, a2_80.permission?(u3_145, Fl::Framework::Access::Grants::READ)
+
+    assert_nil a3_110.permission?(u1_50, Fl::Framework::Access::Grants::READ)
+    assert_equal :ok, a3_110.permission?(u2_120, Fl::Framework::Access::Grants::READ)
+    assert_equal :ok, a3_110.permission?(u3_145, Fl::Framework::Access::Grants::READ)
+
+    assert_nil a4_200.permission?(u1_50, Fl::Framework::Access::Grants::READ)
+    assert_nil a4_200.permission?(u2_120, Fl::Framework::Access::Grants::READ)
+    assert_nil a4_200.permission?(u3_145, Fl::Framework::Access::Grants::READ)
+
+    assert_equal :ok, a1_10.permission?(u1_50, Fl::Framework::Access::Grants::WRITE)
+    assert_equal :ok, a1_10.permission?(u2_120, Fl::Framework::Access::Grants::WRITE)
+    assert_nil a1_10.permission?(u3_145, Fl::Framework::Access::Grants::WRITE)
+
+    assert_nil a2_80.permission?(u1_50, Fl::Framework::Access::Grants::WRITE)
+    assert_equal :ok, a2_80.permission?(u2_120, Fl::Framework::Access::Grants::WRITE)
+    assert_nil a2_80.permission?(u3_145, Fl::Framework::Access::Grants::WRITE)
+
+    assert_nil a3_110.permission?(u1_50, Fl::Framework::Access::Grants::WRITE)
+    assert_equal :ok, a3_110.permission?(u2_120, Fl::Framework::Access::Grants::WRITE)
+    assert_nil a3_110.permission?(u3_145, Fl::Framework::Access::Grants::WRITE)
+
+    assert_nil a4_200.permission?(u1_50, Fl::Framework::Access::Grants::WRITE)
+    assert_nil a4_200.permission?(u2_120, Fl::Framework::Access::Grants::WRITE)
+    assert_nil a4_200.permission?(u3_145, Fl::Framework::Access::Grants::WRITE)
+  end
+
   def test_override_access
     u1_50 = User.new('u1_50', 50)
     u2_120 = User.new('u2_120', 120)

@@ -116,7 +116,7 @@ module Fl::Framework
 
         n_opts = {}
         if verbosity != :ignore
-          to_hash_options_for_verbosity(verbosity, t_opts).each do |vk, vv|
+          to_hash_options_for_verbosity(actor, verbosity, t_opts).each do |vk, vv|
             if (vk == :only) || (vk == :include) || (vk == :except)
               n_opts[vk] = to_hash_normalize_list(vv)
             else
@@ -345,10 +345,14 @@ module Fl::Framework
       #  These customization methods are documented in this section.
 
       # Given a verbosity level, return predefined hash options to use.
-      # This method is expected to return a hash containing any of the keys supported by #to_hash.
+      # This method is expected to return a hash containing any of the keys supported by
+      # {Fl::ModelHash::InstanceMethods#to_hash}.
       # These will be merged with the corresponding values in the hash options, if any.
       # Therefore, the values returned here can be viewed as defaults for the given object type.
       #
+      # @param actor [Object] The actor for which we are building the hash representation.
+      #  See the documentation for {Fl::ModelHash::InstanceMethods#to_hash} and 
+      #  {Fl::ModelHash::InstanceMethods#to_hash_local}.
       # @param verbosity [Symbol] The verbosity level; see #to_hash.
       # @param opts [hash] The options that were passed to {#to_hash}.
       #
@@ -356,7 +360,7 @@ module Fl::Framework
       #
       # @raise This implementation raises an exception to force object classes to provide their own.
 
-      def to_hash_options_for_verbosity(verbosity, opts)
+      def to_hash_options_for_verbosity(actor, verbosity, opts)
         raise "please implement #{self.class.name}#to_hash_options_for_verbosity"
       end
 

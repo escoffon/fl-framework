@@ -61,6 +61,29 @@ module Fl::Framework::Access
   #       # (overridden check for :write ...)
   #     end
   #   end
+  # If you don't need to share access check algorithms, you can embed them directly in a class:
+  #   class MyClass
+  #     include Fl::Framework::Access::Access
+  #
+  #     def self.default_access_checker(op, obj, actor, context = nil)
+  #       case op.op
+  #       when Fl::Framework::Access::Grants::INDEX
+  #         nil
+  #       when Fl::Framework::Access::Grants::CREATE
+  #         :ok
+  #       when Fl::Framework::Access::Grants::READ
+  #         :ok
+  #       when Fl::Framework::Access::Grants::WRITE
+  #         _complex_write_check(op, obj, actor, context)
+  #       else
+  #         nil
+  #       end
+  #     end
+  #     
+  #     private def self._complex_write_check(op, obj, actor, context)
+  #       # (write check here ...)
+  #     end
+  #   end
   # You can also extend the set of operations for which access checks are implemented:
   #   module ExtendAccess
   #     CLASS_OP = :class_op
@@ -96,14 +119,14 @@ module Fl::Framework::Access
   #   end
   # The ExtendAsset class will support access checks for the additional two operations; for example:
   #   actor = get_actor()
-  #   if ExtendAsset.permission?(ExtendAccess::CLASS_OP, actor)
-  #     # (get the list of ExtendAsset instances)
+  #   if ExtendAsset.permission?(actor, ExtendAccess::CLASS_OP)
+  #     # (do something at the ExtendAsset class level)
   #   end
 
   module Access
     # A class to store access check information.
     # Instances of this class contain information about an operation.
-    # See the documentation for Fl::Framework::Access::ClassMethods#access_op for details.
+    # See the documentation for {Fl::Framework::Access::Access::ClassMethods#access_op} for details.
     #
     # === Attributes
     # The following readonly attributes are defined:
@@ -165,7 +188,7 @@ module Fl::Framework::Access
 
       # @!attribute [r] grants
       # @return [Array<Symbol>] the list of permissions that are implicitly granted by thie access check;
-      #  for example, a +:write+ permission also grants :+read+ permission.
+      #  for example, a +:write+ permission also grants +:read+ permission.
 
       def grants()
         return (@config[:grants].is_a?(Array)) ? @config[:grants] : []
@@ -383,7 +406,7 @@ module Fl::Framework::Access
       #  example, indexing the comments associated with an asset). In that case, we need to specify
       #  the instance of the nesting class.
       #
-      # @return [Symbol, nil, +false+] If _actor_ can perform the operation on the object, the return
+      # @return [Symbol, nil, false] If _actor_ can perform the operation on the object, the return
       #  value is a symbol; the actual values returned are implementation-dependent, but the fact that a
       #  symbol is returned implies that permission was granted.
       #  If access rights were not granted, +nil+ is returned.
@@ -418,6 +441,27 @@ module Fl::Framework::Access
       # The default implementation is rather restrictive: it simply returns +nil+ to indicate that
       # no access has been granted. Classes or modules that include the access control framework module
       # are expected to override it.
+      #
+      # The parameters for this method originate from those in the call to a permission checker like
+      # {#permission?}:
+      # - _op_ is the resolved operation from the permission function's _op_ parameter.
+      # - _obj_ is the object calling the permission function.
+      # - _actor_ is the requesting actor from the permission function's _actor_ parameter.
+      # - _context_ is the call context from the permission function's _context_ parameter.
+      # For example, consider this call:
+      #     myobj = get_some_object()
+      #     myactor = get_the_actor()
+      #     if myobj.permission?(myactor, Fl::Framework::Access::Grants::READ, { key: 'value' })
+      #       myobj.do_some_work()
+      #     end
+      # In this case, {#default_access_checker} is called with _op_ set to the data corresponding
+      # to {Fl::Framework::Access::Grants::READ}, _obj_ set to <tt>myobj</tt>,
+      # _actor_ set to <tt>myactor</tt>, and _context_ set to <tt>{ key: 'value' }</tt>.
+      #
+      # @param op [Fl::Framework::Access::Access::Checker] The requested operation.
+      # @param obj [Object] The target of the request.
+      # @param actor [Object] The actor requesting permission.
+      # @param context The context in which to do the check.
       #
       # @return [Symbol, nil, Boolean] An operational default access checker is expected to return a symbol if
       #  access rights were granted. It returns +nil+ if access grants were not granted.
@@ -454,6 +498,9 @@ module Fl::Framework::Access
       # The default access checker, as an instance method.
       # This implementation simply calls the class method by the same name.
       # See the documentation for {Fl::Framework::Access::Access::ClassMethods#default_access_checker}.
+      #
+      # Note that this is typically *not* the access checker method you want to override; instead, you
+      # should override the class method, where all access checks can be centralized.
 
       def default_access_checker(obj, actor, op, context = nil)
         self.class.default_access_checker(obj, actor, op, context)
@@ -490,7 +537,7 @@ module Fl::Framework::Access
       # @param context Additional context information for the call. For example, the comment checks
       #  call the commentable's +permission?+ method, passing the comment in the context.
       #
-      # @return [Symbol, nil, +false+] If _actor_ can perform the operation on the object, the return
+      # @return [Symbol, nil, false] If _actor_ can perform the operation on the object, the return
       #  value is a symbol; the actual values returned are implementation-dependent, but the fact that a
       #  symbol is returned implies that permission was granted.
       #  If access rights were not granted, +nil+ is returned.

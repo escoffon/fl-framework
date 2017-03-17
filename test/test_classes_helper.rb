@@ -1,9 +1,10 @@
 require 'fl/framework'
 
 # The base access control algorithms for testing the framework are set up as follows:
-# - the BaseAsset class defines objects that are placed under AC
+# - the BaseAsset, OverrideAsset, ExtendAsset, and InlineAsset classes define objects that are placed under AC
+# - the NoAccessAsset class define objects that do not support AC
 # - the User class defines the actors
-# - BaseAsset has an integer "code" value
+# - Asset classes have an integer "code" value and a string "name" value
 # - User has an integer "key" value
 # - BaseAsset :a grants permissions to User :u as follows:
 #   - for :index : granted if u.key > 100
@@ -19,6 +20,8 @@ require 'fl/framework'
 #     granted if u.key > 100
 #   - ExtendAccess::INSTANCE_OP is an instance scope operation
 #     granted if u.key > a.code, and u.key is odd
+# - the InlineAsset class has the same access algorithms as BaseAsset, but they are embedded in the class
+#   directly, rather than through a mixin
 
 # In addition, the various classes also implement the model hash package, so that they can be used
 # for model hash testing. We need access support so that we can test permission hashing.
@@ -82,7 +85,84 @@ class BaseAsset
 
   protected
 
-  def to_hash_options_for_verbosity(verbosity, opts)
+  def to_hash_options_for_verbosity(actor, verbosity, opts)
+    case verbosity
+    when :id, :ignore
+      {}
+    when :minimal
+      {
+        :include => [ :code ]
+      }
+    when :standard, :verbose, :complete
+      {
+        :include => [ :code, :name ]
+      }
+    else
+      {}
+    end
+  end
+
+  def to_hash_local(actor, keys, opts = {})
+    to_hash_opts = opts[:to_hash] || {}
+
+    rv = {
+    }
+    keys.each do |k|
+      sk = k.to_sym
+      case sk
+      when :name
+        # could let it go below, but just for fun we treat it separately
+
+        rv[sk] = self.name
+      else
+        rv[sk] = self.send(k) if self.respond_to?(k)
+      end
+    end
+
+    rv
+  end
+end
+
+class InlineAsset
+  include Fl::Framework::Access::Access
+  include Fl::Framework::ModelHash
+
+  def initialize(name, code)
+    @name = name
+    @code = code
+    @id = rand(100)
+  end
+
+  def id()
+    return @id
+  end
+
+  def name()
+    @name
+  end
+
+  def code()
+    @code
+  end
+
+  def self.default_access_checker(op, obj, actor, context = nil)
+    case op.op
+    when Fl::Framework::Access::Grants::INDEX
+      (actor.key > 100) ? :ok : nil
+    when Fl::Framework::Access::Grants::CREATE
+      (actor.key > 140) ? :ok : nil
+    when Fl::Framework::Access::Grants::READ
+      (actor.key > obj.code) ? :ok : nil
+    when Fl::Framework::Access::Grants::WRITE
+      ((actor.key > obj.code) && ((actor.key % 2) == 0)) ? :ok : nil
+    else
+      nil
+    end
+  end
+
+  protected
+
+  def to_hash_options_for_verbosity(actor, verbosity, opts)
     case verbosity
     when :id, :ignore
       {}
@@ -143,7 +223,7 @@ class OverrideAsset
 
   protected
 
-  def to_hash_options_for_verbosity(verbosity, opts)
+  def to_hash_options_for_verbosity(actor, verbosity, opts)
     case verbosity
     when :id, :ignore
       {}
@@ -262,7 +342,7 @@ class ExtendAsset
     super() | [ ExtendAccess::INSTANCE_OP ]
   end
 
-  def to_hash_options_for_verbosity(verbosity, opts)
+  def to_hash_options_for_verbosity(actor, verbosity, opts)
     case verbosity
     when :id, :ignore
       {}
@@ -323,7 +403,7 @@ class NoAccessAsset
 
   protected
 
-  def to_hash_options_for_verbosity(verbosity, opts)
+  def to_hash_options_for_verbosity(actor, verbosity, opts)
     case verbosity
     when :id, :ignore
       {}
