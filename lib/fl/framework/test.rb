@@ -1,0 +1,8 @@
+module Fl::Framework
+  # Namespace for test support code.
+
+  module Test
+  end
+end
+
+require 'fl/framework/test/attachment_test_helper'

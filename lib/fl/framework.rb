@@ -11,4 +11,6 @@ require 'fl/framework/access'
 require 'fl/framework/service'
 require 'fl/framework/controller'
 require 'fl/framework/model_hash'
-
+require 'fl/framework/attachment'
+require 'fl/framework/paperclip_helper'
+require 'fl/framework/test'

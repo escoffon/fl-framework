@@ -1,3 +1,5 @@
+require 'fl/framework/paperclip_helper'
+
 module Fl::Framework
   # A module to provide mixins for converting an object to a hash.
   # The API implemented by this module introduces the notion of an _actor_: this is the entity that makes
@@ -296,7 +298,7 @@ module Fl::Framework
 
         urls = {}
         to_hash_image_sizes(img, types).each do |s|
-          urls[s] = Fl::PaperclipHelper.convert_paperclip_url(img.url(s))
+          urls[s] = Fl::Framework::PaperclipHelper.convert_paperclip_url(img.url(s))
         end
 
         h = {

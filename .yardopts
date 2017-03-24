@@ -1,2 +1,3 @@
 --protected --output-dir doc/yard --markup rdoc --readme README.yard \
-    lib/fl/framework.rb lib/fl/framework/\*\*/\*.rb
+    lib/fl/framework.rb lib/fl/framework/\*\*/\*.rb lib/paperclip_processors/floopnail.rb
+

@@ -2,8 +2,8 @@
 
 Gem::Specification.new do |s|
   s.name        = 'fl-framework'
-  s.version     = '0.2.5'
-  s.date        = '2017-03-16'
+  s.version     = '0.3.4'
+  s.date        = '2017-03-23'
   s.summary     = "Floopstreet application framework"
   s.description = "A gem of framework code for implementing standardized Rails applications."
   s.authors     = [ "Emil Scoffone" ]
@@ -17,6 +17,32 @@ Gem::Specification.new do |s|
                     'lib/fl/framework/model_hash.rb',
                     'lib/fl/framework/service.rb', 'lib/fl/framework/service/base.rb',
                     'lib/fl/framework/visibility.rb',
+
+                    'lib/fl/framework/attachment.rb', 'lib/fl/framework/attachment/configuration.rb',
+                    'lib/fl/framework/attachment/active_record.rb',
+                    'lib/fl/framework/attachment/active_record/base.rb',
+                    'lib/fl/framework/attachment/active_record/registration.rb',
+                    'lib/fl/framework/attachment/neo4j.rb',
+                    'lib/fl/framework/attachment/neo4j/base.rb', 'lib/fl/framework/attachment/neo4j/image.rb',
+                    'lib/fl/framework/attachment/neo4j/master.rb',
+                    'lib/fl/framework/attachment/neo4j/registration.rb',
+
+                    'lib/fl/framework/attribute_filters.rb',
+
+                    'lib/fl/framework/core/title_management.rb',
+
+                    'lib/fl/framework/paperclip_helper.rb',
+
+                    'lib/fl/framework/rel.rb',
+                    'lib/fl/framework/rel/attachment.rb',
+                    'lib/fl/framework/rel/attachment/attached_to.rb',
+                    'lib/fl/framework/rel/attachment/image_attached_to.rb',
+                    'lib/fl/framework/rel/attachment/main_image_attachment_for.rb',
+
+                    'lib/fl/framework/test.rb', 'lib/fl/framework/test/attachment_test_helper.rb',
+
+                    'lib/paperclip_processors/floopnail.rb',
+
                     'Rakefile',
                     'test/test_classes_helper.rb', 'test/test_access.rb', 'test/test_model_hash.rb',
                     '.yardopts'
