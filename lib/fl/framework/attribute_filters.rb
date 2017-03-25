@@ -192,7 +192,7 @@ module Fl::Framework
       end
 
       # HTML filter to strip dangerous elements.
-      # This filter wraps the {Fl::HtmlHelper.strip_dangerous_elements} helper method.
+      # This filter wraps the {Fl::Framework::HtmlHelper.strip_dangerous_elements} helper method.
       #
       # @param attr [Symbol, String] The attribute name.
       # @param value [String] The initial value.
@@ -200,11 +200,11 @@ module Fl::Framework
       # @return [String] Returns the value, where all dangerous elements have been stripped as described above.
 
       def html_strip_dangerous_elements(attr, value)
-        Fl::HtmlHelper.strip_dangerous_elements(value)
+        Fl::Framework::HtmlHelper.strip_dangerous_elements(value)
       end
 
       # HTML filter to return text only.
-      # This filter wraps the {Fl::HtmlHelper.text_only} helper method.
+      # This filter wraps the {Fl::Framework::HtmlHelper.text_only} helper method.
       #
       # @param attr [Symbol, String] The attribute name.
       # @param value [String] The initial value.
@@ -213,7 +213,7 @@ module Fl::Framework
       #  where all text nodes have been contatenated).
 
       def html_text_only(attr, value)
-        Fl::HtmlHelper.text_only(value)
+        Fl::Framework::HtmlHelper.text_only(value)
       end
     end
 
