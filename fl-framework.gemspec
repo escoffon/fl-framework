@@ -29,7 +29,7 @@ Gem::Specification.new do |s|
 
                     'lib/fl/framework/attribute_filters.rb', 'lib/fl/framework/html_helper.rb',
 
-                    'lib/fl/framework/core/title_management.rb',
+                    'lib/fl/framework/core.rb', 'lib/fl/framework/core/title_management.rb',
 
                     'lib/fl/framework/paperclip_helper.rb',
 

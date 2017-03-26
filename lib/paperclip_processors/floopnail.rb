@@ -1,3 +1,6 @@
+# This is the root module for Paperclip code.
+# Third party code like processors also need to reside within this module.
+
 module Paperclip
   # Handles thumbnailing images that are uploaded.
   # This version of the original Paperclip::Thumbnail processor resizes the image as Paperclip::Thumbnail
