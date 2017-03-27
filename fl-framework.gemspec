@@ -2,8 +2,8 @@
 
 Gem::Specification.new do |s|
   s.name        = 'fl-framework'
-  s.version     = '0.3.6'
-  s.date        = '2017-03-25'
+  s.version     = '0.3.7'
+  s.date        = '2017-03-26'
   s.summary     = "Floopstreet application framework"
   s.description = "A gem of framework code for implementing standardized Rails applications."
   s.authors     = [ "Emil Scoffone" ]
