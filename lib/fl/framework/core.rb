@@ -1,7 +1,7 @@
 module Fl::Framework
   # Namespace for core functionality
 
-  module Rel
+  module Core
   end
 end
 

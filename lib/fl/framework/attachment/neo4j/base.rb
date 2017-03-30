@@ -29,6 +29,7 @@ module Fl::Framework::Attachment::Neo4j
   class Base
     # @!visibility private
     class MasterAccessValidator < ActiveModel::Validator
+      # @!visibility private
       def validate(record)
         unless record.master.blank?
           unless record.master.respond_to?(:permission?)
