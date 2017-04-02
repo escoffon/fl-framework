@@ -2,8 +2,8 @@
 
 Gem::Specification.new do |s|
   s.name        = 'fl-framework'
-  s.version     = '0.3.24'
-  s.date        = '2017-03-30'
+  s.version     = '0.4.3'
+  s.date        = '2017-04-02'
   s.summary     = "Floopstreet application framework"
   s.description = "A gem of framework code for implementing standardized Rails applications."
   s.authors     = [ "Emil Scoffone" ]
@@ -48,8 +48,9 @@ Gem::Specification.new do |s|
                     'test/test_attribute_filters.rb',
                     '.yardopts'
                   ]
-  s.homepage    = 'http://rubygems.org/gems/fl-framework'
+  s.homepage    = 'https://github.com/escoffon/fl-framework'
   s.license     = 'MIT'
+  s.add_dependency "railties"
   s.add_runtime_dependency 'nokogiri', '~> 1.6'
 #  s.add_runtime_dependency 'json', '~> 1.8'
 end
