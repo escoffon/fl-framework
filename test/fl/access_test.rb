@@ -1,4 +1,5 @@
-require 'minitest/autorun'
+require 'test_helper'
+
 require 'fl/framework'
 require 'test_classes_helper'
   

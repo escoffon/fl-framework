@@ -14,7 +14,7 @@
 .DS_Store
 
 # Ignore the generated documentation
-doc/yard
+doc/out
 
 # Ignore "saved" files
 *-s

@@ -1,13 +1,22 @@
 # -*-ruby-*-
 
+$:.push File.expand_path("../lib", __FILE__)
+
+# Maintain your gem's version:
+require "fl/framework/version"
+
 Gem::Specification.new do |s|
   s.name        = 'fl-framework'
-  s.version     = '0.4.3'
-  s.date        = '2017-04-02'
+  s.version     = Fl::Framework::VERSION
+  s.date        = Fl::Framework::DATE
+  s.authors     = [ "Emil Scoffone" ]
+  s.email       = [ 'emil@scoffone.com' ]
+  s.homepage    = 'https://github.com/escoffon/fl-framework'
   s.summary     = "Floopstreet application framework"
   s.description = "A gem of framework code for implementing standardized Rails applications."
-  s.authors     = [ "Emil Scoffone" ]
-  s.email       = 'emil@scoffone.com'
+  s.license     = 'MIT'
+
+  #-- s.files = Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md"]
   s.files       = [ 'lib/fl/framework.rb',
                     'lib/fl/framework/access.rb', 'lib/fl/framework/access/access.rb',
                     'lib/fl/framework/access/grants.rb',
@@ -43,14 +52,19 @@ Gem::Specification.new do |s|
 
                     'lib/paperclip_processors/floopnail.rb',
 
-                    'Rakefile',
-                    'test/test_classes_helper.rb', 'test/test_access.rb', 'test/test_model_hash.rb',
-                    'test/test_attribute_filters.rb',
-                    '.yardopts'
+                    'test/test_helper.rb', 'test/test_classes_helper.rb',
+                    'test/fl/access_test.rb', 'test/fl/model_hash_test.rb', 'test/fl/attribute_filters_test.rb',
+
+                    '.yardopts',
+
+                    'Rakefile', 'MIT-LICENSE', 'README.md'
                   ]
-  s.homepage    = 'https://github.com/escoffon/fl-framework'
-  s.license     = 'MIT'
+
+  s.add_dependency "rails", "~> 5.0.2"
   s.add_dependency "railties"
+
   s.add_runtime_dependency 'nokogiri', '~> 1.6'
 #  s.add_runtime_dependency 'json', '~> 1.8'
+
+  s.add_development_dependency "sqlite3"
 end
