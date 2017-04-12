@@ -23,3 +23,4 @@ module Fl::Framework
 end
 
 require 'fl/framework/service/base'
+require 'fl/framework/service/comment'

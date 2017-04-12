@@ -1,3 +1,5 @@
+require 'fl/framework/rails/routes'
+
 module Fl
   module Framework
     # Rails engine class for Fl::Framework.

@@ -1,0 +1,34 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Commentable:</strong>
+  <%= @comment.commentable %>
+</p>
+
+<p>
+  <strong>Creator:</strong>
+  <%= @comment.creator %>
+</p>
+
+<p>
+  <strong>Title:</strong>
+  <%= @comment.title %>
+</p>
+
+<p>
+  <strong>Contents:</strong>
+  <%= @comment.contents %>
+</p>
+
+<p>
+  <strong>Commentable fingerprint:</strong>
+  <%= @comment.commentable_fingerprint %>
+</p>
+
+<p>
+  <strong>Creator fingerprint:</strong>
+  <%= @comment.creator_fingerprint %>
+</p>
+
+<%= link_to 'Edit', edit_comment_path(@comment) %> |
+<%= link_to 'Back', comments_path %>

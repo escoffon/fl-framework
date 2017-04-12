@@ -18,3 +18,8 @@ if ActiveSupport::TestCase.respond_to?(:fixture_path=)
   ActiveSupport::TestCase.file_fixture_path = ActiveSupport::TestCase.fixture_path + "/files"
   ActiveSupport::TestCase.fixtures :all
 end
+
+# I18n load paths
+
+root = File.dirname(File.dirname(__FILE__))
+I18n.load_path += Dir[File.join(root, 'config', 'locales', 'fl', 'framework', '*.{rb,yml}').to_s]

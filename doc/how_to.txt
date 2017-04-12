@@ -1,0 +1,61 @@
+-- Create a scaffold:
+batmac:fl-framework escoffon$ bin/rails g scaffold comment commentable:reference creator:reference title:text contents:text commentable_fingerprint:string creator_fingerprint:string
+      invoke  active_record
+      create    db/migrate/20170407051723_create_fl_framework_comments.rb
+      create    app/models/fl/framework/comment.rb
+      invoke    test_unit
+      create      test/models/fl/framework/comment_test.rb
+      create      test/fixtures/fl/framework/comments.yml
+      invoke  resource_route
+       route    resources :comments
+      invoke  scaffold_controller
+      create    app/controllers/fl/framework/comments_controller.rb
+      invoke    erb
+      create      app/views/fl/framework/comments
+      create      app/views/fl/framework/comments/index.html.erb
+      create      app/views/fl/framework/comments/edit.html.erb
+      create      app/views/fl/framework/comments/show.html.erb
+      create      app/views/fl/framework/comments/new.html.erb
+      create      app/views/fl/framework/comments/_form.html.erb
+      invoke    test_unit
+      create      test/controllers/fl/framework/comments_controller_test.rb
+      invoke    helper
+      create      app/helpers/fl/framework/comments_helper.rb
+      invoke      test_unit
+      invoke  assets
+      invoke    js
+      create      app/assets/javascripts/fl/framework/comments.js
+      invoke    css
+      create      app/assets/stylesheets/fl/framework/comments.css
+      invoke  css
+      create    app/assets/stylesheets/scaffold.css
+batmac:fl-framework escoffon$ 
+
+   From this scaffold, app/models/fl/framework/comment.rb was moved out to the lib directory,
+   as either lib/fl/framework/comment/active_record/comment.rb or .../comment/neo4j/comment.rb.
+
+   Also I moved app/models/fl/framework/application_record.rb to lib/fl/framework/application_record.rb
+   The reason is that the class does not seem to get picked up at startup if in the former location.
+
+-- Once the gem is in an app's Gemfile, you can use 'rails fl_framework:install:migrations' to copy over
+   the migration. Run from the app's root.
+
+-- Other things to do:
+   - to pick up the message catalogs, add an entry to the app's application.rb:
+    config.i18n.load_path += Dir[Fl::Framework::Engine.root.join('config', 'locales', '*.{rb,yml}').to_s]
+
+-- Creating a generator for the comments
+batmac:fl-framework escoffon$ bin/rails g generator comments
+      create  lib/generators/comments
+      create  lib/generators/comments/comments_generator.rb
+      create  lib/generators/comments/USAGE
+      create  lib/generators/comments/templates
+      invoke  test_unit
+      create    test/lib/generators/fl/framework/comments_generator_test.rb
+   This creates the generator that we can use to set up a comment controller in the Rails app
+   But then we reroot the generator files at fl/framework, so that we can put the code in the Fl::Framework
+   module, so we end up with
+      lib/generators/fl/framework/comments
+      lib/generators/fl/framework/comments/comments_generator.rb
+      lib/generators/fl/framework/comments/USAGE
+      lib/generators/fl/framework/comments/templates

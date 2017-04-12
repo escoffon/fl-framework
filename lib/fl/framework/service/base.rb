@@ -285,7 +285,7 @@ module Fl::Framework::Service
     # 4. Merge the values in *_q* into the query options; *:offset* and *:limit* override the values
     #    from the previous step. Aadditionally, if *:limit* is negative, then *:_pg* is ignored; for example,
     #    if *:_s* is 4, *:_pg* is 2, *:limit* is -1, and *:offset* is 4, then the new value of *:_pg*
-    #    <tt>{ _s: -1, _p: 1 }</tt>. See {#pagination_controls}.
+    #    is <tt>{ _s: -1, _p: 1 }</tt>. See {#pagination_controls}.
     # 5. If the value of *:limit* is negative, *:limit* is removed from the query options.
     #
     # @param defs [Hash] A hash of default values for the options, which override the following backstops:

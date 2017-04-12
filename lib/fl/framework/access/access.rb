@@ -21,6 +21,18 @@ module Fl::Framework::Access
   # down to the methods that implement the specialized access control algorithms; these methods should
   # be aware of the nature of the actor entity.
   #
+  # The module's {.included} method registers a number of standard operation types, using
+  # +:default_access_checker+.
+  # Since initially +:default_access_checker+ maps to either {ClassMethods#default_access_checker}
+  # or {InstanceMethods#default_access_checker}, by default no permissions are granted: this forces classes
+  # that include {Fl::Framework::Access::Access} to override the access policies as needed.
+  # This can be done in one of two ways (or with a combination of these two ways):
+  # 1. Override the class +:default_access_checker+ to implement the desired access policies.
+  #    (The instance +:default_access_checker+ calls the class implementation, so typically one does not
+  #    override the instance method.)
+  # 2. Use {ClassMethods#access_op} to register a new access checker method that implements the desired
+  #    access policies.
+  #
   # === Examples
   # There are a few ways to use this framework. One is to define a mixin module that contains the access
   # algorithms, and include it to override the defaults:
@@ -559,15 +571,18 @@ module Fl::Framework::Access
     # Perform actions when the module is included.
     # - Injects the class and instance methods.
     # - Defines and registers the following default operations and access checkers:
-    #   - +:index+ with checker #access_op_index and context +:class+
-    #   - +:create+ with checker #access_op_create and context +:class+
-    #   - +:read+ with checker #default_access_checker and context +:instance+.
+    #   - +:index+ with checker +:default_access_checker+ and context +:class+.
+    #   - +:create+ with checker +:default_access_checker+ and context +:class+.
+    #   - +:read+ with checker +:default_access_checker+ and context +:instance+.
     #     This operation allows +:public+ access.
-    #   - +:write+ with checker #default_access_checker and context +:instance+.
+    #   - +:write+ with checker +:default_access_checker+ and context +:instance+.
     #     This operation also grants +:read+ access.
-    #   - +:destroy+ with checker #default_access_checker and context +:instance+.
-    #   - +:admin+ with checker #default_access_checker and context +:instance+.
+    #   - +:destroy+ with checker +:default_access_checker+ and context +:instance+.
+    #   - +:admin+ with checker +:default_access_checker+ and context +:instance+.
     #     This operation also grants +:read+ and +:write+ access.
+    # Since initially +:default_access_checker+ maps to either {ClassMethods#default_access_checker}
+    # or {InstanceMethods#default_access_checker}, by default no permissions are granted: this forces classes
+    # that include {Fl::Framework::Access::Access} to override the access policies as needed.
 
     def self.included(base)
       base.extend ClassMethods

@@ -1,0 +1,17 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  commentable: 
+  creator: 
+  title: MyText
+  contents: MyText
+  commentable_fingerprint: MyString
+  creator_fingerprint: MyString
+
+two:
+  commentable: 
+  creator: 
+  title: MyText
+  contents: MyText
+  commentable_fingerprint: MyString
+  creator_fingerprint: MyString
