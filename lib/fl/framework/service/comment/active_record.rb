@@ -148,13 +148,13 @@ module Fl::Framework::Service::Comment
     #  If no query is generated (in other words, if {#index_query} fails), it returns +nil+.
 
     def index(commentable)
-      iqo = init_query_opts(nil, self.params)
-      iq = index_query(commentable, iqo)
-      if iq
+      qo = init_query_opts(nil, self.params)
+      q = index_query(commentable, qo)
+      if q
+        r = q.to_a
         {
-          result: iq.to_a,
-          count: count_query(commentable, iqo),
-          _pg: pagination_controls(iqo, self.params)
+          result: r,
+          _pg: pagination_controls(r, qo, self.params)
         }
       else
         nil
