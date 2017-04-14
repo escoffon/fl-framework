@@ -6,7 +6,7 @@ module Fl::Framework::Controller
 
     # Build an error info hash from a service and object.
     #
-    # @param service [Fl::Service::Base] The service that may have generated a failure code.
+    # @param service [Fl::Framework::Service::Base] The service that may have generated a failure code.
     # @param obj [Object, nil] The object that triggered a failure.
     #
     # @return [Hash] Returns a hash containing the following keys:
@@ -20,11 +20,11 @@ module Fl::Framework::Controller
 
       if service.success?
         if obj && !obj.valid?
-          rv[:status] = Fl::Service::UNPROCESSABLE_ENTITY
+          rv[:status] = Fl::Framework::Service::UNPROCESSABLE_ENTITY
           rv[:message] = I18n.tx('fl.controller.unprocessable_entity')
           rv[:details] = obj.errors.messages
         else
-          rv[:status] = Fl::Service::OK
+          rv[:status] = Fl::Framework::Service::OK
         end
       else
         s = service.status
@@ -70,7 +70,7 @@ module Fl::Framework::Controller
         e = { }
         ERROR_PAGE_LOCALS.each { |k| e[k] = info[k] if info.has_key?(k) }
 
-        e[:status] = Fl::Service::UNPROCESSABLE_ENTITY unless info.has_key?(:status)
+        e[:status] = Fl::Framework::Service::UNPROCESSABLE_ENTITY unless info.has_key?(:status)
         render_opts = { :json => { _error: e } }
       else
         locals = {}
@@ -82,7 +82,7 @@ module Fl::Framework::Controller
         render_opts[:layout] = layout if layout
       end
 
-      render_opts[:status] = (info.has_key?(:status)) ? info[:status] : Fl::Service::UNPROCESSABLE_ENTITY
+      render_opts[:status] = (info.has_key?(:status)) ? info[:status] : Fl::Framework::Service::UNPROCESSABLE_ENTITY
       render render_opts
     end
 

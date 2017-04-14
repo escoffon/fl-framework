@@ -32,11 +32,13 @@ module Fl::Framework::Service
     # Look up a commentable in the database, and check if the service's actor has permissions on it.
     # This method uses the +:commentable_id+ entry in the {#params} to look up the object in the database
     # (using the commentable model class as the context for +find+).
-    # If it does not find the object, it sets the status to {Fl::Service::NOT_FOUND} and returns +nil+.
+    # If it does not find the object, it sets the status to {Fl::Framework::Service::NOT_FOUND} and returns
+    # +nil+.
     # If it finds the object, it then calls {Fl::Access::Access::InstanceMethods#permission?} to
     # confirm that the actor has _op_ access to the object.
-    # If the permission call fails, it sets the status to {Fl::Service::FORBIDDEN} and returns the object.
-    # Otherwise, it sets the status to {Fl::Service::OK} and returns the object.
+    # If the permission call fails, it sets the status to {Fl::Framework::Service::FORBIDDEN} and returns the
+    # object.
+    # Otherwise, it sets the status to {Fl::Framework::Service::OK} and returns the object.
     #
     # @param [Symbol] op The operation for which to request permission. If +nil+, no access check is performed
     #  and the call is the equivalent of a simple database lookup.
@@ -66,7 +68,7 @@ module Fl::Framework::Service
       end
 
       if obj.nil?
-        self.set_status(Fl::Service::NOT_FOUND,
+        self.set_status(Fl::Framework::Service::NOT_FOUND,
                         I18n.tx(localization_key('not_found'), id: idname.join(',')))
         return nil
       end
@@ -156,7 +158,7 @@ module Fl::Framework::Service
     end
 
     # Run a query and return results and pagination controls.
-    # This method calls {Fl::Service::Base#init_query_opts} to build the query parameters, and then
+    # This method calls {Fl::Framework::Service::Base#init_query_opts} to build the query parameters, and then
     # {#index_query} to generate the query to use.
     #
     # @param [Object] commentable The commentable for which to get comments.
@@ -165,7 +167,7 @@ module Fl::Framework::Service
     #  - *:results* are the results from the query.
     #  - *:count* is the number of comments actually available; the query results may be limited by
     #    pagination.
-    #  - *:_pg* are the pagination controls returned by {Fl::Service::Base#pagination_controls}.
+    #  - *:_pg* are the pagination controls returned by {Fl::Framework::Service::Base#pagination_controls}.
     #  If no query is generated (in other words, if {#index_query} fails), it returns +nil+.
 
     def index(commentable)
@@ -212,7 +214,7 @@ module Fl::Framework::Service
       if success?
         comment = commentable.add_comment(self.actor, data[:contents], data[:title])
         if commentable.errors.count > 0
-          set_status(Fl::Service::UNPROCESSABLE_ENTITY,
+          set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
                      I18n.tx('fl.asset.service.comment.cannot_create', id: commentable.id),
                      commentable.errors)
         else

@@ -135,7 +135,7 @@ module Fl::Framework::Service::Comment
     end
 
     # Run a query and return results and pagination controls.
-    # This method calls {Fl::Service::Base#init_query_opts} to build the query parameters, and then
+    # This method calls {Fl::Framework::Service::Base#init_query_opts} to build the query parameters, and then
     # {#index_query} to generate the query to use.
     #
     # @param [Object] commentable The commentable for which to get comments.
@@ -144,7 +144,7 @@ module Fl::Framework::Service::Comment
     #  - *:results* are the results from the query.
     #  - *:count* is the number of comments actually available; the query results may be limited by
     #    pagination.
-    #  - *:_pg* are the pagination controls returned by {Fl::Service::Base#pagination_controls}.
+    #  - *:_pg* are the pagination controls returned by {Fl::Framework::Service::Base#pagination_controls}.
     #  If no query is generated (in other words, if {#index_query} fails), it returns +nil+.
 
     def index(commentable)
