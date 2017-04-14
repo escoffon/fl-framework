@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fl-framework (0.5.3)
+    fl-framework (0.5.5)
       nokogiri (~> 1.6)
       rails (~> 5.0.2)
       railties
