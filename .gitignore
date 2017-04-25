@@ -25,3 +25,6 @@ doc/out
 # Ignore .log and .dat files
 *.log
 *.dat
+
+# Ignore SQLite database files
+*.sqlite3
