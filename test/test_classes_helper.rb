@@ -63,7 +63,7 @@ end
 class BaseAsset
   include Fl::Framework::Access::Access
   include BaseAccess
-  include Fl::Framework::ModelHash
+  include Fl::Framework::Core::ModelHash
 
   def initialize(name, code)
     @name = name
@@ -125,7 +125,7 @@ end
 
 class InlineAsset
   include Fl::Framework::Access::Access
-  include Fl::Framework::ModelHash
+  include Fl::Framework::Core::ModelHash
 
   def initialize(name, code)
     @name = name
@@ -203,7 +203,7 @@ end
 class OverrideAsset
   include Fl::Framework::Access::Access
   include BaseAccess
-  include Fl::Framework::ModelHash
+  include Fl::Framework::Core::ModelHash
   
   access_op :index, :my_index_check
   access_op :write, :my_write_check
@@ -321,7 +321,7 @@ end
 class ExtendAsset
   include Fl::Framework::Access::Access
   include ExtendAccess
-  include Fl::Framework::ModelHash
+  include Fl::Framework::Core::ModelHash
 
   def initialize(name, code)
     @name = name
@@ -381,7 +381,7 @@ class ExtendAsset
 end
 
 class NoAccessAsset
-  include Fl::Framework::ModelHash
+  include Fl::Framework::Core::ModelHash
 
   def initialize(name, code)
     @name = name
