@@ -127,12 +127,11 @@ module Fl::Framework::Comment::ActiveRecord
     #  - *:comment_create* returns +nil+ if _actor_ is +nil+; otherwise, it returns +:public+.
     #    Anybody can comment on a comment, but they must be logged in.
     #  - *:attachment_index* returns +:public+, since anybody can get the attachments for a comment.
-    #  - *:attachment_create* returns +nil+ if _actor_ is +nil+; otherwise, it returns +:public+.
-    #    Anybody can add attachments to a comment, but they must be logged in.
-    #    We may make this more restrictive later.
+    #  - *:attachment_create* returns +nil+ if _actor_ is +nil+; otherwise, it returns +:private+
+    #    if _actor_ is the comment's author, and +nil+ if it is not.
+    #    Therefore, only the authors of a comment can add attachments to it.
 
     def self.default_access_checker(op, obj, actor, context = nil)
-      print("++++++++++ check #{op.op} - #{actor} - #{context}\n")
       case op.op
       when Fl::Framework::Access::Grants::INDEX
         :public
@@ -151,8 +150,7 @@ module Fl::Framework::Comment::ActiveRecord
       when Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_INDEX
         :public
       when Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_CREATE
-        # We may need to change this: only author can attach, which means we need to add author to campgrounds
-        (actor.nil?) ? nil : :public
+        (actor.nil?) ? nil : ((actor.fingerprint == obj.author.fingerprint) ? :private : nil)
       else
         nil
       end

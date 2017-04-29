@@ -321,9 +321,9 @@ module Fl::Framework::Attachment
       end
 
       # Return the default list of operations for which to check permissions.
-      # This implementation returns the array <tt>[ :read, :write, :destroy ]</tt>; we add :read because
-      # comments can be picked up from the controller independently of the commentable (the actions 
-      # +:show+, +:edit+, +:update+, and +:destroy+ are not nested in the commentable).
+      # This implementation returns the array <tt>[ :read, :write, :destroy, :download ]</tt>; we add :read
+      # because attachments can be picked up from the controller independently of the attachable (the actions 
+      # +:show+, +:edit+, +:update+, and +:destroy+ are not nested in the attachable).
       #
       # @return [Array<Symbol>] Returns an array of Symbol values that list the operations for which
       #  to obtain permissions.

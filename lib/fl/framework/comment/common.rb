@@ -203,7 +203,10 @@ module Fl::Framework::Comment
 
       def to_hash_operations_list
         [ Fl::Framework::Access::Grants::READ, Fl::Framework::Access::Grants::WRITE,
-          Fl::Framework::Access::Grants::DESTROY ]
+          Fl::Framework::Access::Grants::DESTROY,
+          Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_INDEX,
+          Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_CREATE
+        ]
       end
 
       # Build a Hash representation of the comment.
