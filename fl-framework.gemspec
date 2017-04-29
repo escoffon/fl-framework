@@ -69,9 +69,10 @@ Gem::Specification.new do |s|
 
   s.add_dependency "rails", "~> 5.0.2"
   s.add_dependency "railties"
-
-  s.add_runtime_dependency 'nokogiri', '~> 1.6'
-#  s.add_runtime_dependency 'json', '~> 1.8'
+  s.add_dependency "paperclip", "~> 5"
+  s.add_dependency 'nokogiri', '~> 1.6'
+  s.add_dependency('mimemagic', '~> 0.3.0')
 
   s.add_development_dependency "sqlite3"
+  s.add_development_dependency "factory_girl_rails"
 end
