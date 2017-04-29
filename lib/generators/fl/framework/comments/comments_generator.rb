@@ -25,12 +25,14 @@ module Fl::Framework
       @label = @class_name.underscore
 
       say_status('create', "Creating comments controller for #{commentable_class}")
+      say_status('', 'The commentable class will have to be modified to add access checks for the')
+      say_status('', 'comment operations :comment_index and :comment_create.')
       template('controller.rb', outfile)
     end
 
     def add_route
       h = _split_class_name(commentable_class)
-      resource_name = h[:class_name].downcase
+      resource_name = h[:class_name].underscore
 
       route_file = 'config/routes.rb'
       line = nil
@@ -122,7 +124,7 @@ EOS
               tab = _tab(line)
               _insert_after_line(outfile, line, _taboffset(tab, <<EOS
   # START added by fl:framework:comments generator
-  include Fl::Framework::Access::Access
+  include Fl::Framework::Access::Access unless include?(Fl::Framework::Access::Access)
   include Fl::Framework::Comment::Commentable
   include Fl::Framework::Comment::ActiveRecord::Commentable
   has_comments
@@ -199,13 +201,13 @@ EOS
 
     def _full_route
       h = _split_class_name(commentable_class)
-      resource_name = h[:class_name].downcase
+      resource_name = h[:class_name].underscore
 
       route = ''
       tab = 0
 
       h[:modules].each do |p|
-        route << sprintf("%#{tab}snamespace :%s do\n", '', p.downcase)
+        route << sprintf("%#{tab}snamespace :%s do\n", '', p.underscore)
         tab += 2
       end
 
@@ -226,7 +228,7 @@ EOS
 
     def _partial_route
       h = _split_class_name(commentable_class)
-      resource_name = h[:class_name].downcase
+      resource_name = h[:class_name].underscore
 
       sprintf("resources :comments, only: [ :index, :create ], controller: '%s_comments'", resource_name)
     end

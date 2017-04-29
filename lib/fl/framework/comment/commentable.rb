@@ -1,3 +1,5 @@
+require 'fl/framework/access'
+
 module Fl::Framework::Comment
   # Extension module for use by objects that need to implement comment management.
   # This module defines common functionality for all model classes that use comments; these objects are
@@ -51,6 +53,7 @@ module Fl::Framework::Comment
       #   {Fl::Comment::Commentable::InstanceMethods#_comment_index_check} and
       #   {Fl::Comment::Commentable::InstanceMethods#_comment_create_check}, respectively.
       #   Implementations can redefine the methods to change the access check behavior.
+      # - Define the {#commentable?} method to return +true+ to indicate that the class supports comments.
       #
       # @param cfg [Hash] A hash containing configuration parameters.
       # @option cfg [Symbol] :orm is the ORM to use. Currently, we support two ORMs: +:activerecord+
@@ -107,12 +110,27 @@ module Fl::Framework::Comment
           end
         end
 
-        include Fl::Framework::Comment::Commentable::InstanceMethods
+        unless included(Fl::Framework::Comment::Commentable::InstanceMethods)
+          include Fl::Framework::Comment::Commentable::InstanceMethods
+        end
+
+        def commentable?
+          true
+        end
 
         # register the access checkers
 
         access_op Fl::Framework::Comment::Commentable::ACCESS_COMMENT_INDEX, :_comment_index_check
         access_op Fl::Framework::Comment::Commentable::ACCESS_COMMENT_CREATE, :_comment_create_check
+      end
+
+      # Check if this object manages comments.
+      # The default implementation returns +false+; {#has_comments} overrides it to return +true+.
+      #
+      # @return [Boolean] Returns +true+ if the object manages comments.
+        
+      def commentable?
+        false
       end
     end
 
@@ -120,11 +138,12 @@ module Fl::Framework::Comment
 
     module InstanceMethods
       # Check if this object manages comments.
+      # Forwards the call to the class method {Fl::Framework::Comment::Commentable::ClassMethods#commentable?}.
       #
       # @return [Boolean] Returns +true+ if the object manages comments.
         
       def commentable?
-        true
+        self.class.commentable?
       end
 
       # Get the object's summary.

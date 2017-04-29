@@ -25,7 +25,7 @@ module Fl::Framework::Comment
       def validate(record)
         unless record.commentable.blank?
           unless record.commentable.permission?(record.author, :read)
-            record.errors[:base] << I18n.tx('fl.comment.comment.model.validate.create.no_commentable_permission')
+            record.errors[:base] << I18n.tx('fl.framework.comment.comment.model.validate.create.no_commentable_permission')
           end
         end
       end
@@ -34,6 +34,8 @@ module Fl::Framework::Comment
     # Methods to be registered as class methods of the including module/class.
 
     module ClassMethods
+      # @!group Access control support
+
       protected
 
       # The access checker method for +:index+.
@@ -67,6 +69,8 @@ module Fl::Framework::Comment
       def _create_check(op, obj, actor, context = nil)
         context.permission?(actor, Fl::Framework::Comment::Commentable::ACCESS_COMMENT_CREATE)
       end
+
+      # @!endgroup
     end
 
     # Methods to be registered as instance methods of the including module/class.
@@ -76,7 +80,7 @@ module Fl::Framework::Comment
 
       public
 
-      # Support for {Fl::Access::Access}: return the owners of the comment.
+      # Support for {Fl::Framework::Access::Access}: return the owners of the comment.
       #
       # @return [Array<Object>] Returns an array containing the value of the +author+ association.
 
@@ -165,9 +169,6 @@ module Fl::Framework::Comment
       protected
 
       # @!visibility private
-      TO_HASH_AVATAR_SIZES = [ :list, :thumb, :medium, :large ]
-
-      # @!visibility private
       DEFAULT_HASH_KEYS = [ :commentable, :author, :title, :contents ]
 
       # Given a verbosity level, return predefined hash options to use.
@@ -219,7 +220,7 @@ module Fl::Framework::Comment
       #   - *:username* The login name.
       #   - *:full_name* The full name.
       #   - *:avatar* A hash containing the URLs to the owner's avatar; the hash contains the keys *:list*,
-      #     *:thumb*, *:medium*, and *:large*.
+      #     *:thumb*, *:medium*, *:large*, and *:xlarge*.
       # - *:created_at* When created, as a UNIX timestamp.
       # - *:updated_at* When last updated, as a UNIX timestamp.
       # - *:permissions* An array containing permissions on this comment.
@@ -282,16 +283,16 @@ module Fl::Framework::Comment
     def self.included(base)
       base.extend ClassMethods
 
+      base.send(:include, Fl::Framework::Core::AttributeFilters)
+      base.send(:include, Fl::Framework::Access::Access)
+      base.send(:include, Fl::Framework::Core::TitleManagement)
+      base.send(:include, Fl::Framework::Core::ModelHash)
+      base.send(:include, Fl::Framework::Comment::Helper)
+      base.send(:include, Fl::Framework::Comment::Commentable)
+
+      base.send(:include, InstanceMethods)
+
       base.class_eval do
-        include Fl::Framework::Core::AttributeFilters
-        include Fl::Framework::Access::Access
-        include Fl::Framework::Core::TitleManagement
-        include Fl::Framework::Core::ModelHash
-        include Fl::Framework::Comment::Helper
-        include Fl::Framework::Comment::Commentable
-
-        include InstanceMethods
-
         # Filtered attributes
 
         filtered_attribute :title, [ base.const_get(:FILTER_HTML_STRIP_DANGEROUS_ELEMENTS),

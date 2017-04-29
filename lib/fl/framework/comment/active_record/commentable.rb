@@ -21,13 +21,13 @@ module Fl::Framework::Comment::ActiveRecord
       #
       # @param opts [Hash] A Hash containing configuration options for the query.
       # @option opts [Array<Object, String>, Object, String] :only_authors See the discussion of this
-      #  option in {Fl::Framework::Comment::Query#_expand_author_list}.
+      #  option in {Fl::Framework::Query#_expand_author_list}.
       # @option opts [Array<Object>, Object] :except_authors See the discussion of this
-      #  option in {Fl::Framework::Comment::Query#_expand_author_list}.
+      #  option in {Fl::Framework::Query#_expand_author_list}.
       # @option opts [Array<Object>, Object] :only_groups See the discussion of this
-      #  option in {Fl::Framework::Comment::Query#_expand_author_list}.
+      #  option in {Fl::Framework::Query#_expand_author_list}.
       # @option opts [Array<Object>, Object] :except_groups See the discussion of this
-      #  option in {Fl::Framework::Comment::Query#_expand_author_list}.
+      #  option in {Fl::Framework::Query#_expand_author_list}.
       # @option opts [Integer, Time, String] :updated_after selects comments updated after a given time.
       # @option opts [Integer, Time, String] :created_after selects comments created after a given time.
       # @option opts [Integer, Time, String] :updated_before selects comments updated before a given time.
@@ -40,7 +40,7 @@ module Fl::Framework::Comment::ActiveRecord
       #  Defaults to all comments.
       # @option opts [String] :order A string containing the <tt>ORDER BY</tt> clause for the comments;
       #  a +nil+ value causes the option to be ignored.
-      #  Defaults to <tt>created_at DESC</tt>, so that the comments are ordered by creation time, 
+      #  Defaults to <tt>updated_at DESC</tt>, so that the comments are ordered by modification time, 
       #  with the most recent one listed first.
       #
       # Note that *:limit*, *:offset*, and *:order* are convenience options, since they can be
@@ -54,7 +54,7 @@ module Fl::Framework::Comment::ActiveRecord
       #  c = get_commentable_object()
       #  q = c.comments_query(limit: 10)
       #  q = c.comments_query().limit(10)
-      #  q = c.comments_query(order: nil).order('created_at DESC').limit(10)
+      #  q = c.comments_query(order: nil).order('updated_at DESC').limit(10)
       #
       # @example Get the first 10 comments from a given user (showing equivalent calls)
       #  c = get_commentable_object()
@@ -134,7 +134,7 @@ module Fl::Framework::Comment::ActiveRecord
           q = q.where(wt.join(' AND '), wta)
         end
 
-        order = (opts.has_key?(:order)) ? opts[:order] : 'created_at DESC'
+        order = (opts.has_key?(:order)) ? opts[:order] : 'updated_at DESC'
         q = q.order(order) if order
 
         offset = (opts.has_key?(:offset)) ? opts[:offset] : nil
@@ -342,13 +342,13 @@ module Fl::Framework::Comment::ActiveRecord
       #
       # @param opts [Hash] A Hash containing configuration options for the query.
       # @option opts [Array<Object, String>, Object, String] :only_authors See the discussion of this
-      #  option in {Fl::Framework::Comment::Query#_expand_author_list}.
+      #  option in {Fl::Framework::Query#_expand_author_list}.
       # @option opts [Array<Object>, Object] :except_authors See the discussion of this
-      #  option in {Fl::Framework::Comment::Query#_expand_author_list}.
+      #  option in {Fl::Framework::Query#_expand_author_list}.
       # @option opts [Array<Object>, Object] :only_groups See the discussion of this
-      #  option in {Fl::Framework::Comment::Query#_expand_author_list}.
+      #  option in {Fl::Framework::Query#_expand_author_list}.
       # @option opts [Array<Object>, Object] :except_groups See the discussion of this
-      #  option in {Fl::Framework::Comment::Query#_expand_author_list}.
+      #  option in {Fl::Framework::Query#_expand_author_list}.
       # @option opts [Integer, Time, String] :updated_after selects comments updated after a given time.
       # @option opts [Integer, Time, String] :created_after selects comments created after a given time.
       # @option opts [Integer, Time, String] :updated_before selects comments updated before a given time.

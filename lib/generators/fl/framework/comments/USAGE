@@ -11,6 +11,9 @@ Description:
   Note that the generated controller will likely still need to be modified, for
   example to add authentication checks.
   
+  The commentable class will have to be modified to add access checks for the
+  comment operations :comment_index and :comment_create.
+
 Arguments:
   COMMENTABLE_CLASS # The name of the class that will provide the nesting 
   		    # context for the controller. The default is 'Commentable'
@@ -31,7 +34,7 @@ Example:
     end
   If it does find a 'resources :articles' rule, then it inserts the
   'resources :comments' directive in the 'resources :articles' block (and
-  creates the block if necessary). Int this example, the rule
+  creates the block if necessary). In this example, the rule
     namespace :my do
       resources :articles
     end
@@ -46,7 +49,7 @@ Example:
     app/models/my/article.rb
   If comments have not been enabled yet, it adds the following fragment to the
   class definition:
-    include Fl::Framework::Access::Access
+    include Fl::Framework::Access::Access unless define?(Fl::Framework::Access::Access)
     include Fl::Framework::Comment::Commentable
     include Fl::Framework::Comment::ActiveRecord::Commentable
     has_comments

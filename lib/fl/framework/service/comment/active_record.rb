@@ -1,3 +1,4 @@
+require 'fl/framework/comment'
 require 'fl/framework/service/comment'
 
 # Namespace for service objects for comments.

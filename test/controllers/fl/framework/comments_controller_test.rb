@@ -1,11 +1,17 @@
 require 'test_helper'
 
-module Fl::Framework
-  class CommentsControllerTest < ActionDispatch::IntegrationTest
-    include Engine.routes.url_helpers
+module Fl::Framework::Test
+  class CommentsControllerTest < ControllerTestCase
+    include Fl::Framework::Engine.routes.url_helpers
 
     setup do
-      @comment = fl_framework_comments(:one)
+      @routes = Fl::Framework::Engine.routes
+#      @comment = fl_framework_comments(:one)
+    end
+
+    test 'index' do
+      print("++++++++++ #{@routes.url_helpers.methods.sort}\n")
+      print("++++++++++ #{comment_url}\n")
     end
 
     test "should get index" do

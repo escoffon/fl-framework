@@ -1,3 +1,5 @@
+require 'fl/framework/access/grants'
+
 module Fl::Framework::Access
   # Access APIs.
   # This module defines two main classes of methods:
@@ -475,7 +477,7 @@ module Fl::Framework::Access
       # @param actor [Object] The actor requesting permission.
       # @param context The context in which to do the check.
       #
-      # @return [Symbol, nil, Boolean] An operational default access checker is expected to return a symbol if
+      # @return [Symbol, nil, Boolean] An operation default access checker is expected to return a symbol if
       #  access rights were granted. It returns +nil+ if access grants were not granted.
       #  Under some conditions, it may elect to return +false+ to indicate that there was some kind of error
       #  when checking for access; a +false+ return value indicates that access rights were not granted,
@@ -601,9 +603,9 @@ module Fl::Framework::Access
         end
       end
 
-      base.class_eval do
-        include InstanceMethods
+      base.send(:include, InstanceMethods)
 
+      base.class_eval do
         @access_control_ops = {}
 
         access_op(Fl::Framework::Access::Grants::INDEX, :default_access_checker, { context: :class })

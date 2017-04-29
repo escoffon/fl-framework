@@ -42,17 +42,17 @@ module Fl::Framework::Comment
     # Include hook.
     # Adds to the including class the instance methods +commentable_from_parameter+ and
     # +author_from_parameter+ that forward the calls to
-    # {Fl::Framework::Comment::Comment::Helper.commentable_from_parameter} and 
-    # {Fl::Framework::Comment::Comment::Helper.author_from_parameter}, respectively.
+    # {Fl::Framework::Comment::Helper.commentable_from_parameter} and 
+    # {Fl::Framework::Comment::Helper.author_from_parameter}, respectively.
 
     def self.included(base)
       base.class_eval do
         def commentable_from_parameter(p, key = nil)
-          Fl::Framework::Comment::Comment::Helper.commentable_from_parameter(p, key)
+          Fl::Framework::Comment::Helper.commentable_from_parameter(p, key)
         end
 
         def author_from_parameter(p, key = nil)
-          Fl::Framework::Comment::Comment::Helper.author_from_parameter(p, key)
+          Fl::Framework::Comment::Helper.author_from_parameter(p, key)
         end
       end
     end

@@ -1,13 +1,13 @@
-<%= @open_module %>
-  class <%=@class_name%>CommentsController < ApplicationController
+
+  class TestDatumOneCommentsController < ApplicationController
     # GET /comments
     def index
       respond_to do |format|
         format.json do
-          service = Fl::Framework::Service::Comment::ActiveRecord.new(<%=@full_class_name%>, current_user, params)
-          @<%=@label%> = service.get_and_check_commentable(Fl::Framework::Comment::Commentable::ACCESS_COMMENT_INDEX, :<%=@label%>_id)
-          if @<%=@label%> && service.success?
-            r = service.index(@<%=@label%>)
+          service = Fl::Framework::Service::Comment::ActiveRecord.new(TestDatumOne, current_user, params)
+          @test_datum_one = service.get_and_check_commentable(Fl::Framework::Comment::Commentable::ACCESS_COMMENT_INDEX, :test_datum_one_id)
+          if @test_datum_one && service.success?
+            r = service.index(@test_datum_one)
             if r
               render :json => {
                 :comments => hash_objects(r[:result], service.params[:to_hash]),
@@ -16,8 +16,6 @@
             else
               error_response(generate_error_info(service))
             end
-          else
-            error_response(generate_error_info(service))
           end
         end
       end
@@ -37,9 +35,9 @@
 
     # POST /comments
     def create
-      service = Fl::Framework::Service::Comment::ActiveRecord.new(<%=@full_class_name%>, current_user, params)
+      service = Fl::Framework::Service::Comment::ActiveRecord.new(TestDatumOne, current_user, params)
       cp = comment_params.dup
-      @comment = service.create(cp.to_h, :<%=@label%>_id)
+      @comment = service.create(cp, :test_datum_one_id)
       respond_to do |format|
         format.json do
           if service.success?
@@ -72,4 +70,4 @@
         params.require(:comment).permit(:title, :contents)
       end
   end
-<%= @close_module %>
+

@@ -1,5 +1,3 @@
-require 'fl/framework/comment'
-
 module Fl::Framework::Service
   # Namespace for service objects for comments.
   # Comment service objects come in Active Record and Neo4j implementations.
