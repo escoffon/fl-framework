@@ -50,10 +50,19 @@ module Fl::Framework
   # relationship, and therefore manages all attachment types.
 
   module Attachment
-    # The download operation; used by the access layer to check for download permissions.
-
-    ACCESS_DOWNLOAD = :download
   end
 end
 
+require 'fl/framework/attachment/constants'
 require 'fl/framework/attachment/configuration'
+require 'fl/framework/attachment/query'
+require 'fl/framework/attachment/registration'
+require 'fl/framework/attachment/attachable'
+require 'fl/framework/attachment/common'
+require 'fl/framework/attachment/helper'
+if defined?(ActiveRecord)
+  require 'fl/framework/attachment/active_record'
+end
+if defined?(Neo4j)
+  require 'fl/framework/attachment/neo4j'
+end

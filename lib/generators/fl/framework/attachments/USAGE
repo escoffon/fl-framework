@@ -1,0 +1,65 @@
+Description:
+  This generator installs controller support for attachments nested inside an
+  attachable resource using a shallow routing setup.
+  - It generates an initializer that contains configuration options for standard
+    attachment types.
+  - It generates a controller that supports the two actions :index and :create
+    (JSON format only) from within the context of the attachable resource.
+  - It adds a nested routing rule in the application's config/routes.rb file
+    that dispatches to the controller for those two actions.
+  - It adds code in the attachable resource's class that enables comment
+    management.
+
+  The generated controller will likely still need to be modified, for example to
+  add authentication checks.
+
+  The attachable class will have to be modified to add access checks for the
+  attachment operations :attachment_index and :attachment_create.
+
+  The generated initializer will need to be modified, at least to set the hash
+  secret used by the URI obfuscation feature. Also, since the configuration for
+  many types uses AWS S3 for storage, you will have to set up the aws-sdk
+  configuration file as described in the Paperclip documentation
+  (see https://github.com/thoughtbot/paperclip).
+
+Arguments:
+  ATTACHABLE_CLASS # The name of the class that will provide the nesting 
+  		   # context for the controller. The default is 'Attachable'
+		   # and is almost guaranteed to be incorrect.
+
+Example:
+  rails generate fl:framework:attachments My::Article
+
+  The generator will create:
+    config/initializers/fl_attachments.rb (if it does not exist already)
+    app/controllers/my/article_attachments_controller.rb
+
+  It will then add the following entry in the routes.rb file if it does not find
+  a 'resources :articles' directive:
+    namespace :my do
+      resources :articles do
+        resources :attachments, only: [ :index, :create ], :controller => article_attachments'
+      end
+    end
+  If it does find a 'resources :articles' rule, then it inserts the
+  'resources :attachments' directive in the 'resources :articles' block (and
+  creates the block if necessary). In this example, the rule
+    namespace :my do
+      resources :articles
+    end
+  will be converted to:
+    namespace :my do
+      resources :articles do
+        resources :attachments, only: [ :index, :create ], :controller => article_comments'
+      end
+    end
+
+  Finally, it will attempt to enable attachment support in My::Article by
+   editing
+    app/models/my/article.rb
+  If attachments have not been enabled yet, it adds the following fragment to the
+  class definition:
+    include Fl::Framework::Access::Access unless define?(Fl::Framework::Access::Access)
+    include Fl::Framework::Attachment::Attachable
+    include Fl::Framework::Attachment::ActiveRecord::Attachable
+    has_attachments

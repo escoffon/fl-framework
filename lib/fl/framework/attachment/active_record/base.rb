@@ -1,156 +1,144 @@
+require 'fl/framework/attachment/active_record/registration'
+require 'fl/framework/attachment/common'
+require 'fl/framework/attachment/helper'
+
 module Fl::Framework::Attachment::ActiveRecord
   # Base class for attachments on ActiveRecord objects.
   # Attachments always appear in the database associated with another object, which is referred to as the
-  # attachment's _master_.
+  # attachment's _attachable_.
   #
   # Attachments implement the access control API in {Fl::Framework::Access::Access}, but forward permission
-  # calls to the master object as follows:
-  # - *:index* permission is granted if the user has +:read+ access to the context (which is the master).
-  # - *:create* permission is granted if the user has +:write+ access to the context (which is the potential
-  #    master).
-  # - *:read* permission is granted if the user has +:read+ access to the master.
-  # - *:write* permission is granted if the user has +:write+ access to the master.
-  # - *:destroy* permission is granted if the user has +:write+ access to the master.
-  # - {Fl::Framework::Attachment::ACCESS_DOWNLOAD} (*:download*) permission is granted if the user has
-  #   +:read+ access to the master.
+  # calls to the attachable object as described in {Fl::Framework::Attachment::Common}.
+  #
+  # This base class and its underlying table have been set up for Single Table Inheritance, so that all
+  # attachment subtypes can be kept in a single table. STI is appropriate here, because the various
+  # subclasses are not expected to vary much (if any) in the set of attributes they support.
+  # One consequence of using STI is that the Paperclip attachment's attributes are stored in the common table,
+  # and therefore all subclasses must use the common attachment name, which is +:attachment+.
+  # This is inconvenient, since different names provide hints to the supported contents of the attachment
+  # for each class. Additionally, we cannot associate the Paperclip attachment to the +:attachment+ attributes
+  # in the base class (we can't put a call to +activerecord_attachment+ or +neo4j_attachment+ in the
+  # base class), since different attachment subclasses will likely want to set different configurations
+  # for their Paperclip attachments.
+  # So, there are two issues here: first, {Base} does not associate a Paperclip attachment, leaving it to
+  # the subclasses to do so; and, second, the subclasses must all associate to the +:attachment+ name.
+  # In order to address this situation, the
+  # {Fl::Framework::Attachment::ActiveRecord::Registration::ClassMethods#activerecord_attachment}
+  # class method supports the *:_alias* option to alias +:attachment+ to a subclass-specific name.
+  # For example, a subclass that stores image files could be defined like this:
+  #   class MyImageAttachment < Fl::Framework::Attachment::ActiveRecord::Base
+  #     activerecord_attachment :attachment, _type: :image, _alias: :image
+  #   end
+  # and will respond to both +attachment+ and +image+ to manage the Paperclip attachment.
+  #
+  # Along the same lines, since the base attribute for the Paperclip attachment is +:attachment+,
+  # subclasses will have to have to convert attachment parameter names in their +initializer+ and
+  # +update_attributes+ methods. However, this class implements {.initializer} and {#update_attributes}
+  # to do that conversion, so that subclasses need to call +super+ in the initializer, and have no need
+  # to do anything special in +update_attributes+.
   #
   # === Attributes
   # This class defines the following attributes:
   # - +title+ is a string containing a title for the attachment.
-  # - +description+ is a string containing a description of the attachment.
+  # - +caption+ is a string containing a caption for the attachment.
   # - +created_at+ is an Integer containing the UNIX creation time.
   # - +updated_at+ is an Integer containing the UNIX modification time.
+  # Note that the class does not define an +attachment+ attribute.
   #
   # === Associations
   # This class defines the following associations:
-  # - *master* is the object that controls the attachment.
+  # - *attachable* is the object that controls the attachment.
+  # - *author* is the entity (typically a user) that created the attachment.
 
-  class Base
-    # @!visibility private
-    class MasterAccessValidator < ActiveModel::Validator
-      # @!visibility private
-      def validate(record)
-        unless record.master.blank?
-          unless record.master.respond_to?(:permission?)
-            record.errors[:base] << I18n.tx('fl.attachment.base.model.validate.master_no_access_api',
-                                            mclass: record.master.class.name)
-          end
-        end
-      end
-    end
+  class Base < Fl::Framework::ApplicationRecord
+    include Fl::Framework::Attachment::ActiveRecord::Registration
+    include Fl::Framework::Attachment::Common
 
-    include Neo4j::ActiveNode
-    include Fl::Attachment::Registration
+    self.table_name = 'fl_framework_attachments'
 
-    include Fl::AttributeFilters
-    include Fl::ModelHash
-    include Fl::Core::TitleManagement
-    include Fl::Access::Access
+    # @!attribute [rw] title
+    # The attachment's title.
+    # @return [String] Returns the attachment title.
 
-    # @!visibility private
-    TITLE_LENGTH = 40
+    # @!attribute [rw] caption
+    # The attachment's caption.
+    # @return [String] Returns the attachment caption.
 
-    # @!visibility private
-    DEFAULT_HASH_KEYS = [ :master, :title, :description ]
+    # @!attribute [rw] attachment
+    # The attachment's Paperclip attachment. Technically, this class does not define this attribute,
+    # but all subclasses will, so virtually the attribute is present here.
+    # @return [String] Returns the attachment's Paperclip attachment.
 
-    property :title, type: String
-    property :description, type: String
-
-    property :created_at, type: Integer
-    property :updated_at, type: Integer
-
-    # @!attribute [rw] master
+    # @!attribute [rw] attachable
     # The association linking to the master object for the attachment.
     #
-    # @overload master
-    #  @return Returns the attachment's master object.
-    # @overload master=(m)
-    #  Set the master object.
+    # @overload attachable
+    #  @return Returns the attachment's attachable object.
+    # @overload attachable=(a)
+    #  Set the attachable object.
     #  This implementation wraps around the original setter to perform the following operations:
-    #  1. call {#will_change_master} and return immeditely if the method returns a false value.
-    #  2. set the new master to _o_.
-    #  3. call *association_proxy_cache.clear* on the old master, so that any cached attachment
-    #     associations are cleared.
-    #  4. call *association_proxy_cache.clear* on the new master, so that any cached attachment
-    #     associations are cleared.
-    #  5. call {#did_change_master}.
-    #  Clearing the association proxy caches is a bit brutal, but it keeps the attachment lists in sync.
+    #  1. call {#will_change_attachable} and return immeditely if the method returns a false value.
+    #  2. set the new attachable to _a_.
+    #  5. call {#did_change_attachable}.
     #
-    #  @param m [Object] The new master.
+    #  @param a [Object] The new association.
 
-    has_one :out, :master, rel_class: :'Fl::Rel::Attachment::AttachedTo'
+    belongs_to :attachable, polymorphic: true
 
-    before_destroy :_delete_master_relationship
+    # @!attribute [r] author
+    # The entity that created the comment, and therefore owns it.
+    # @return [Object] Returns the object that created the comment.
 
-    validates_presence_of :master
-    validates_with MasterAccessValidator
-
-    before_validation :_before_validation_checks
-    before_save :_before_save_checks
-    after_save :_reset_master_cache
-
-    filtered_attribute :title, [ FILTER_HTML_STRIP_DANGEROUS_ELEMENTS, FILTER_HTML_TEXT_ONLY ]
-    filtered_attribute :description, FILTER_HTML_STRIP_DANGEROUS_ELEMENTS
-
-    access_op :index, :_index_check
-    access_op :create, :_create_check
-    access_op :read, :_read_check
-    access_op :write, :_write_check
-    access_op :destroy, :_destroy_check
-    access_op Fl::Attachment::ACCESS_DOWNLOAD, :_download_check, scope: :instance
+    belongs_to :author, polymorphic: true
 
     # Initializer.
-    # The +master+ attribute is resolved to an object if passed as a dictionary
-    # containing the object class and object id.
+    # The +attachable+ and +author+ attributes are resolved to an object if passed as a dictionary
+    # containing the object class and object id, or if passed as a fingerprint.
     #
     # @param attrs [Hash] A hash of initialization parameters.
-    # @option attrs [Object, Hash] :master is the master object; this can be passed either as an object,
-    #  or as a Hash containing the two keys *:id* and *:type*.
+    # @option attrs [Object, Hash, String] :author The attachment author. The value is resolved via a call
+    #  to {Fl::Framework::Comment::Comment::Helper.author_from_parameter}.
+    # @option attrs [Object, Hash, String] :attachable is the attachable object; this can be passed either
+    #  as an object, a Hash containing the two keys *:id* and *:type*, or a string containing the object's
+    #  fingerprint.
+    # @option attrs [Object] :attachment The attachment object, which could be a Paperclip::Attachment,
+    #  or a ActionDispatch::Http::UploadedFile. Subclasses may use a different name for the attachment
+    #  parameter; the initializer calls calls
+    #  {Fl::Framework::Attachment::Common::InstanceMethods#normalize_attachment_attribute} to convert
+    #  it to an *:attachment* parameter.
     # @option attrs [String] :title is the title for the attachment. The value may be +nil+.
-    # @option attrs [String] :description is the description for the attachment. The value may be +nil+.
+    # @option attrs [String] :caption is the caption for the attachment. The value may be +nil+.
 
     def initialize(attrs = {})
-      if attrs.has_key?(:master)
-        begin
-          attrs[:master] = self.class.convert_master(attrs, :master)
-        rescue => exc
-          self.errors[:master] << exc.message
-          attrs.delete(:master)
-        end
+      begin
+        attrs[:author] = Fl::Framework::Attachment::Helper.author_from_parameter(attrs)
+      rescue => exc
+        self.errors[:author] << exc.message
       end
 
-      # why do we save the master? Because the :master association actually uses a different object
-      # instance to store the master, and therefore the one that was passed is not the one returned
-      # by a call to self.master. As a consequence, calls like self.master.association_proxy_cache.clear
-      # do not have the desired effect, since they are made to the association object rather than the
-      # one that was passed in. So we remember what was passed in and make the calls on it as needed.
+      begin
+        attrs[:attachable] = Fl::Framework::Attachment::Helper.attachable_from_parameter(attrs)
+      rescue => exc
+        self.errors[:attachable] << exc.message
+      end
 
-      @_master = attrs[:master]
+      attrs = normalize_attachment_attribute(attrs)
 
       super(attrs)
     end
 
     # @!visibility private
-    alias _original_created_at= created_at=
-    # @!visibility private
-    alias _original_updated_at= updated_at=
+    alias _original_update_attributes update_attributes
 
-    # Set the creation time.
+    # Update attributes.
+    # This method wraps the call to the original implementation to convert the class-specific attachment
+    # name via {Fl::Framework::Attachment::Common::InstanceMethods#normalize_attachment_attribute}.
     #
-    # @param ctime The creation time; this can be an integer UNIX timestamp, or a TimeWithZone instance.
+    # @param [Hash] attrs The attributes to update.
 
-    def created_at=(ctime)
-      ctime = ctime.to_i unless ctime.is_a?(Integer)
-      self._original_created_at=(ctime)
-    end
-
-    # Set the update time.
-    #
-    # @param utime The update time; this can be an integer UNIX timestamp, or a TimeWithZone instance.
-
-    def updated_at=(utime)
-      utime = utime.to_i unless utime.is_a?(Integer)
-      self._original_updated_at=(utime)
+    def update_attributes(attrs)
+      attrs = normalize_attachment_attribute(attrs)
+      _original_update_attributes(attrs)
     end
 
     # Get the attachment type.
@@ -172,208 +160,53 @@ module Fl::Framework::Attachment::ActiveRecord
     end
 
     # @visibility private
-    alias _original_master= master=
+    alias _original_attachable= attachable=
 
-    def master=(o)
-      if self.will_change_master(@_master, o)
-        self._original_master=(o)
-        @_master.association_proxy_cache.clear if @_master.respond_to?(:association_proxy_cache)
-        o.association_proxy_cache.clear if o.respond_to?(:association_proxy_cache)
-        self.did_change_master(@_master, o)
-        @_master = o
+    # This is here just so that YARD doesn't mark the attribute writeonly.
+    def attachable()
+      super()
+    end
+
+    def attachable=(a)
+      if self.will_change_attachable(self.attachable, a)
+        old = self.attachable
+        self._original_attachable=(a)
+        self.did_change_attachable(old, a)
       end
     end
 
-    # Add the attachment to a master object.
-    # This method performs the following operations:
-    # - removes itself from the current master object, if any.
-    # - saves the master object if it has not yet been persisted; this is required before a new
-    #   +ATTACHED_TO+ relationship is created.
-    # - saves +self+ if not persisted, for the same reason as above.
-    # - sets the new *:master* value, which creates a new +ATTACHED_TO+ relationship.
+    # Add the attachment to an attachable object.
+    # This method currently simply calls {#attachable=}, but we define an API so that in the future
+    # we could add functionality to the operation.
     #
-    # @param master [Object] The new master object.
+    # @param attachable [Object] The new attachable object.
 
-    def attach_to_object(master)
-      self.master = master
-    end
-
-    # Convert a master parameter to an object.
-    # 1. If _p_ is a hash, see if it contains the key in _key_.
-    # 2. If it does, get the value and start the conversion from 1.
-    # 3. If it does not, see if it contains the two keys +:id+ and +:type+, and use those to get the
-    #    master from the database.
-    # 4. If the value is not a hash, check if it responds to +permission?+, and if so return the value.
-    # 5. Otherwise, return +nil+
-    #
-    # @param p [Hash, Object] The parameter value.
-    # @param key [Symbol] The key to look up, if _p_ is a Hash.
-    #
-    # @return Returns an object, or +nil+ if no object was found.
-    #
-    # @raise if _p_ maps to a +nil+, or if _p_ is neither a Hash nor an object.
-
-    def self.convert_master(p, key = :master)
-      if p.is_a?(Hash)
-        k = key.to_sym
-        if p.has_key?(k)
-          convert_master(p[k], key)
-        else
-          p_class = p[:type]
-          unless p_class
-            raise I18n.tx('fl.attachment.base.model.conversion.missing_key', :key => 'type')
-          else
-            begin
-              klass = p_class.constantize
-            rescue => exc
-              raise I18n.tx('fl.attachment.base.model.conversion.bad_master_class', :class => p_class)
-            end
-
-            p_id = p[:id]
-            unless p_id
-              raise I18n.tx('fl.attachment.base.model.conversion.missing_key', :key => 'id')
-            else
-              klass.find(p_id)
-            end
-          end
-        end
-      else
-        (p.respond_to?(:permission?)) ? p : nil
-      end
+    def attach_to_object(attachable)
+      self.attachable = attachable
     end
 
     protected
 
-    # The master will change.
-    # The base implementation is empty; subclasses can override to add logic to the set operation.
+    # The attachable will change.
+    # The base implementation simply returns +true+; subclasses can override to add logic to the set operation,
+    # including vetoing it.
     #
-    # @param old [Object] The old master.
-    # @param new [Object] The new master.
+    # @param old [Object] The old attachable.
+    # @param new [Object] The new attachable.
     #
     # @return [Boolean] Return +true+ to proceed with the set, +false+ to veto the operation.
 
-    def will_change_master(old, new)
+    def will_change_attachable(old, new)
       true
     end
 
-    # The master did change.
+    # The attachable did change.
     # The base implementation is empty; subclasses can override to add logic to the set operation.
     #
-    # @param old [Object] The old master.
-    # @param new [Object] The new master.
+    # @param old [Object] The old attachable.
+    # @param new [Object] The new attachable.
 
-    def did_change_master(old, new)
-    end
-
-    # Given a verbosity level, return predefined hash options to use.
-    #
-    # @param verbosity [Symbol] The verbosity level; see #to_hash.
-    # @param opts [Hash] The options that were passed to #to_hash.
-    #
-    # @return [Hash] Returns a hash containing default options for +verbosity+.
-
-    def to_hash_options_for_verbosity(verbosity, opts)
-      if (verbosity == :minimal) || (verbosity == :standard)
-        {
-          :include => DEFAULT_HASH_KEYS
-        }
-      elsif (verbosity == :verbose) || (verbosity == :complete)
-        {
-          :include => DEFAULT_HASH_KEYS | []
-        }
-      else
-        {}
-      end
-    end
-
-    # Return the default list of operations for which to check permissions.
-    # This implementation returns the array <tt>[ :read, :write, :destroy ]</tt>; we add :read because
-    # comments can be picked up from the controller independently of the commentable (the actions 
-    # +:show+, +:edit+, +:update+, and +:destroy+ are not nested in the commentable).
-    #
-    # @return [Array<Symbol>] Returns an array of Symbol values that list the operations for which
-    #  to obtain permissions.
-
-    def to_hash_operations_list
-      [ ]
-    end
-
-    # Build a Hash representation of the attachment.
-    #
-    # @param user [Fl::Core::User] The user for which (whom?) we are building the hash representation. Some
-    #  models may return different contents, based on the requesting user.
-    #  See the documentation for {Fl::ModelHash#to_hash}.
-    # @param keys [Array<Symbol>] The keys to place in the hash.
-    # @param opts [Hash] Options for the method; none are used by {Fl::Comment::Comment}.
-    #
-    # @return [Hash] Returns a Hash containing the attachment representation.
-    # - *:master* A Hash containing the two keys +:id+ and +:type+, respectively the id and class name
-    #   of the object for which this is an attachment.
-    # - *:title* The attachment title.
-    # - *:description* The attachment description.
-    # - *:created_at* When created, as a UNIX timestamp.
-    # - *:updated_at* When last updated, as a UNIX timestamp.
-
-    def to_hash_local(user, keys, opts = {})
-      m = self.master
-
-      rv = {}
-      keys.each do |k|
-        case k
-        when :master
-          rv[k] = m.to_hash(user, verbosity: :id)
-        else
-          rv[k] = self.send(k) if self.respond_to?(k)
-        end
-      end
-
-      rv
-    end
-
-    # Destroy callback to clear the +ATTACHED_TO+ relationship.
-    # If this relationship is not removed, deletion of the node will fail.
-
-    # @!visibility private
-    def _delete_master_relationship()
-      self.query_as(:a).match('(a)-[r:ATTACHED_TO]->(m)').delete(:r).exec()
-    end
-
-    private
-
-    def _before_validation_checks
-      populate_title_if_needed(:description, TITLE_LENGTH) unless self.description.blank?
-    end
-
-    def _before_save_checks
-      populate_title_if_needed(:description, TITLE_LENGTH) unless self.description.blank?
-    end
-
-    def _reset_master_cache()
-      @_master.association_proxy_cache.clear if @_master.respond_to?(:association_proxy_cache)
-    end
-
-    def self._index_check(op, obj, user, context = nil)
-      context.permission?(user, Fl::Access::Grants::READ)
-    end
-
-    def self._create_check(op, obj, user, context = nil)
-      context.permission?(user, Fl::Access::Grants::WRITE)
-    end
-
-    def _read_check(op, obj, user, context = nil)
-      obj.master.permission?(user, Fl::Access::Grants::READ, context)
-    end
-
-    def _write_check(op, obj, user, context = nil)
-      obj.master.permission?(user, Fl::Access::Grants::WRITE, context)
-    end
-
-    def _destroy_check(op, obj, user, context = nil)
-      obj.master.permission?(user, Fl::Access::Grants::WRITE, context)
-    end
-
-    def _download_check(op, obj, user, context = nil)
-      obj.master.permission?(user, Fl::Access::Grants::READ, context)
+    def did_change_attachable(old, new)
     end
   end
 end

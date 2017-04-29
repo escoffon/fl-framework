@@ -59,3 +59,31 @@ batmac:fl-framework escoffon$ bin/rails g generator comments
       lib/generators/fl/framework/comments/comments_generator.rb
       lib/generators/fl/framework/comments/USAGE
       lib/generators/fl/framework/comments/templates
+
+-- Creating attachment model and table
+batmac:fl-framework escoffon$ bin/rails g model Attachment
+      invoke  active_record
+      create    db/migrate/20170414184953_create_fl_framework_attachments.rb
+      create    app/models/fl/framework/application_record.rb
+      create    app/models/fl/framework/attachment.rb
+      invoke    test_unit
+      create      test/models/fl/framework/attachment_test.rb
+      create      test/fixtures/fl/framework/attachments.yml
+
+   This will need tweaking of course.
+
+-- Creating a generator for the attachments
+batmac:fl-framework escoffon$ bin/rails g generator attachments
+      create  lib/generators/attachments
+      create  lib/generators/attachments/attachments_generator.rb
+      create  lib/generators/attachments/USAGE
+      create  lib/generators/attachments/templates
+      invoke  test_unit
+      create    test/lib/generators/fl/framework/attachments_generator_test.rb
+   This creates the generator that we can use to set up an attachment controller in the Rails app
+   But then we reroot the generator files at fl/framework, so that we can put the code in the Fl::Framework
+   module, so we end up with
+      lib/generators/fl/framework/attachments
+      lib/generators/fl/framework/attachments/attachments_generator.rb
+      lib/generators/fl/framework/attachments/USAGE
+      lib/generators/fl/framework/attachments/templates

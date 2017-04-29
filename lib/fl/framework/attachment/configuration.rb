@@ -216,6 +216,19 @@ module Fl::Framework::Attachment
       _access(env, stype)
     end
 
+    # @overload environment(env)
+    #  Get the configuration entries for a given Rails environment.
+    #  @param env [String] The name of the Rails environment to use.
+    #  @return Returns the available configuration entries for _env_.
+    # @overload environment()
+    #  Get the configuration entries for the current Rails environment.
+    #  @return Returns the available configuration entries for for the current Rails environment.
+
+    def environment(*args)
+      env = (args.count > 0) ? args[0].to_s : ::Rails.env
+      @environments[env]
+    end
+
     # Handler for missing methods.
     # If _type_ ends with a +=+, this is a setter method and the value of _type_ (minus the +=+) is used
     # to set the configuration options for the type with _args[0]_.

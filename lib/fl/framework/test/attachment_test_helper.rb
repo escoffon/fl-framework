@@ -6,30 +6,21 @@ module Fl::Framework::Test
     # The return value can be passed to model constructors or updaters as the value of Paperclip attachments.
     #
     # @param path [String] The path to the file.
-    # @param name [String] The name of the submission parameter, which will be placed in the
-    #  +Content-Disposition+ header.
+    # @param content_type [String] The file's content type; if passed as +nil+, the method uses the
+    #  +mimemagic+ gem to sniff out the content type from the file contents (not from the extension!).
+    # @param binary [Boolean] Passed to the Rack::Test::UploadedFile constructor.
     #
-    # @return [ActionDispatch::Http::UploadedFile] Returns an instance of ActionDispatch::Http::UploadedFile,
-    #  which is what Paperclip expects.
+    # @return [Rack::Test::UploadedFile] Returns an instance of Rack::Test::UploadedFile, which is eventually
+    #  converted to a ActionDispatch::Http::UploadedFile, which is what Paperclip expects.
+    #
+    # @example 
 
-    def self.make_uploaded_file(path, name = 'image')
-      basename = File.basename(path)
-      extension = File.extname(path).downcase
-      case extension
-      when '.jpg'
-        type = 'image/jpeg'
-      when '.gif'
-        type = 'image/gif'
-      when '.png'
-        type = 'image/png'
+    def self.make_uploaded_file(path, content_type = nil, binary = false)
+      if content_type.nil?
+        File.open(path) { |f| content_type = MimeMagic.by_magic(f).type }
       end
-      tfile = File.open(path, 'rb')
-      ActionDispatch::Http::UploadedFile.new({
-                                               :filename => basename,
-                                               :type => type,
-                                               :head => "Content-Disposition: form-data; name=\"#{name}\"; filename=\"#{basename}\"\r\nContent-Type: #{type}\r\n",
-                                               :tempfile => tfile
-                                             })
+
+      Rack::Test::UploadedFile.new(path, content_type, binary)
     end
   end
 end

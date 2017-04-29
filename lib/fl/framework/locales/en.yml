@@ -28,6 +28,20 @@ en:
               create:
                 no_commentable_permission: "to create a comment for an object, the user must have access to the object"
 
+      attachment:
+        base:
+          model:
+            validate:
+              attachable_no_access_api: "the class %{mclass} does not support the Access APIs"
+
       service:
         comment:
           cannot_create: "could not create a comment for %{fingerprint}"
+        attachment:
+          type_mismatch: "attachment type mismatch; declared: %{declared_type}, detected: %{detected_type}"
+          type_not_allowed: "attachable %{fingerprint} does not store type %{type}"
+          no_class: "unsupported attachment content type %{type}"
+          cannot_create: "could not create an attachment for %{fingerprint}"
+          active_record:
+            forbidden: "no permission to perform operation %{op}"
+

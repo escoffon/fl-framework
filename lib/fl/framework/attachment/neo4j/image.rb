@@ -1,3 +1,5 @@
+require 'fl/framework/rel/attachment/imageattached_to'
+
 module Fl::Framework::Attachment::Neo4j
   # An attachment that contains an image file.
   # Image attachments are associated via the +ATTACHED_TO+ relationship like all attachments, but they

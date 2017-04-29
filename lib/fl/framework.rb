@@ -9,12 +9,13 @@ module Fl
   end
 end
 
-require 'fl/framework/core'
-require 'fl/framework/access'
-require 'fl/framework/service'
-require 'fl/framework/controller'
-require 'fl/framework/attachment'
-require 'fl/framework/comment'
-require 'fl/framework/test'
+#require 'fl/framework/core'
+#require 'fl/framework/query'
+#require 'fl/framework/access'
+#require 'fl/framework/service'
+#require 'fl/framework/controller'
+#require 'fl/framework/attachment'
+#require 'fl/framework/comment'
+#require 'fl/framework/test'
 
-require 'fl/framework/active_record'
+#require 'fl/framework/active_record'

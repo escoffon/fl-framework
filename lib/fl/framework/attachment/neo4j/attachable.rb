@@ -2,7 +2,7 @@ module Fl::Framework::Attachment::Neo4j
   # Extension module for use by objects that manage attachments.
   # This module defines common functionality for all model classes that manage attachments.
 
-  module Master
+  module Attachable
     # The methods in this module will be installed as class methods of the including class.
 
     module ClassMethods
@@ -72,16 +72,22 @@ module Fl::Framework::Attachment::Neo4j
     end
 
     # Perform actions when the module is included.
-    # - Injects the class methods. Instance methods will be injected if #has_attachments is called.
+    # - Injects the class methods; the instance methods are loaded by {ClassMethods#has_attachments}.
+    # - In the context of the _base_ (and therefore of the comment class), includes the module
+    #   {Fl::Framework::Attachment::Attachable}.
+    #
+    # @param [Module] base The module or class that included this module.
 
     def self.included(base)
       base.extend ClassMethods
+
+      base.send(:include, Fl::Framework::Attachment::Attachable)
+      # base.send(:include, InstanceMethods)
 
       base.instance_eval do
       end
 
       base.class_eval do
-        # include InstanceMethods
       end
     end
   end
