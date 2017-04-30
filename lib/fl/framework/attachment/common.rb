@@ -296,7 +296,7 @@ module Fl::Framework::Attachment
       TO_HASH_ATTACHMENT_SIZES = [ :large, :medium, :small, :thumb, :iphone ]
 
       # @!visibility private
-      DEFAULT_HASH_KEYS = [ :attachable, :author, :title, :caption ]
+      DEFAULT_HASH_KEYS = [ :attachable, :author, :title, :caption, :processing ]
 
       # Given a verbosity level, return predefined hash options to use.
       #
@@ -371,6 +371,10 @@ module Fl::Framework::Attachment
                                                        include: [ :username, :full_name, :avatar ]
                                                      })
             rv[k] = u.to_hash(actor, author_opts)
+          when :processing
+            # since we don't have DJ loaded yet, we always return false
+
+            rv[k] = false
           else
             if self.respond_to?(k)
               v = self.send(k)

@@ -186,7 +186,7 @@ module Fl::Framework::Comment
           }
         elsif (verbosity == :verbose) || (verbosity == :complete)
           {
-            :include => DEFAULT_HASH_KEYS | []
+            :include => DEFAULT_HASH_KEYS | [ :attachments ]
           }
         else
           {}
@@ -229,6 +229,7 @@ module Fl::Framework::Comment
       # - *:permissions* An array containing permissions on this comment.
       # - *:title* The comment title.
       # - *:contents* The contents of the comment.
+      # - *:attachments* An array of attachment objects.
 
       def to_hash_local(actor, keys, opts = {})
         to_hash_opts = opts[:to_hash] || {}
@@ -246,6 +247,10 @@ module Fl::Framework::Comment
                                                        include: [ :username, :full_name, :avatar ]
                                                      })
             rv[k] = u.to_hash(actor, author_opts)
+          when :attachments
+            attachment_opts = to_hash_opts_with_defaults(to_hash_opts[:attachments], { })
+            _q = attachment_opts.has_key?(:_q) ? attachment_opts[:_q] : {}
+            rv[k] = self.attachments_query(_q).to_a.map { |a| a.to_hash(actor, attachment_opts) }
           else
             rv[k] = self.send(k) if self.respond_to?(k)
           end
