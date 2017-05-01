@@ -38,6 +38,7 @@ cfg.defaults(nil, {
 # Standard parameters for images
 cfg.defaults(:fl_framework_image, {
                styles: {
+                 xlarge: "1200x1200>",
                  large: "600x600>",
                  medium: "400x400>",
                  small: "200x200>",

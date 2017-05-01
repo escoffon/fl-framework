@@ -293,7 +293,7 @@ module Fl::Framework::Attachment
       protected
 
       # @!visibility private
-      TO_HASH_ATTACHMENT_SIZES = [ :large, :medium, :small, :thumb, :iphone ]
+      TO_HASH_ATTACHMENT_SIZES = [ :xlarge, :large, :medium, :small, :thumb, :iphone ]
 
       # @!visibility private
       DEFAULT_HASH_KEYS = [ :attachable, :author, :title, :caption, :processing ]
