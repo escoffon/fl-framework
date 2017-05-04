@@ -33,6 +33,10 @@ en:
           model:
             validate:
               attachable_no_access_api: "the class %{mclass} does not support the Access APIs"
+        controller:
+          actions:
+            destroy:
+              deleted: "deleted attachment %{fingerprint}"
 
       service:
         comment:
