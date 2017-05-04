@@ -24,9 +24,9 @@ module Fl::Framework::Attachment
   #   the *:write* permission; see {ClassMethods#_create_check}.
   # - *:read* forwards the request to the attachable, using  the *:read* permission;
   #   see {InstanceMethods#_read_check}.
-  # - *:write* forwards the request to the attachable, using  the *:write* permission;
-  #   see {InstanceMethods#_write_check}.
-  # - *:destroy* forwards the request to the attachable, using  the *:write* permission;
+  # - *:write* grants access to the attachment's author by returning +:private+, and denies it to anyone else.
+  #   See {InstanceMethods#_write_check}.
+  # - *:destroy* grants access to the attachment's author by returning +:private+, and denies it to anyone else.
   #   see {InstanceMethods#_destroy_check}.
   # - *:download* forwards the request to the attachable, using  the *:read* permission;
   #   see {InstanceMethods#_download_check}.
@@ -224,29 +224,37 @@ module Fl::Framework::Attachment
       # Access checker for the *:write* operation
       #
       # @param op [Fl::Framework::Access::Access::Checker] The requested operation (*:write*).
-      # @param obj [Object] The target of the request.
+      # @param obj [Object] The target of the request; in our case, the attachment.
       # @param actor [Object] The actor requesting permission.
       # @param context The context in which to do the check.
       #
-      # @return [Symbol, nil, Boolean] Forwards the call to the attachable, using the *:write* permission:
-      #  _actor_ can modify the attachment if it has write access to the attachable.
+      # @return [Symbol, nil, Boolean] Returns +:private+ if _actor_ is the same as the attachment's author,
+      #  +nil+ otherwise: only the attachment's author can modify it.
 
       def _write_check(op, obj, actor, context = nil)
-        obj.attachable.permission?(actor, Fl::Framework::Access::Grants::WRITE, context)
+        if actor && (actor.class == obj.author.class) && (actor.id == obj.author.id)
+          :private
+        else
+          nil
+        end
       end
 
       # Access checker for the *:destroy* operation
       #
       # @param op [Fl::Framework::Access::Access::Checker] The requested operation (*:destroy*).
-      # @param obj [Object] The target of the request.
+      # @param obj [Object] The target of the request; in our case, the attachment.
       # @param actor [Object] The actor requesting permission.
       # @param context The context in which to do the check.
       #
-      # @return [Symbol, nil, Boolean] Forwards the call to the attachable, using the *:write* permission:
-      #  _actor_ can delete the attachment if it has write access to the attachable.
+      # @return [Symbol, nil, Boolean] Returns +:private+ if _actor_ is the same as the attachment's author,
+      #  +nil+ otherwise: only the attachment's author can modify it.
 
       def _destroy_check(op, obj, actor, context = nil)
-        obj.attachable.permission?(actor, Fl::Framework::Access::Grants::WRITE, context)
+        if actor && (actor.class == obj.author.class) && (actor.id == obj.author.id)
+          :private
+        else
+          nil
+        end
       end
 
       # Access checker for the *:download* operation
