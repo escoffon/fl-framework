@@ -10,14 +10,11 @@ module Fl
     class Engine < ::Rails::Engine
       isolate_namespace Fl::Framework
 
-      locale_path = Dir.glob(File.dirname(__FILE__) + "/locales/*.{rb,yml}")
-      I18n.load_path += locale_path unless I18n.load_path.include?(locale_path)
-
       # We load the framework at the last step, after Paperclip has loaded.
       # Otherwise, the active record attachment code fails because has_attached_file has not
       # yet been defined.
 
-      initializer '9999.fl_framework.load' do |app|
+      initializer '9900.fl_framework.load' do |app|
         # First, we need to load the initializer with the standard attachments, because the attachment
         # code makes use of standard attachment types.
 
@@ -47,6 +44,10 @@ module Fl
 
         require 'fl/framework/active_record'
         require 'fl/framework/application_record'
+
+        # and let's add the locale file. How do we manage if the users want to customize?
+
+        config.i18n.load_path.concat(Dir[File.expand_path('../locales/*.yml', __FILE__)])
       end
     end
   end
