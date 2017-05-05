@@ -33,13 +33,13 @@ module Fl::Framework::Attachment::ActiveRecord
       #  standard Paperclip configuration options, this hash may contain configuration options for additional
       #  processors; for example, see {Paperclip::Floopnail}, which is added to the Paperclip processor for
       #  many of the standard image-based attachment types.
-      # @option cfg [Symbol] :_type is the attachment type; it should be one of the types registered with
+      # @option opts [Symbol] :_type is the attachment type; it should be one of the types registered with
       #  {Fl::Framework::Attachment::ConfigurationDispatcher}. If this option is present, the default
       #  configuration options are obtained from the {Fl::Framework::Attachment::ConfigurationDispatcher#config}
       #  method.
       #  All other options in _opts_ are then merged into this default value. So, when this option is present,
       #  the other options are overrides to the standard type configuration.
-      # @option cfg [Symbol] :_alias is an alternate name for the attachment (in addition to _name_), and will
+      # @option opts [Symbol] :_alias is an alternate name for the attachment (in addition to _name_), and will
       #  be registered using the Ruby +alias+ directive. The rational for this feature is to support
       #  Single Table Inheritance of attachment objects: the STI table contains a single attachment
       #  reference (often +:attachment+), and subclasses all have to call {#activerecord_attachment} using
@@ -47,7 +47,7 @@ module Fl::Framework::Attachment::ActiveRecord
       #  This feature aliases all +attachment_+ methods to +myatt_+ methods, where +myatt+ is the value
       #  of the *:_alias* option: consumers of the API can then use the +myattr+ variant to refer to the
       #  attachment, which makes the code a bit more readable.
-      # @option cfg [Boolean] :_delayed indicates if the attachment is to be processed "inline," or if it
+      # @option opts [Boolean] :_delayed indicates if the attachment is to be processed "inline," or if it
       #  should be put in a queue for later processing using +delayed_paperclip+.
       #  Set to +false+ for inline processing; this is the default value, so if the option is not present,
       #  processing happens inline.
@@ -73,26 +73,16 @@ module Fl::Framework::Attachment::ActiveRecord
         end
 
         if delayed
-          # we want delayed processing: first, set up the class by picking up the delayed_paperclip
-          # extensions and the delayed_paperclip overrides, and then defining the :unscoped method (which
-          # delayed_paperclip assumes, since it assumes that it is running in the context of an ActiveRecord
-          # class)
+          # we want delayed processing: set up the configuration
 
-          #unless self.include?(DelayedPaperclip::Glue)
-          #  include DelayedPaperclip::Glue
-          #end
-
-          #unless self.include?(PaperclipDelayedOverrides)
-          #  include PaperclipDelayedOverrides
-          #end
-
-          #def self.unscoped()
-          #  return self
-          #end
+          unless delayed.is_a?(Hash)
+            delayed = { }
+            delayed[:processing_image_url] = cfg[:processing_image_url] if cfg[:processing_image_url]
+          end
 
           # now we can request that this attribute be processed in background
 
-          process_in_background name.to_sym
+          process_in_background name.to_sym, delayed
         end
       end
     end

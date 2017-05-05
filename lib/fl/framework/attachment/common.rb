@@ -380,9 +380,7 @@ module Fl::Framework::Attachment
                                                      })
             rv[k] = u.to_hash(actor, author_opts)
           when :processing
-            # since we don't have DJ loaded yet, we always return false
-
-            rv[k] = false
+            rv[k] = (self.respond_to?(:processing?)) ? self.processing? : false
           else
             if self.respond_to?(k)
               v = self.send(k)
