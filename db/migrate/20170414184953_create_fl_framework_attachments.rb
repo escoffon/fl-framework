@@ -10,9 +10,10 @@ class CreateFlFrameworkAttachments < ActiveRecord::Migration[5.0]
       # Polymorphic reference to the author (the entity that created the attachment)
       t.references :author, polymorphic: true, index: { name: 'fl_framework_attach_author_ref' }
 
-      # Paperclip attributes
+      # Paperclip attributes (including support for delayed paperclip's processing flag)
       t.attachment :attachment
       t.string :attachment_fingerprint
+      t.boolean :attachment_processing
 
       # Attachment attributes
       t.text :title

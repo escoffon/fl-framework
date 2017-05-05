@@ -1,6 +1,4 @@
-require 'fl/framework/attachment/active_record/base'
-
-module Fl::Framework::Attachment::ActiveRecord
+<%= @open_module %>
   # An Active Record attachment that contains an image file.
   #
   # === Attributes
@@ -13,13 +11,14 @@ module Fl::Framework::Attachment::ActiveRecord
   # === Associations
   # This class defines no additional associations.
 
-  class Image < Fl::Framework::Attachment::ActiveRecord::Base
+  class <%=@class_name%> < Fl::Framework::Attachment::ActiveRecord::Base
     # @!visibility private
     ATTACHMENT_ALIAS = :image
 
     # @!visibility private
     ATTACHMENT_TYPE = :fl_framework_image
 
+    # to turn on delayed processing, add the option '_delayed: true'
     activerecord_attachment :attachment, _type: ATTACHMENT_TYPE, _alias: ATTACHMENT_ALIAS
     set_attachment_alias ATTACHMENT_ALIAS
     register_mime_types 'image/*' => :activerecord
@@ -44,4 +43,4 @@ module Fl::Framework::Attachment::ActiveRecord
       ATTACHMENT_TYPE
     end
   end
-end
+<%= @close_module %>
