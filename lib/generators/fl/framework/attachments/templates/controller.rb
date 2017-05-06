@@ -23,18 +23,6 @@
       end
     end
 
-    # GET /attachments/1
-    def show
-    end
-
-    # GET /attachments/new
-    def new
-    end
-
-    # GET /attachments/1/edit
-    def edit
-    end
-
     # POST /attachments
     def create
       service = Fl::Framework::Service::Attachment::ActiveRecord.new(<%=@full_class_name%>, current_user, params)
@@ -49,21 +37,6 @@
           end
         end
       end
-    end
-
-    # PATCH/PUT /attachments/1
-    def update
-      if @attachment.update(attachment_params)
-        redirect_to @attachment, notice: 'Attachment was successfully updated.'
-      else
-        render :edit
-      end
-    end
-
-    # DELETE /attachments/1
-    def destroy
-      @attachment.destroy
-      redirect_to attachments_url, notice: 'Attachment was successfully destroyed.'
     end
 
     private
