@@ -12,6 +12,9 @@ module Paperclip
   # The resized image is centered on the background (using -gravity center). This behavior results in
   # images of a given size, containing resized images that may or may not cover the size, but whose
   # aspect ratio may have been kept (if the +geometry+ option sets it up that way).
+  #
+  # Note also that, if +keep_size+ is +true+, then the value of the +source_file_options+ option is
+  # ignored, since the processor will set up its own specialized version.
 
   class Floopnail < Thumbnail
     # @!attribute keep_size
@@ -45,18 +48,18 @@ module Paperclip
       end
     end
 
-    # Returns the command ImageMagick's +convert+ needs to transform the image
-    # into the thumbnail.
+    # Performs the conversion of the file into a thumbnail. Returns the Tempfile that contains the new image.
     #
-    # This implementation augments the superclass by adding commands related to {#keep_size}.
+    # This implementation sets the +source_file_options+ and +convert_options+ values as needed for the
+    # thumbnail, and then calls the superclass implementation.
 
-    def transformation_command
-      trans = super
+    def make()
       if @keep_size
-        trans << "-size" << "#{@target_geometry.width.to_i}x#{@target_geometry.height.to_i}" << "#{@bg_color}"
-        trans << "-gravity" << "center" << "-composite"
+        @source_file_options = [ "-size", "#{@target_geometry.width.to_i}x#{@target_geometry.height.to_i}", "#{@bg_color}" ]
+        @convert_options = [ "-gravity", "center", "-composite" ]
       end
-      trans
+
+      super
     end
 
     protected
