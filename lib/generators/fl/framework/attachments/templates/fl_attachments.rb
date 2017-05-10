@@ -37,12 +37,21 @@ cfg.defaults(nil, {
 
 # Standard parameters for images
 cfg.defaults(:fl_framework_image, {
-               styles: {
+               styles: ->(a) { (a.instance.respond_to?(:watermarked?) && a.instance.watermarked?) ? a.options[:watermark_styles] : a.options[:regular_styles] },
+               regular_styles: {
                  xlarge: "1200x1200>",
                  large: "600x600>",
                  medium: "400x400>",
                  small: "200x200>",
                  thumb: "100x100>" ,
+                 iphone: { geometry: "64x64>" }
+               },
+               watermark_styles: {
+                 xlarge: { geometry: "1200x1200>", watermark: "src/images/watermarks/wm400.png" },
+                 large: { geometry: "600x600>", watermark: "src/images/watermarks/wm200.png" },
+                 medium: { geometry: "400x400>", watermark: "src/images/watermarks/wm200.png" },
+                 small: { geometry: "200x200>", watermark: "src/images/watermarks/wm200.png" },
+                 thumb: { geometry: "100x100>" },
                  iphone: { geometry: "64x64>" }
                },
                default_style: :thumb
@@ -57,6 +66,29 @@ cfg.merge!('production', :fl_framework_image, {
 cfg.clone('production', :fl_framework_image, 'staging')
 cfg.clone('production', :fl_framework_image, 'demo')
 cfg.clone('production', :fl_framework_image, 'localprod')
+
+# Standard parameters for watermarked images
+cfg.defaults(:fl_framework_watermarked_image, {
+               styles: {
+                 xlarge: { geometry: "1200x1200>", watermark: "src/images/watermarks/wm400.png" },
+                 large: { geometry: "600x600>", watermark: "src/images/watermarks/wm200.png" },
+                 medium: { geometry: "400x400>", watermark: "src/images/watermarks/wm200.png" },
+                 small: { geometry: "200x200>", watermark: "src/images/watermarks/wm200.png" },
+                 thumb: { geometry: "100x100>" },
+                 iphone: { geometry: "64x64>" }
+               },
+               default_style: :thumb
+             })
+cfg.merge!('production', :fl_framework_watermarked_image, {
+             storage: :s3,
+             s3_protocol: 'https',
+             s3_credentials: File.join(::Rails.root.to_s, 'config', 'paperclip_s3.yml'),
+             path: "pc/:class/:attachment/:id_partition/:hash.:extension",
+             url: ':s3_domain_url'
+           })
+cfg.clone('production', :fl_framework_watermarked_image, 'staging')
+cfg.clone('production', :fl_framework_watermarked_image, 'demo')
+cfg.clone('production', :fl_framework_watermarked_image, 'localprod')
 
 # Standard parameters for avatars
 cfg.defaults(:fl_framework_avatar, {

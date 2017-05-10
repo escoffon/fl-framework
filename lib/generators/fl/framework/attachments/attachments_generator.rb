@@ -1,5 +1,7 @@
 module Fl::Framework
   class AttachmentsGenerator < Rails::Generators::Base
+    WATERMARK_FILES = [ 'wm200.psd', 'wm200.png', 'wm400.psd', 'wm400.png' ]
+
     source_root File.expand_path('../templates', __FILE__)
 
     argument :attachable_class, type: :string, default: 'Attachable'
@@ -13,6 +15,19 @@ module Fl::Framework
         say_status('create', "Creating Paperclip attachments initializer file")
         say_status('', "You will have to modify it as described in the file")
         template(name, outfile)
+      end
+    end
+
+    def create_watermark_files
+      outroot = File.join(destination_root, 'src', 'images', 'watermarks')
+
+      WATERMARK_FILES.each do |name|
+        outfile = File.join(outroot, name)
+        if File.exists?(outfile)
+          say_status('skipped', "The watermark file already exists: #{outfile}")
+        else
+          template(name, outfile)
+        end
       end
     end
 
