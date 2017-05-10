@@ -113,7 +113,7 @@ module Fl::Framework
     private
       # Only allow a trusted parameter "white list" through.
       def attachment_params
-        params.require(:attachment).permit(:attachable, :author, :title, :caption)
+        params.require(:attachment).permit(:attachable, :author, :title, :caption, :watermarked)
       end
   end
 end
