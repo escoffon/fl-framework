@@ -144,15 +144,16 @@ module Fl::Framework::Service
     # or +:create+ action.
     #
     # @param op [Symbol] The operation.
+    # @param ctx [Object] The context to pass to the +permission?+ method.
     #
     # @return [Boolean] Returns +true+ if the service's {#actor} is granted permission _op_,
     #  +false+ otherwise.
     #  If the {#model_class} does not respond to +permission?+, or if permission checking is disabled,
     #  +true+ is returned.
 
-    def class_allow_op?(op)
+    def class_allow_op?(op, ctx = nil)
       if do_access_checks?(self.model_class)
-        if !self.model_class.permission?(self.actor, op)
+        if !self.model_class.permission?(self.actor, op, ctx)
           self.set_status(Fl::Framework::Service::FORBIDDEN,
                           I18n.tx(localization_key('forbidden'), id: self.params[:id], op: op) )
           return false
@@ -169,15 +170,16 @@ module Fl::Framework::Service
     #
     # @param obj [Object] The object to check; this is typically an instance of {#model_class}.
     # @param op [Symbol] The operation.
+    # @param ctx [Object] The context to pass to the +permission?+ method.
     #
     # @return [Boolean] Returns +true+ if the service's {#actor} is granted permission _op_,
     #  +false+ otherwise.
     #  If the _obj_ does not respond to +permission?+, or if permission checking is disabled,
     #  +true+ is returned.
 
-    def allow_op?(obj, op)
+    def allow_op?(obj, op, ctx = nil)
       if do_access_checks?(obj)
-        if !obj.permission?(self.actor, op)
+        if !obj.permission?(self.actor, op, ctx)
           self.set_status(Fl::Framework::Service::FORBIDDEN,
                           I18n.tx(localization_key('forbidden'), id: self.params[:id], op: op) )
           return false

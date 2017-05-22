@@ -3,6 +3,9 @@
 en:
   fl:
     framework:
+      controller:
+        unprocessable_entity: 'Unprocessable entity'
+
       core:
         conversion:
           no_key: "missing conversion key '{key}'"

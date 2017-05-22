@@ -21,7 +21,7 @@ module Fl::Framework::Controller
       if service.success?
         if obj && !obj.valid?
           rv[:status] = Fl::Framework::Service::UNPROCESSABLE_ENTITY
-          rv[:message] = I18n.tx('fl.controller.unprocessable_entity')
+          rv[:message] = I18n.tx('fl.framework.controller.unprocessable_entity')
           rv[:details] = obj.errors.messages
         else
           rv[:status] = Fl::Framework::Service::OK
