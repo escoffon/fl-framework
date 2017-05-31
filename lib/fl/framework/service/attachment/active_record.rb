@@ -56,6 +56,7 @@ module Fl::Framework::Service::Attachment
     def get_and_check_attachable(op, idname = nil, params = nil)
       idname = idname || :attachable_id
       idname = [ idname ] unless idname.is_a?(Array)
+      found_id = nil
       params = params || self.params
 
       obj = nil
@@ -63,6 +64,7 @@ module Fl::Framework::Service::Attachment
         if params.has_key?(idn)
           begin
             obj = self.attachable_class.find(params[idn])
+            found_id = idn
             break
           rescue ActiveRecord::RecordNotFound => ex
             obj = nil
@@ -76,7 +78,7 @@ module Fl::Framework::Service::Attachment
         return nil
       end
 
-      self.clear_status if allow_op?(obj, op)
+      self.clear_status if allow_op?(obj, op, nil, found_id)
       obj
     end
 

@@ -60,6 +60,7 @@ module Fl::Framework::Service::Comment
     def get_and_check_commentable(op, idname = nil, params = nil)
       idname = idname || :commentable_id
       idname = [ idname ] unless idname.is_a?(Array)
+      found_id = nil
       params = params || self.params
 
       obj = nil
@@ -67,6 +68,7 @@ module Fl::Framework::Service::Comment
         if params.has_key?(idn)
           begin
             obj = self.commentable_class.find(params[idn])
+            found_id = idn
             break
           rescue ActiveRecord::RecordNotFound => ex
             obj = nil
@@ -80,7 +82,7 @@ module Fl::Framework::Service::Comment
         return nil
       end
 
-      self.clear_status if allow_op?(obj, op)
+      self.clear_status if allow_op?(obj, op, nil, found_id)
       obj
     end
 

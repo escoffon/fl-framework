@@ -53,13 +53,16 @@ module Fl::Framework::Service
     def get_and_check_commentable(op, idname = nil, params = nil)
       idname = idname || :commentable_id
       idname = [ idname ] unless idname.is_a?(Array)
+      found_id = nil
       params = params || self.params
+
 
       obj = nil
       idname.each do |idn|
         if params.has_key?(idn)
           begin
             obj = self.commentable_class.find(params[idn])
+            found_id = idn
             break
           rescue Neo4j::ActiveNode::Labels::RecordNotFound => ex
             obj = nil
@@ -73,7 +76,7 @@ module Fl::Framework::Service
         return nil
       end
 
-      self.clear_status if allow_op?(obj, op)
+      self.clear_status if allow_op?(obj, op, nil, found_id)
       obj
     end
 

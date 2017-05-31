@@ -145,17 +145,22 @@ module Fl::Framework::Service
     #
     # @param op [Symbol] The operation.
     # @param ctx [Object] The context to pass to the +permission?+ method.
+    # @param [Symbol] idname The name of the key in _params_ that contains the object identifier.
+    #  A +nil+ value defaults to +:id+.
     #
     # @return [Boolean] Returns +true+ if the service's {#actor} is granted permission _op_,
     #  +false+ otherwise.
     #  If the {#model_class} does not respond to +permission?+, or if permission checking is disabled,
     #  +true+ is returned.
 
-    def class_allow_op?(op, ctx = nil)
+    def class_allow_op?(op, ctx = nil, idname = nil)
       if do_access_checks?(self.model_class)
         if !self.model_class.permission?(self.actor, op, ctx)
+          idname = idname || :id
+          idv = params["_#{idname}".to_sym]
+          idv = params[idname] if idv.nil?
           self.set_status(Fl::Framework::Service::FORBIDDEN,
-                          I18n.tx(localization_key('forbidden'), id: self.params[:id], op: op) )
+                          I18n.tx(localization_key('forbidden'), id: idv, op: op) )
           return false
         end
       end
@@ -171,17 +176,22 @@ module Fl::Framework::Service
     # @param obj [Object] The object to check; this is typically an instance of {#model_class}.
     # @param op [Symbol] The operation.
     # @param ctx [Object] The context to pass to the +permission?+ method.
+    # @param [Symbol] idname The name of the key in _params_ that contains the object identifier.
+    #  A +nil+ value defaults to +:id+.
     #
     # @return [Boolean] Returns +true+ if the service's {#actor} is granted permission _op_,
     #  +false+ otherwise.
     #  If the _obj_ does not respond to +permission?+, or if permission checking is disabled,
     #  +true+ is returned.
 
-    def allow_op?(obj, op, ctx = nil)
+    def allow_op?(obj, op, ctx = nil, idname = nil)
       if do_access_checks?(obj)
         if !obj.permission?(self.actor, op, ctx)
+          idname = idname || :id
+          idv = params["_#{idname}".to_sym]
+          idv = params[idname] if idv.nil?
           self.set_status(Fl::Framework::Service::FORBIDDEN,
-                          I18n.tx(localization_key('forbidden'), id: self.params[:id], op: op) )
+                          I18n.tx(localization_key('forbidden'), id: idv, op: op) )
           return false
         end
       end
@@ -216,12 +226,14 @@ module Fl::Framework::Service
       begin
         obj = self.model_class.find(params[idname])
       rescue => ex
+        idv = params["_#idname}".to_sym]
+        idv = params[idname] if idv.nil?
         self.set_status(Fl::Framework::Service::NOT_FOUND,
-                        I18n.tx(localization_key('not_found'), id: params[idname]))
+                        I18n.tx(localization_key('not_found'), id: idv))
         return nil
       end
 
-      self.clear_status if allow_op?(obj, op)
+      self.clear_status if allow_op?(obj, op, nil, idname)
       obj
     end
 
@@ -389,6 +401,9 @@ module Fl::Framework::Service
 
     # Create a copy of a hash where all keys have been converted to symbols.
     # The operation is applied recursively to all values that are also hashes.
+    # Additionally, the *:id* key (if present) and any key that ends with +_id+ are copied to a key with the
+    # same name, prepended by an underscore; for example, *:id* is copied to *:_id* and *:user_id* to
+    # *:_user_id*.
     #
     # This method is typically used to normalize the +params+ value.
     #
@@ -399,10 +414,19 @@ module Fl::Framework::Service
 
     def normalize_params(h)
       hn = {}
-      
+      re = /.+_id$/i
+
       h.each do |hk, hv|
-        hv = normalize_params(hv) if hv.is_a?(Hash) || hv.is_a?(ActionController::Parameters)
+        case hv
+        when ActionController::Parameters
+          hv = normalize_params(hv)
+        when Hash
+          hv = normalize_params(hv)
+        end
+
         hn[hk.to_sym] = hv
+        shk = hk.to_s
+        hn["_#{shk}".to_sym] = (hv.is_a?(String) ? hv.dup : hv) if (shk == 'id') || (shk =~ re)
       end
 
       hn

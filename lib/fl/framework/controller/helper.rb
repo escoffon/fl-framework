@@ -6,6 +6,9 @@ module Fl::Framework::Controller
 
     # Create a copy of a hash where all keys have been converted to symbols.
     # The operation is applied recursively to all values that are also keys.
+    # Additionally, the *:id* key (if present) and any key that ends with +_id+ are copied to a key with the
+    # same name, prepended by an underscore; for example, *:id* is copied to *:_id* and *:user_id* to
+    # *:_user_id*.
     #
     # This method is typically used to normalize the +params+ value.
     #
@@ -17,10 +20,19 @@ module Fl::Framework::Controller
     def normalize_params(h = nil)
       h = params unless h.is_a?(Hash)
       hn = {}
+      re = /.+_id$/i
     
       h.each do |hk, hv|
-        hv = normalize_params(hv) if hv.is_a?(Hash)
+        case hv
+        when ActionController::Parameters
+          hv = normalize_params(hv.to_h)
+        when Hash
+          hv = normalize_params(hv)
+        end
+
         hn[hk.to_sym] = hv
+        shk = hk.to_s
+        hn["_#{shk}".to_sym] = (hv.is_a?(String) ? hv.dup : hv) if (shk == 'id') || (shk =~ re)
       end
 
       hn
