@@ -8,7 +8,11 @@ module Fl::Framework
     # This method is a placeholder for access control. Applications that support a notion of a logged-in
     # users will provide their own implementation, and must remove this one.
     # For example:
-    # before_action :authenticate_user!, except: [ :index, :show ]
+    #   module Fl::Framework
+    #     class AttachmentsController < ::ApplicationController
+    #       before_action :authenticate_user!, except: [ :index, :show ]
+    #     end
+    #   end
 
     def current_user()
       nil
@@ -65,7 +69,7 @@ module Fl::Framework
       p = normalize_params(params)
       service = Fl::Framework::Service::Attachment::ActiveRecord.new(Fl::Framework::Comment::ActiveRecord::Comment, current_user, p)
       if get_and_check(service, Fl::Framework::Access::Grants::WRITE, '@attachment')
-        if @attachment.update_attributes(p[:attachment])
+        if @attachment.update_attributes(attachment_params)
           respond_to do |format|
             format.json do
               render(:json => { :attachment => hash_one_object(@attachment, p[:to_hash]) },

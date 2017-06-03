@@ -12,8 +12,6 @@ module Fl::Framework::Test
     #
     # @return [Rack::Test::UploadedFile] Returns an instance of Rack::Test::UploadedFile, which is eventually
     #  converted to a ActionDispatch::Http::UploadedFile, which is what Paperclip expects.
-    #
-    # @example 
 
     def self.make_uploaded_file(path, content_type = nil, binary = false)
       if content_type.nil?
