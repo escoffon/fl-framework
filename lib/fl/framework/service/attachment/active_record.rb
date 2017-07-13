@@ -138,6 +138,8 @@ module Fl::Framework::Service::Attachment
     # {#index_query} to generate the query to use.
     #
     # @param [Object] attachable The attachable for which to get attachments.
+    # @param [Hash] query_opts Query options to merge with the service's {#params}; this is used
+    #  to define controller-specific defaults.
     #
     # @return [Hash, nil] If a query is generated, it returns a Hash containing two keys:
     #  - *:results* are the results from the query.
@@ -146,8 +148,8 @@ module Fl::Framework::Service::Attachment
     #  - *:_pg* are the pagination controls returned by {Fl::Framework::Service::Base#pagination_controls}.
     #  If no query is generated (in other words, if {#index_query} fails), it returns +nil+.
 
-    def index(attachable)
-      qo = init_query_opts(nil, self.params)
+    def index(attachable, query_opts = {})
+      qo = query_opts.merge(init_query_opts(nil, self.params))
       q = index_query(attachable, qo)
       if q
         r = q.to_a

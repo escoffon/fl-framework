@@ -42,9 +42,14 @@ module Fl::Framework::Comment::ActiveRecord
       #  a +nil+ value causes the option to be ignored.
       #  Defaults to <tt>updated_at DESC</tt>, so that the comments are ordered by modification time, 
       #  with the most recent one listed first.
+      # @option opts [Symbol, Array<Symbol>] includes An array of symbols (or a single symbol) 
+      #  to pass to the +includes+ method
+      #  of the relation; see the guide on the ActiveRecord query interface about this method.
       #
-      # Note that *:limit*, *:offset*, and *:order* are convenience options, since they can be
-      # added later by making calls to +limit+, +offset+, and +order+, respectively, on the return value.
+      # Note that *:limit*, *:offset*, *:order*, and *:includes* are convenience options, since they can be
+      # added later by making calls to +limit+, +offset+, +order+, and +includes+ respectively, on the
+      # return value. But there situations where the return type is hidden inside an API wrapper, and
+      # the only way to trigger these calls is through the configuration options.
       #
       # @return If the query options are empty, the method returns the +comments+ association; if they are
       #  not empty, it returns an association relation.
@@ -78,6 +83,11 @@ module Fl::Framework::Comment::ActiveRecord
         return nil unless self.respond_to?(:comments)
 
         q = self.comments
+
+        if opts[:includes]
+          i = (opts[:includes].is_a?(Array)) ? opts[:includes] : [ opts[:includes] ]
+          q = q.includes(i)
+        end
 
         u_lists = _partition_author_lists(_expand_author_lists(opts))
 

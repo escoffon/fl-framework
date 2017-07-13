@@ -7,7 +7,7 @@
           service = Fl::Framework::Service::Attachment::ActiveRecord.new(<%=@full_class_name%>, current_user, params)
           @<%=@label%> = service.get_and_check_attachable(Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_INDEX, :<%=@label%>_id)
           if @<%=@label%> && service.success?
-            r = service.index(@<%=@label%>)
+            r = service.index(@<%=@label%>, includes: [ :author, :attachable ])
             if r
               render :json => {
                 :attachments => hash_objects(r[:result], service.params[:to_hash]),

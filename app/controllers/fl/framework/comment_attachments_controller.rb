@@ -7,7 +7,7 @@ module Fl::Framework
           service = Fl::Framework::Service::Attachment::ActiveRecord.new(Fl::Framework::Comment::ActiveRecord::Comment, current_user, params)
           @comment = service.get_and_check_attachable(Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_INDEX, :comment_id)
           if @comment && service.success?
-            r = service.index(@comment)
+            r = service.index(@comment, includes: [ :author, :attachable ])
             if r
               render :json => {
                 :attachments => hash_objects(r[:result], service.params[:to_hash]),
