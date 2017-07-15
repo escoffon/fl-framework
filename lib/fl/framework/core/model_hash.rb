@@ -41,6 +41,10 @@ module Fl::Framework::Core
       # - *:id* if the object responds to +id+.
       # - *:url_path* The path component of the URL to the object, essentially the path to the +show+ action.
       #   Subclasses will have to override {#to_hash_url_path}.
+      # - *:fingerprint* The object's fingerprint; if the object responds to +:fingerprint+, it is the
+      #   return value from that method. Otherwise, the return value is the concatenation of the class
+      #   name and object identifier, joined by a slash (/); this happens to be the default implementation
+      #   for ActiveRecord objects. If the object does not respond to +:id+, no fingerprint is generated.
       # - *:created_at* and *:updated_at* if the verbosity is not +:id+, and the object
       #   responds to +created_at+ and +updated_at+, respectively.
       # - *:permissions* if the verbosity is +:minimal+, +:standard+, +:verbose+, or +:complete+, the key
@@ -466,7 +470,7 @@ module Fl::Framework::Core
       #  (if the object responds to the +id+ method).
 
       def to_hash_id_keys()
-        c_keys = [ :type, :url_path ]
+        c_keys = [ :type, :url_path, :fingerprint ]
         c_keys << :id if self.respond_to?(:id)
         c_keys
       end
@@ -582,6 +586,10 @@ module Fl::Framework::Core
       #  - *:id* The object id, if the object responds to the +id+ method.
       #  - *:url_path* The path component of the URL to the object, essentially the path to the +show+ action.
       #    See {#to_hash_url_path}.
+      # - *:fingerprint* The object's fingerprint; if the object responds to +:fingerprint+, it is the
+      #   return value from that method. Otherwise, the return value is the concatenation of the class
+      #   name and object identifier, joined by a slash (/); this happens to be the default implementation
+      #   for ActiveRecord objects. If the object does not respond to +:id+, no fingerprint is generated.
       #  - *:created*_at The object's creation date, if the object responds to the +created_at+ method.
       #  - *:updated_at* The last time of modification for the object, if the object responds to
       #    the +updated_at+ method.
@@ -601,6 +609,12 @@ module Fl::Framework::Core
             base[:id] = self.id if self.respond_to?(:id)
           when :url_path
             base[:url_path] = self.to_hash_url_path(to_hash_url_path_options)
+          when :fingerprint
+            if self.respond_to?(:fingerprint)
+              base[:fingerprint] = self.fingerprint
+            elsif self.respond_to?(:id)
+              base[:fingerprint] = "#{self.class.name}/#{self.id}"
+            end
           when :created_at
             base[:created_at] = self.created_at if self.respond_to?(:created_at)
           when :updated_at
