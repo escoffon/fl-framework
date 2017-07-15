@@ -10,6 +10,7 @@ module Fl::Framework::Test
 
       id_keys = [ :type, :url_path ]
       id_keys << :id if obj.respond_to?(:id)
+      id_keys << :fingerprint if obj.respond_to?(:fingerprint) || obj.respond_to?(:id)
       h = obj.to_hash(actor, { verbosity: :id })
       assert_equal id_keys.sort, h.keys.sort
       if obj.respond_to?(:id)
