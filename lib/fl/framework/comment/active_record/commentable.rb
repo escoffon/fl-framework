@@ -42,8 +42,8 @@ module Fl::Framework::Comment::ActiveRecord
       #  a +nil+ value causes the option to be ignored.
       #  Defaults to <tt>updated_at DESC</tt>, so that the comments are ordered by modification time, 
       #  with the most recent one listed first.
-      # @option opts [Symbol, Array<Symbol>] includes An array of symbols (or a single symbol) 
-      #  to pass to the +includes+ method
+      # @option opts [Symbol, Array<Symbol>, Hash] includes An array of symbols (or a single symbol),
+      #  or a hash, to pass to the +includes+ method
       #  of the relation; see the guide on the ActiveRecord query interface about this method.
       #
       # Note that *:limit*, *:offset*, *:order*, and *:includes* are convenience options, since they can be
@@ -85,7 +85,7 @@ module Fl::Framework::Comment::ActiveRecord
         q = self.comments
 
         if opts[:includes]
-          i = (opts[:includes].is_a?(Array)) ? opts[:includes] : [ opts[:includes] ]
+          i = (opts[:includes].is_a?(Array) || opts[:includes].is_a?(Hash)) ? opts[:includes] : [ opts[:includes] ]
           q = q.includes(i)
         end
 
