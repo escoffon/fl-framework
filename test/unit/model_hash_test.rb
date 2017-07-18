@@ -8,7 +8,7 @@ module Fl::Framework::Test
     def to_hash_driver(actor, obj, as_visible_to = nil)
       # verbosity mappings
 
-      id_keys = [ :type, :url_path ]
+      id_keys = [ :type, :url_path, :api_root ]
       id_keys << :id if obj.respond_to?(:id)
       id_keys << :fingerprint if obj.respond_to?(:fingerprint) || obj.respond_to?(:id)
       h = obj.to_hash(actor, { verbosity: :id })
@@ -17,6 +17,7 @@ module Fl::Framework::Test
         assert_equal obj.id, h[:id]
       end
       assert_equal obj.class.name, h[:type]
+      assert_equal "/#{obj.class.name.pluralize.underscore}", h[:api_root]
 
       min_keys = id_keys | [ :code ]
       min_keys << :permissions if obj.respond_to?(:permission?)

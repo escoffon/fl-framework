@@ -39,6 +39,9 @@ module Fl::Framework::Core
       # The following keys are placed in the list of keys to return:
       # - *:type* in all cases.
       # - *:id* if the object responds to +id+.
+      # - *:api_root* the root path for the Rails API to the object's class.
+      #   For example, an instance of My::Mod::MyObject by default sets the value to /my/mod/my_objects.
+      #   Subclasses that use a different API signature need to oberride {#to_hash_api_root}.
       # - *:url_path* The path component of the URL to the object, essentially the path to the +show+ action.
       #   Subclasses will have to override {#to_hash_url_path}.
       # - *:fingerprint* The object's fingerprint; if the object responds to +:fingerprint+, it is the
@@ -440,6 +443,15 @@ module Fl::Framework::Core
         url
       end
 
+      # Get the root path of the Rails API.
+      # The base implementation derives the root path from the class name.
+      #
+      # @return [String] Returns the root path of the Rails API for an object of the object's class.
+
+      def to_hash_api_root()
+        "/#{self.class.name.pluralize.underscore}"
+      end
+
       # Base implementation of the class-specific hash method, in case classes do not override it.
       #
       # @param actor [Object] The actor for which we are building the hash representation. Some
@@ -470,7 +482,7 @@ module Fl::Framework::Core
       #  (if the object responds to the +id+ method).
 
       def to_hash_id_keys()
-        c_keys = [ :type, :url_path, :fingerprint ]
+        c_keys = [ :type, :api_root, :url_path, :fingerprint ]
         c_keys << :id if self.respond_to?(:id)
         c_keys
       end
@@ -584,12 +596,15 @@ module Fl::Framework::Core
       # @return [Hash] Returns a hash containing some or all of the following keys.
       #  - *:type* The object type (the class name of the model, basically).
       #  - *:id* The object id, if the object responds to the +id+ method.
+      #  - *:api_root* the root path for the Rails API to the object's class.
+      #    For example, an instance of My::Mod::MyObject by default sets the value to /my/mod/my_objects.
+      #    Subclasses that use a different API signature need to oberride {#to_hash_api_root}.
       #  - *:url_path* The path component of the URL to the object, essentially the path to the +show+ action.
       #    See {#to_hash_url_path}.
-      # - *:fingerprint* The object's fingerprint; if the object responds to +:fingerprint+, it is the
-      #   return value from that method. Otherwise, the return value is the concatenation of the class
-      #   name and object identifier, joined by a slash (/); this happens to be the default implementation
-      #   for ActiveRecord objects. If the object does not respond to +:id+, no fingerprint is generated.
+      #  - *:fingerprint* The object's fingerprint; if the object responds to +:fingerprint+, it is the
+      #    return value from that method. Otherwise, the return value is the concatenation of the class
+      #    name and object identifier, joined by a slash (/); this happens to be the default implementation
+      #    for ActiveRecord objects. If the object does not respond to +:id+, no fingerprint is generated.
       #  - *:created*_at The object's creation date, if the object responds to the +created_at+ method.
       #  - *:updated_at* The last time of modification for the object, if the object responds to
       #    the +updated_at+ method.
@@ -609,6 +624,8 @@ module Fl::Framework::Core
             base[:id] = self.id if self.respond_to?(:id)
           when :url_path
             base[:url_path] = self.to_hash_url_path(to_hash_url_path_options)
+          when :api_root
+            base[:api_root] = self.to_hash_api_root()
           when :fingerprint
             if self.respond_to?(:fingerprint)
               base[:fingerprint] = self.fingerprint
