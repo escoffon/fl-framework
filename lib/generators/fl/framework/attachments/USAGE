@@ -7,7 +7,7 @@ Description:
     (JSON format only) from within the context of the attachable resource.
   - It adds a nested routing rule in the application's config/routes.rb file
     that dispatches to the controller for those two actions.
-  - It adds code in the attachable resource's class that enables comment
+  - It adds code in the attachable resource's class that enables attachment
     management.
 
   The generated controller will likely still need to be modified, for example to
