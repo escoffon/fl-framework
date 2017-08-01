@@ -38,6 +38,19 @@ module Fl::Framework::Controller
       hn
     end
 
+    # Get the pagination parameters.
+    # Looks up the *:_pg* key in +params+ and returns the permitted values.
+    #
+    # @return [ActionController::Parameters] Returns the permitted pagination parameters, which are:
+    # - *:_s* The page size.
+    # - *:_p* The starting page (the first page is 1).
+    # - *:_c* The count of items returned by the query. This is typically not used when generating
+    #   query parameters, but rather is returned by the query.
+
+    def pagination_params()
+      params.fetch(:_pg, {}).permit(:_s, :_p, :_c)
+    end
+
     # Hash support: returns a hash representation of an object, for the current user.
     #
     # @param obj [Object] The object whose +to_hash+ method to call. The object should have included

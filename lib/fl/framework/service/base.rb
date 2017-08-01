@@ -25,9 +25,8 @@ module Fl::Framework::Service
     #
     # @param actor [Object] The actor (typically an instance of {Fl::Core::Actor}, and more specifically
     #  a {Fl::Core::User}) on whose behalf the service operates. It may be +nil+.
-    # @param params [Hash] Processing parameters; this is typically the +params+ hash from a controller.
-    #  On Rails 5, the controller will likely be passed an ActionController::Parameters instance instead;
-    #  in that case, the parameters are converted to a hash.
+    # @param params [Hash, ActionController::Parameters] Processing parameters; this is typically the
+    #  +params+ hash from a controller.
     # @param controller [ActionController::Base] The controller (if any) that created the service object;
     #  this parameter gives access to the request context.
     # @param cfg [Hash] Configuration options.
@@ -39,7 +38,7 @@ module Fl::Framework::Service
     def initialize(actor, params = {}, controller = nil, cfg = {})
 #      @actor = (actor.is_a?(Fl::Core::Actor)) ? actor : nil
       @actor = actor
-      @params = normalize_params(params)
+      @params = (params.is_a?(ActionController::Parameters)) ? params : normalize_params(params)
       @controller = (controller.is_a?(ActionController::Base)) ? controller : nil
 
       raise "please define a target model class for #{self.class.name}" unless self.class.model_class
@@ -267,7 +266,8 @@ module Fl::Framework::Service
 
     protected
 
-    # @!visibility private
+    # The backstop values for the query options.
+
     QUERY_BACKSTOPS = {
       :offset => 0,
       :limit => 20,
@@ -281,8 +281,33 @@ module Fl::Framework::Service
 
     public
 
+    # Runs a query based on the request parameters.
+    #
+    # @param query_opts [Hash] Query options to merge with the contents of <i>_q</i> and <i>_pg</i>.
+    #  This is used to define service-specific defaults.
+    # @param _q [Hash, ActionController::Parameters] The query parameters.
+    # @param _pg [Hash, ActionController::Parameters] The pagination parameters.
+    #
+    # @return [Hash, nil] If a query is generated, it returns a Hash containing two keys:
+    #  - *:results* are the results from the query; this is an array of objects.
+    #  - *:_pg* are the pagination controls returned by {#pagination_controls}.
+    #  If no query is generated (in other words, if {#index_query} fails), it returns +nil+.
+
+    def index(query_opts = {}, _q = {}, _pg = {})
+      qo = init_query_opts(query_opts, _q, _pg)
+      q = index_query(qo)
+      if q
+        r = q.to_a
+        {
+          result: r,
+          _pg: pagination_controls(r, qo, self.params)
+        }
+      end
+    end
+
     # Initialize the query options for the :index action.
-    # This methods merges the contents of the *:_q* and *:_pg* keys in _pars_ into the default backstops.
+    # This methods merges the contents of the *:_q* and *:_pg* keys in the submission parameters into the
+    # default backstops.
     # It also converts some values to a canonical form (for example, integer-valued options are converted
     # to integer values).
     #
@@ -292,37 +317,34 @@ module Fl::Framework::Service
     # - *:_p* is the 1-based index of the page to return; the first page is at index 1.
     #
     # The method builds the query options as follows:
-    # 1. Set up default values for the query options from _defs_.
-    # 2. Look up *:_q* and *:_pg* from _pars_ or from the {#params} if _pars_ is not a hash. 
-    # 3. The values in *:_pg* (if any) are used to initialize the values for *:offset* and *:limit* in the query
-    #    options: *:limit* is the value of the *:_s* key, and *:offset* is <tt>(_pg[_p] - 1) * :limit</tt>.
-    # 4. Merge the values in *_q* into the query options; *:offset* and *:limit* override the values
-    #    from the previous step. Aadditionally, if *:limit* is negative, then *:_pg* is ignored; for example,
-    #    if *:_s* is 4, *:_pg* is 2, *:limit* is -1, and *:offset* is 4, then the new value of *:_pg*
-    #    is <tt>{ _s: -1, _p: 1 }</tt>. See {#pagination_controls}.
-    # 5. If the value of *:limit* is negative, *:limit* is removed from the query options.
+    # 1. Set up default values for the query options from _defs_ and the {QUERY_BACKSTOPS}.
+    # 2. The values in <i>_pg</i> (if any) are used to initialize the values for *:offset* and *:limit* in
+    #    the query options: *:limit* is the value of the *:_s* key, and *:offset* is
+    #    <tt>(_pg[_p] - 1) * :limit</tt>.
+    # 3. Merge the values in <i>_q</i> into the query options; *:offset* and *:limit* override the values
+    #    from the previous step. Aadditionally, if *:limit* is negative, then <i>_pg</i> is ignored;
+    #    for example, if *:_s* is 4, *:_pg* is 2, *:limit* is -1, and *:offset* is 4, then the new value
+    #    of <i>_pg</i> is <tt>{ _s: -1, _p: 1 }</tt>. See {#pagination_controls}.
+    # 4. If the value of *:limit* is negative, *:limit* is removed from the query options.
     #
     # @param defs [Hash] A hash of default values for the options, which override the following backstops:
     #  - *:offset* is 0.
     #  - *:limit* is 20. If the value in _defs_ is -1, *:limit* is not placed in the query options.
     #  - *:order* is <tt>updated_at DESC</tt>.
     #  Any other keys in _defs_ provide the backstop, and the method looks up an overriding
-    #  value in the *_q* key of _pars_.
-    # @param pars [Hash] The submission query parameters. If +nil+, the {#params} value is used.
+    #  value in <i>_q</i> and <i>_pg</i>.
+    # @param _q [Hash] The query parameters, from the *:_q* key in the submission parameters.
+    # @param _pg [Hash] The pagination parameters, from the *:_pg* key in the submission parameters.
     #
     # @return [Hash] Returns a hash of query options.
 
-    def init_query_opts(defs = {}, pars = nil)
+    def init_query_opts(defs = {}, _q = {}, _pg = {})
       sdefs = {}
       if defs.is_a?(Hash)
         defs.each { |k, v| sdefs[k.to_sym] = v }
       end
       opts = QUERY_BACKSTOPS.merge(sdefs)
 
-      xp = (pars.is_a?(Hash)) ? pars : self.params
-      _q = (xp[:_q].is_a?(Hash)) ? normalize_params(xp[:_q]) : {}
-      _pg = (xp[:_pg].is_a?(Hash)) ? normalize_params(xp[:_pg]) : {}
-      
       opts[:limit] = _pg[:_s].to_i if _pg.has_key?(:_s)
       opts[:offset] = ((_pg[:_p].to_i - 1) * opts[:limit]) if _pg.has_key?(:_p)
       opts[:offset] = 0 if opts[:offset] < 0
@@ -454,6 +476,20 @@ module Fl::Framework::Service
 
     def localization_key(key)
       localization_prefix + '.' + key
+    end
+
+    # Build a query to list stories.
+    # This method is expected to return a ActiveRecord::Relation set up according to the query
+    # parameters in <i>query_opts</i>. The default implementation returns +nil+; subclasses are
+    # expected to override it to return the correct relation instance.
+    #
+    # @param query_opts [Hash] A hash of query options to build the query.
+    #
+    # @return [ActiveRecord::Relation, nil] Returns an instance of ActiveRecord::Relation, or +nil+
+    #  on error.
+
+    def index_query(query_opts = {})
+      nil
     end
 
     # @!visibility private

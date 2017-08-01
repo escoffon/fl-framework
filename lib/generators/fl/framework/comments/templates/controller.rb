@@ -7,7 +7,7 @@
           service = Fl::Framework::Service::Comment::ActiveRecord.new(<%=@full_class_name%>, current_user, params)
           @<%=@label%> = service.get_and_check_commentable(Fl::Framework::Comment::Commentable::ACCESS_COMMENT_INDEX, :<%=@label%>_id)
           if @<%=@label%> && service.success?
-            r = service.index(@<%=@label%>, includes: [ :author, :commentable ])
+            r = service.index(@<%=@label%>, { includes: [ :author, :commentable ] }, query_params, pagination_params)
             if r
               render :json => {
                 :comments => hash_objects(r[:result], service.params[:to_hash]),
@@ -40,9 +40,18 @@
     end
 
     private
-      # Only allow a trusted parameter "white list" through.
-      def comment_params
-        params.require(:comment).permit(:title, :contents)
-      end
+
+    # Only allow a trusted parameter "white list" through.
+    def comment_params
+      params.require(:comment).permit(:title, :contents)
+    end
+
+    def query_params
+      params.fetch(:_q, {}).permit(:order, :limit, { only_authors: [] }, { except_authors: [] })
+    end
+
+    def pagination_params()
+      params.fetch(:_pg, {}).permit(:_s, :_p, :_c)
+    end
   end
 <%= @close_module %>

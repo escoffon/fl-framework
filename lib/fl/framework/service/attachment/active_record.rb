@@ -82,64 +82,15 @@ module Fl::Framework::Service::Attachment
       obj
     end
 
-    # Build a query to list attachments.
-    # This method uses the _attachable_ {Fl::Framework::Attachment::Query#attachment_query} to build a query to
-    # return attachments associated with the attachable.
-    # It uses the value of _query\\_opts_ merged with the value of +:query_opts+ in {#params}. (And therefore
-    # +:query_opts+ in {#params} is a set of default values for the query.)
-    # Note that this means that service clients can customize the query to return a subset of the available
-    # attachments, for example to return just the attachments from a specific author.
-    #
-    # @param attachable [Object] An attachable object that is expected to respond to +attachments+.
-    # @param query_opts [Hash] A hash of query options that will be merged into the defaults from
-    #  {#params}, if any.
-    #  The method also processes the following.
-    # @option query_opts [String] :order The +ORDER BY+ clause. Because the query returns objects in the
-    #  +c+ variable, each entry in the clause is scoped to +c.+ if necessary. For example, a value of
-    #  <tt>title ASC, updated_at DESC</tt> is converted to <tt>c.title ASC, c.updated_at DESC</tt>.
-    # @option query_opts [String, Integer] :limit The +LIMIT+ clause.
-    # @option query_opts [String, Integer] :skip The +SKIP+ clause.
-    #
-    # @return If the query options are empty, the method returns the +attachments+ association; if they are
-    #  not empty, it returns an association relation.
-    #  If the {#actor} does not have +:attachment_index+ access, the return value is +nil+.
-
-    def index_query(attachable, query_opts = {})
-      return nil unless attachable.permission?(self.actor,
-                                               Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_INDEX)
-
-      attachable.attachments_query(_init_query_opts(query_opts))
-    end
-
-    # Build a query to count attachments.
-    # This method uses the _attachable_ association +attachments+ to build a query to return a count of
-    # attachments associated with the attachable.
-    # It uses the value of _query\\_opts_ merged with the value of +:query_opts+ in {#params}. (And therefore
-    # +:query_opts+ in {#params} is a set of default values for the query.)
-    # However, it strips any *:offset*, *:limit*, and *:order* keys from the query options before generating
-    # the query object via a call to {#index_query}.
-    # It then and adds a +count+ clause to the query.
-    #
-    # @param attachable [Object] A attachable object that is expected to respond to +attachments+.
-    # @param query_opts [Hash] A hash of query options that will be merged into the defaults from
-    #  {#params}, if any.
-    #
-    # @return Returns a Neo4j Query object or query proxy containing the following variables:
-    #  - +ccount+ (Note the double 'c') is the count of attachments.
-    # If the {#actor} does not have +:attachment_index+ access, the return value is +nil+.
-
-    def count_query(attachable, query_opts = {})
-      return nil unless attachable.permission?(self.actor, Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_INDEX)
-      attachable.attachments_count(_init_query_opts(query_opts))
-    end
-
     # Run a query and return results and pagination controls.
     # This method calls {Fl::Framework::Service::Base#init_query_opts} to build the query parameters, and then
     # {#index_query} to generate the query to use.
     #
     # @param [Object] attachable The attachable for which to get attachments.
-    # @param [Hash] query_opts Query options to merge with the service's {#params}; this is used
-    #  to define controller-specific defaults.
+    # @param query_opts [Hash] Query options to merge with the contents of <i>_q</i> and <i>_pg</i>.
+    #  This is used to define service-specific defaults.
+    # @param _q [Hash, ActionController::Parameters] The query parameters.
+    # @param _pg [Hash, ActionController::Parameters] The pagination parameters.
     #
     # @return [Hash, nil] If a query is generated, it returns a Hash containing two keys:
     #  - *:results* are the results from the query.
@@ -148,8 +99,8 @@ module Fl::Framework::Service::Attachment
     #  - *:_pg* are the pagination controls returned by {Fl::Framework::Service::Base#pagination_controls}.
     #  If no query is generated (in other words, if {#index_query} fails), it returns +nil+.
 
-    def index(attachable, query_opts = {})
-      qo = query_opts.merge(init_query_opts(nil, self.params))
+    def index(attachable, query_opts = {}, _q = {}, _pg = {})
+      qo = init_query_opts(query_opts, _q, _pg)
       q = index_query(attachable, qo)
       if q
         r = q.to_a
@@ -249,14 +200,57 @@ module Fl::Framework::Service::Attachment
       attachment
     end
 
-    private
+    protected
 
-    def _init_query_opts(query_opts)
-      q_opts = (self.params[:query_opts]) ? self.params[:query_opts].merge(query_opts) : query_opts.dup
+    # Build a query to list attachments.
+    # This method uses the _attachable_ {Fl::Framework::Attachment::Query#attachment_query} to build a query to
+    # return attachments associated with the attachable.
+    # It uses the value of _query\\_opts_ merged with the value of +:query_opts+ in {#params}. (And therefore
+    # +:query_opts+ in {#params} is a set of default values for the query.)
+    # Note that this means that service clients can customize the query to return a subset of the available
+    # attachments, for example to return just the attachments from a specific author.
+    #
+    # @param attachable [Object] An attachable object that is expected to respond to +attachments+.
+    # @param query_opts [Hash] A hash of query options that will be merged into the defaults from
+    #  {#params}, if any.
+    #  The method also processes the following.
+    # @option query_opts [String] :order The +ORDER BY+ clause. Because the query returns objects in the
+    #  +c+ variable, each entry in the clause is scoped to +c.+ if necessary. For example, a value of
+    #  <tt>title ASC, updated_at DESC</tt> is converted to <tt>c.title ASC, c.updated_at DESC</tt>.
+    # @option query_opts [String, Integer] :limit The +LIMIT+ clause.
+    # @option query_opts [String, Integer] :skip The +SKIP+ clause.
+    #
+    # @return If the query options are empty, the method returns the +attachments+ association; if they are
+    #  not empty, it returns an association relation.
+    #  If the {#actor} does not have +:attachment_index+ access, the return value is +nil+.
 
-      q_opts.delete(:limit) if q_opts.has_key?(:limit) && (q_opts[:limit].to_i < 0)
+    def index_query(attachable, query_opts = {})
+      return nil unless attachable.permission?(self.actor,
+                                               Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_INDEX)
 
-      q_opts
+      attachable.attachments_query(query_opts)
+    end
+
+    # Build a query to count attachments.
+    # This method uses the _attachable_ association +attachments+ to build a query to return a count of
+    # attachments associated with the attachable.
+    # It uses the value of _query\\_opts_ merged with the value of +:query_opts+ in {#params}. (And therefore
+    # +:query_opts+ in {#params} is a set of default values for the query.)
+    # However, it strips any *:offset*, *:limit*, and *:order* keys from the query options before generating
+    # the query object via a call to {#index_query}.
+    # It then and adds a +count+ clause to the query.
+    #
+    # @param attachable [Object] A attachable object that is expected to respond to +attachments+.
+    # @param query_opts [Hash] A hash of query options that will be merged into the defaults from
+    #  {#params}, if any.
+    #
+    # @return Returns a Neo4j Query object or query proxy containing the following variables:
+    #  - +ccount+ (Note the double 'c') is the count of attachments.
+    # If the {#actor} does not have +:attachment_index+ access, the return value is +nil+.
+
+    def count_query(attachable, query_opts = {})
+      return nil unless attachable.permission?(self.actor, Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_INDEX)
+      attachable.attachments_count(query_opts)
     end
   end
 end
