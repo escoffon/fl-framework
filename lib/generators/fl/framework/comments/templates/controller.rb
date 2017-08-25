@@ -47,7 +47,7 @@
     end
 
     def query_params
-      params.fetch(:_q, {}).permit(:order, :limit, { only_authors: [] }, { except_authors: [] })
+      params.fetch(:_q, {}).permit(:order, :limit, :offset, { only_authors: [] }, { except_authors: [] })
     end
 
     def pagination_params()

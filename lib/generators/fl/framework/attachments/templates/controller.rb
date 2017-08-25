@@ -47,7 +47,7 @@
     end
 
     def query_params
-      params.fetch(:_q, {}).permit(:order, :limit,
+      params.fetch(:_q, {}).permit(:order, :limit, :offset,
                                    { only_authors: [] }, { except_authors: [] },
                                    { only_types: [] }, { except_types: [] })
     end
