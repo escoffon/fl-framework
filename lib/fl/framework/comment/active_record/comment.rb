@@ -119,13 +119,13 @@ module Fl::Framework::Comment::ActiveRecord
     #  denied. The following operations are supported:
     #  - *:index* returns +:public+, since comments are publicly accessible.
     #  - *:create* returns +nil+ if _actor_ is +nil+; otherwise, it returns +:public+.
-    #    rrently, anyone can comment a comment.
+    #    Anyone can comment on a comment, but they must provide an identity (the actor).
     #  - *:read* returns +:public+, since comments are publicly accessible.
     #  - *:write* returns +nil+, since we currently don't allow editing.
     #  - *:destroy* returns +nil+, since we currently don't allow deletion.
     #  - *:comment_index* returns +:public+, since anybody can get the comments for a comment.
     #  - *:comment_create* returns +nil+ if _actor_ is +nil+; otherwise, it returns +:public+.
-    #    Anybody can comment on a comment, but they must be logged in.
+    #    Anyone can comment on a comment, but they must provide an identity (the actor).
     #  - *:attachment_index* returns +:public+, since anybody can get the attachments for a comment.
     #  - *:attachment_create* returns +nil+ if _actor_ is +nil+; otherwise, it returns +:private+
     #    if _actor_ is the comment's author, and +nil+ if it is not.
