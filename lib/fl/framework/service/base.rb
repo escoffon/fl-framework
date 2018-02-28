@@ -203,7 +203,7 @@ module Fl::Framework::Service
     # This method uses the +:id+ entry in the {#params} to look up the object in the database
     # (using the target model class as the context for +find+).
     # If it does not find the object, it sets the status to {Fl::Framework::Service::NOT_FOUND} and returns +nil+.
-    # If it finds the object, it then calls {Fl::Access::Access::InstanceMethods#permission?} to
+    # If it finds the object, it then calls {Fl::Framework::Access::Access::InstanceMethods#permission?} to
     # confirm that the actor has _op_ access to the object.
     # If the permission call fails, it sets the status to {Fl::Framework::Service::FORBIDDEN} and returns the object.
     # Otherwise, it sets the status to {Fl::Framework::Service::OK} and returns the object.
@@ -241,7 +241,7 @@ module Fl::Framework::Service
     # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the +:details+
     # key in the error status from the object's +errors+. 
     #
-    # The method calls {#class_allow_op?} for {Fl::Access::Grants::CREATE} to confirm that the service's
+    # The method calls {#class_allow_op?} for {Fl::Framework::Access::Grants::CREATE} to confirm that the service's
     # _actor_ has permission to create objects. If the permission is not granted, +nil+ is returned.
     #
     # @param params [Hash] The parameters to pass to the object's constructor.
@@ -251,8 +251,8 @@ module Fl::Framework::Service
     #  the instance is valid.
 
     def create(params)
-      if class_allow_op?(Fl::Access::Grants::CREATE)
-        obj = self.model_class.new(params)
+      if class_allow_op?(Fl::Framework::Access::Grants::CREATE)
+        obj = self.model_class.new(params.to_h)
         unless obj.save
           self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
                           I18n.tx(localization_key('creation_failure')),
