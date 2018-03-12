@@ -415,9 +415,10 @@ module Fl::Framework::Access
       #
       # @param actor [Object] The actor requesting permission.
       # @param op [Symbol, String] The requested operation.
-      # @param context The context in which to do the check; this is typically used with nested resources,
+      # @param context An arbitrary value containing the context in which to do the check.
+      #  This parameter is typically used with nested resources,
       #  where a class operation (say, +:index+) is performed in the context of a nesting resource (for 
-      #  example, indexing the comments associated with an asset). In that case, we need to specify
+      #  example, indexing the comments associated with an asset): in that case, we need to specify
       #  the instance of the nesting class.
       #
       # @return [Symbol, nil, false] If _actor_ can perform the operation on the object, the return
@@ -548,7 +549,8 @@ module Fl::Framework::Access
       #
       # @param actor [Object] The actor requesting permissions.
       # @param op [Symbol, String] The name of the requested operation.
-      # @param context Additional context information for the call. For example, the comment checks
+      # @param context An arbitrary value containing the context in which to do the check.
+      #  For example, the comment checks
       #  call the commentable's +permission?+ method, passing the comment in the context.
       #
       # @return [Symbol, nil, false] If _actor_ can perform the operation on the object, the return
