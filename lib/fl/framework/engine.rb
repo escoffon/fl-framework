@@ -45,9 +45,12 @@ module Fl
         require 'fl/framework/active_record'
         require 'fl/framework/application_record'
 
-        # and let's add the locale file. How do we manage if the users want to customize?
+        require 'fl/google'
+
+        # and let's add the locale files. How do we manage if the users want to customize?
 
         config.i18n.load_path.concat(Dir[File.expand_path('../locales/*.yml', __FILE__)])
+        config.i18n.load_path.concat(Dir[File.expand_path('../locales/fl/google/*.yml', __FILE__)])
       end
     end
   end

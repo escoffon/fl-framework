@@ -1,0 +1,14 @@
+# -*-YAML-*- English locale file for components in the Fl::Google namespace
+
+en:
+  fl:
+    google:
+      recaptcha:
+        error-codes:
+          missing-input-secret: 'The secret parameter is missing.'
+          invalid-input-secret: 'The secret parameter is invalid or malformed.'
+          missing-input-response: 'The response parameter is missing.'
+          invalid-input-response: 'The response parameter is invalid or malformed.'
+          bad-request: 'The request is invalid or malformed.'
+          no-secret: 'Could not find a value for the secret parameter.'
+          no-server: 'Could not connect to the reCAPTCHA service API.'
