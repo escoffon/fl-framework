@@ -15,7 +15,7 @@ module Fl::Framework::Service
     #  this parameter gives access to the request context.
     # @param cfg [Hash] Configuration options. See {Fl::Framework::Service::Base.initialize}.
 
-    def initialize(commentable_class, actor, params = {}, controller = nil, cfg = {})
+    def initialize(commentable_class, actor, params = nil, controller = nil, cfg = {})
       @commentable_class = commentable_class
 
       super(actor, params, controller, cfg)
@@ -55,7 +55,6 @@ module Fl::Framework::Service
       idname = [ idname ] unless idname.is_a?(Array)
       found_id = nil
       params = params || self.params
-
 
       obj = nil
       idname.each do |idn|
@@ -196,41 +195,57 @@ module Fl::Framework::Service
     # This method looks up the commentable by id, using the {#commentable_class} value, and checks that
     # the current user has +:read+ privileges on it, and then creates a comment for it.
     #
-    # @param data [Hash] Comment data.
-    # @option data [String] :contents The comment contents; this is a required value.
-    # @option data [String] :title The comment title; if not present, the title is extracted from the
+    # @param opts [Hash] Options to the method. This section describes type-specific options;
+    #  for the common ones, see {Fl::Framework::Service::Base#create}.
+    # @option opts [Symbol,String] :commentable_id_name The name of the parameter in {#params} that
+    #  contains the object identifier for the commentable. Defaults to +:commentable_id+.
+    # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
+    #  initializer.
+    # @option params [String] :contents The comment contents; this is a required value.
+    # @option params [String] :title The comment title; if not present, the title is extracted from the
     #  first 40 character of the contents.
-    # @param idname [Symbol] The name of the key in _params_ that contains the commentable's identifier.
-    #  A value of +nil+ is converted to +:commentable_id+.
-    # @param params [Hash] The parameters to use; if +nil+, the parameters that were passed to the
-    #  constructor are used.
     #
     # @return [Fl::Comment] Returns an instance of {#Fl::Comment}. Note that a non-nil
     #  return value here does not indicate a successful call: clients need to check the object's status
     #  to confirm that it was created (for example, call +valid?+).
 
-    def create(data, idname = nil, params = nil)
-      idname = idname || :commentable_id
-      params = params || self.params
+    def create(opts = {})
+      idname = (opts.has_key?(:commentable_id_name)) ? opts[:commentable_id_name].to_sym : :commentable_id
+      p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
 
       commentable = get_and_check_commentable(Fl::Comment::Commentable::ACCESS_COMMENT_CREATE, idname)
+      comment = nil
       if success?
-        comment = commentable.add_comment(self.actor, data[:contents], data[:title])
-        if commentable.errors.count > 0
-          set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
-                     I18n.tx('fl.asset.service.comment.cannot_create', id: commentable.id),
-                     commentable.errors)
-        else
-          # adding a comment is considered an update
+        rs = verify_captcha(opts[:captcha], p)
+        if rs['success']
+          comment = commentable.add_comment(self.actor, data[:contents], data[:title])
+          if commentable.errors.count > 0
+            set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                       I18n.tx('fl.asset.service.comment.cannot_create', id: commentable.id),
+                       commentable.errors)
+          else
+            # adding a comment is considered an update
 
-          commentable.updated_at = Time.now.to_i
-          commentable.save
+            commentable.updated_at = Time.now.to_i
+            commentable.save
+          end
         end
-      else
-        comment = nil
       end
 
       comment
+    end
+
+    protected
+
+    # Get create parameters.
+    #
+    # @param p [Hash,ActionController::Parameters] The parameters from which to extract the create parameters
+    #  subset.
+    #
+    # @return [ActionController::Parameters] Returns the create parameters.
+
+    def create_params(p)
+      strong_params(p).require(:comment).permit(:title, :contents)
     end
 
     private

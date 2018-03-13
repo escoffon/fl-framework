@@ -25,9 +25,8 @@
 
     # POST /comments
     def create
-      service = Fl::Framework::Service::Comment::ActiveRecord.new(<%=@full_class_name%>, current_user, params)
-      cp = comment_params.dup
-      @comment = service.create(cp.to_h, :<%=@label%>_id)
+      service = Fl::Framework::Service::Comment::ActiveRecord.new(<%=@full_class_name%>, current_user, nil, self)
+      @comment = service.create(commentable_id_name: :<%=@label%>_id)
       respond_to do |format|
         format.json do
           if service.success?
@@ -40,11 +39,6 @@
     end
 
     private
-
-    # Only allow a trusted parameter "white list" through.
-    def comment_params
-      params.require(:comment).permit(:title, :contents)
-    end
 
     def query_params
       params.fetch(:_q, {}).permit(:order, :limit, :offset, { only_authors: [] }, { except_authors: [] })

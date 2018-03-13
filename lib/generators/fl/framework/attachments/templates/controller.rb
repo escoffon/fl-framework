@@ -25,9 +25,8 @@
 
     # POST /attachments
     def create
-      service = Fl::Framework::Service::Attachment::ActiveRecord.new(<%=@full_class_name%>, current_user, params)
-      cp = attachment_params.dup
-      @attachment = service.create(cp.to_h, :<%=@label%>_id)
+      service = Fl::Framework::Service::Attachment::ActiveRecord.new(<%=@full_class_name%>, current_user, nil, self)
+      @attachment = service.create(attachable_id_name: :<%=@label%>_id)
       respond_to do |format|
         format.json do
           if service.success?
@@ -40,11 +39,6 @@
     end
 
     private
-
-    # Only allow a trusted parameter "white list" through.
-    def attachment_params
-      params.require(:attachment).permit(:title, :caption, :attachment, :watermarked)
-    end
 
     def query_params
       params.fetch(:_q, {}).permit(:order, :limit, :offset,
