@@ -9,12 +9,16 @@ module Fl::Framework::Service
   # Also, if the service's {#model_class} does not respond to +permission?+, no access control is performed.
 
   class Base
+    # The key in the request parameters that contains the CAPTCHA response.
+    CAPTCHA_KEY = 'captchaResponse'
+
     # The service actor.
     # @return [Object] Returns the _actor_ parameter that was passed to the initializer.
     attr_reader :actor
 
     # The service parameters.
-    # @return [Hash] Returns the _params_ parameter that was passed to the initializer.
+    # @return [ActionController::Parameters] Returns the parameters loaded into this object, as described
+    #  in the documentation for the initializer.
     attr_reader :params
 
     # The service controller.
@@ -25,21 +29,32 @@ module Fl::Framework::Service
     #
     # @param actor [Object] The actor (typically an instance of {Fl::Core::Actor}, and more specifically
     #  a {Fl::Core::User}) on whose behalf the service operates. It may be +nil+.
-    # @param params [Hash, ActionController::Parameters] Processing parameters; this is typically the
-    #  +params+ hash from a controller.
+    # @param params [Hash, ActionController::Parameters] The processing parameters. If the value is +nil+,
+    #  the parameters are obtained from the `params` property of _controller_. If _controller_ is also
+    #  +nil+, the value is set to an empty hash. Hash values are converted to `ActionController::Parameters`.
     # @param controller [ActionController::Base] The controller (if any) that created the service object;
     #  this parameter gives access to the request context.
     # @param cfg [Hash] Configuration options.
     # @option cfg [Boolean] :disable_access_checks Controls the access checks: set it to +true+ to
     #  disable access checking. The default value is +false+.
+    # @option cfg [Boolean] :disable_captcha Controls the CAPTCHA checks: set it to +true+ to
+    #  disable verification, even if the individual method options requested.
+    #  This is mainly used during testing. The default value is +false+.
     #
     # @raise Raises an exception if the target model class has not been defined.
 
-    def initialize(actor, params = {}, controller = nil, cfg = {})
-#      @actor = (actor.is_a?(Fl::Core::Actor)) ? actor : nil
+    def initialize(actor, params = nil, controller = nil, cfg = {})
       @actor = actor
-      @params = (params.is_a?(ActionController::Parameters)) ? params : normalize_params(params)
       @controller = (controller.is_a?(ActionController::Base)) ? controller : nil
+      @params = if params.nil?
+                  (@controller.nil?) ? {} : @controller.params
+                elsif params.is_a?(Hash)
+                  ActionController::Parameters.new(params)
+                elsif params.is_a?(ActionController::Parameters)
+                  params
+                else
+                  {}
+                end
 
       raise "please define a target model class for #{self.class.name}" unless self.class.model_class
 
@@ -47,6 +62,7 @@ module Fl::Framework::Service
       @_has_class_permission = (self.model_class.methods.include?(:permission?)) ? true : false
 
       @_disable_access_checks = (cfg[:disable_access_checks]) ? true : false
+      @_disable_captcha = (cfg[:disable_captcha]) ? true : false
     end
 
     # @!attribute [r] localization_prefix
@@ -236,35 +252,134 @@ module Fl::Framework::Service
       obj
     end
 
+    # Run a CAPTCHA verification.
+    # CAPTCHA verification is performed as follows:
+    # 1. If the ckecks are disabled, return a success value.
+    # 2. Look up the key +captchaResponse+ in {#create_params}, and if not found
+    #    sets the status to {Fl::Framework::Service::UNPROCESSABLE_ENTITY} and return a failure value.
+    # 3. Creates an instance of the CAPTCHA verifier using {Fl::Framework::CAPTCHA.factory} and calls
+    #    its {Fl::Framework::CAPTCHA::Base#verify} method.
+    #    On error, sets the status to {Fl::Framework::Service::UNPROCESSABLE_ENTITY}.
+    # 4. Return the response form the verification method.
+    #
+    # Note that verification failures have the side effect of setting the status, so that clients can use
+    # {#success?} or check the +success+ field in the return value to determine if the call was successful.
+    #
+    # @param [Boolean,Hash] opts The CAPTCHA options. If +nil+ or +false+, return a success value: no
+    #  verification is requested. If a hash or +true+, run the verification; the hash value is passed
+    #  to the {Fl::Framework::CAPTCHA::Base} initializer.
+    #
+    # @return [Hash] Returns a hash with the same structure as the return value from
+    #  {Fl::Framework::CAPTCHA::Base#verify}.
+
+    def verify_captcha(opts, params)
+      return { 'success' => true } unless do_captcha_checks?
+
+      if opts
+        captcha = params.delete(CAPTCHA_KEY)
+        if captcha.is_a?(String) && (captcha.length > 0)
+          rq = Fl::Framework::CAPTCHA.factory((opts.is_a?(Hash)) ? opts : {})
+          rv = rq.verify(captcha, remote_ip)
+          unless rv['success']
+            self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                            I18n.tx("fl.framework.captcha.verification-failure",
+                                    messages: rv['error-messages'].join(', ')))
+          end
+          rv
+        else
+          self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                          I18n.tx("fl.framework.captcha.no-captcha", key: CAPTCHA_KEY))
+          { 'success' => false, 'error-codes' => [ 'no-captcha' ] }
+        end
+      else
+        { 'success' => true }
+      end
+    end
+
     # Create an instance of the model class.
     # This method attempts to create and save an instance of the model class; if either operation fails,
     # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the +:details+
     # key in the error status from the object's +errors+. 
     #
-    # The method calls {#class_allow_op?} for {Fl::Framework::Access::Grants::CREATE} to confirm that the service's
-    # _actor_ has permission to create objects. If the permission is not granted, +nil+ is returned.
+    # The method calls {#class_allow_op?} for {Fl::Framework::Access::Grants::CREATE} to confirm that the
+    # service's _actor_ has permission to create objects. If the permission is not granted, +nil+ is returned.
     #
-    # @param params [Hash] The parameters to pass to the object's constructor.
+    # @param opts [Hash] Options to the method.
+    # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
+    #  initializer. If not present or +nil+, use the value returned by {#create_params}.
+    # @option opts [Boolean,Hash] :captcha If this option is present and is either +true+ or a hash,
+    #  the method does a CAPTCHA validation using an appropriate subclass of {Fl::CAPTCHA::Base}
+    #  (typically {https://www.google.com/recaptcha/intro Google reCAPTCHA}).
+    #  If the value is a hash, it is passed to the initializer for {Fl::CAPTCHA::Base}.
+    # @option opts [Object] :context The context to pass to the access checker method {#class_allow_op?}.
+    #  The special value +:params+ (a Symbol named +params+) indicates that the create parameters are to be
+    #  passed as the context.
+    #  Defaults to +:params+.
     #
     # @return [Object, nil] Returns an instance of the {#model_class}. Note that a non-nil return value
     #  does not indicate that the call was successful; for that, you should call {#success?} or check if
     #  the instance is valid.
 
-    def create(params)
-      if class_allow_op?(Fl::Framework::Access::Grants::CREATE)
-        obj = self.model_class.new(params.to_h)
-        unless obj.save
-          self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
-                          I18n.tx(localization_key('creation_failure')),
-                          (obj) ? obj.errors.messages : nil)
+    def create(opts = {})
+      p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
+
+      ctx = if opts.has_key?(:context)
+              (opts[:context] == :params) ? p : opts[:context]
+            else
+              # This is equivalent to setting the default to :params
+
+              p
+            end
+
+      if class_allow_op?(Fl::Framework::Access::Grants::CREATE, ctx)
+        rs = verify_captcha(opts[:captcha], p)
+        if rs['success']
+          obj = self.model_class.new(p)
+          unless obj.save
+            self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                            I18n.tx(localization_key('creation_failure')),
+                            (obj) ? obj.errors.messages : nil)
+          end
+          obj
+        else
+          nil
         end
-        obj
       else
         nil
       end
     end
 
     protected
+
+    # Convert parameters to `ActionController::Parameters`.
+    #
+    # @param p [Hash,ActionController::Parameters] The parameters to convert.
+    #
+    # @return [ActionController::Parameters] Returns the converted parameters.
+
+    def strong_params(p)
+      (p.is_a?(ActionController::Parameters)) ? p : ActionController::Parameters.new(p)
+    end
+
+    # Get create parameters.
+    # This method is meant to be overridden by subclasses to implement class-specific lookup of creation
+    # parameters. A typical implementation uses the Rails strong parameters functionality, as in the
+    # example below.
+    #   def create_params(p)
+    #     p = (p.nil?) ? params : strong_params(p)
+    #     p.require(:my_context).permit(:param1, { param2: [] })
+    #   end
+    #
+    # @param p [Hash,ActionController::Parameters] The parameters from which to extract the create parameters
+    #  subset.
+    #
+    # @return [ActionController::Parameters] Returns the create parameters.
+    #
+    # @raise The base implementation raises an exception to force subclasses to override it.
+
+    def create_params(p)
+      raise "please implement #{self.class.name}#create_params"
+    end
 
     # The backstop values for the query options.
 
@@ -429,7 +544,7 @@ module Fl::Framework::Service
     #
     # This method is typically used to normalize the +params+ value.
     #
-    # @param h [Hash] The hash to normalize; this may also be an instance of ActionController::Parameters.
+    # @param h [Hash,ActionController::Parameters] The hash to normalize.
     #
     # @return [Hash] Returns a new hash where all keys have been converted to symbols. This operation
     #  is applied recursively to hash values.
@@ -465,6 +580,14 @@ module Fl::Framework::Service
     def do_access_checks?(obj = nil)
       obj = self.model_class if obj.nil?
       (@_disable_access_checks || !obj.respond_to?(:permission?)) ? false : true
+    end
+
+    # Check that CAPTCHA checks are enabled and supported.
+    #
+    # @return [Boolean] Returns +true+ if CAPTCHA checks are enabled; otherwise, it returns +false+.
+
+    def do_captcha_checks?()
+      (@_disable_captcha) ? false : true
     end
 
     # Build a lookup key in the message catalog.
@@ -520,6 +643,12 @@ module Fl::Framework::Service
 
     def self.model_class()
       @_model_class
+    end
+
+    private
+
+    def remote_ip
+      (@controller) ? @controller.request.env["REMOTE_ADDR"] : nil
     end
   end
 end
