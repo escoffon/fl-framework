@@ -44,6 +44,8 @@ en:
       service:
         comment:
           cannot_create: "could not create a comment for %{fingerprint}"
+          active_record:
+            forbidden: "no permission to perform operation %{op}"
         attachment:
           type_mismatch: "attachment type mismatch; declared: %{declared_type}, detected: %{detected_type}"
           type_not_allowed: "attachable %{fingerprint} does not store type %{type}"
