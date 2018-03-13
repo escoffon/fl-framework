@@ -304,7 +304,8 @@ module Fl::Framework::Service
     # The method calls {#class_allow_op?} for {Fl::Framework::Access::Grants::CREATE} to confirm that the
     # service's _actor_ has permission to create objects. If the permission is not granted, +nil+ is returned.
     #
-    # @param opts [Hash] Options to the method.
+    # @param opts [Hash] Options to the method. This section describes the common options; subclasses may
+    #  define type-specific ones.
     # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
     #  initializer. If not present or +nil+, use the value returned by {#create_params}.
     # @option opts [Boolean,Hash] :captcha If this option is present and is either +true+ or a hash,
