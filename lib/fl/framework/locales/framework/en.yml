@@ -52,3 +52,6 @@ en:
           active_record:
             forbidden: "no permission to perform operation %{op}"
 
+      captcha:
+        no-captcha: 'The request does not contain the CAPTCHA key %{key}'
+        verification-failure: 'CAPTCHA verification failure: %{messages}'

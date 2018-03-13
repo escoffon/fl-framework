@@ -49,8 +49,8 @@ module Fl
 
         # and let's add the locale files. How do we manage if the users want to customize?
 
-        config.i18n.load_path.concat(Dir[File.expand_path('../locales/*.yml', __FILE__)])
-        config.i18n.load_path.concat(Dir[File.expand_path('../locales/fl/google/*.yml', __FILE__)])
+        config.i18n.load_path.concat(Dir[File.expand_path('../locales/framework/*.yml', __FILE__)])
+        config.i18n.load_path.concat(Dir[File.expand_path('../locales/google/*.yml', __FILE__)])
       end
     end
   end
