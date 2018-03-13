@@ -6,3 +6,4 @@ module Fl::Framework
 end
 
 require 'fl/framework/test/attachment_test_helper'
+require 'fl/framework/test/captcha_test_helper'

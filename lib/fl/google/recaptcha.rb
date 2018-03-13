@@ -4,7 +4,7 @@ require 'uri'
 module Fl::Google
   # Client for the Google reCAPTCHA API.
 
-  class RECAPTCHA
+  class RECAPTCHA < Fl::Framework::CAPTCHA::Base
     # The environment variable that contains the secret.
 
     SECRET_KEY = 'RECAPTCHA_SECRET'
@@ -35,7 +35,7 @@ module Fl::Google
     # @param [String] response The response as submitted by the form.
     # @param [String] ip An optional IP address for the requestor.
     #
-    # @return [Has] Returns a hash containing the API's response. In addition to the key/value pairs
+    # @return [Hash] Returns a hash containing the API's response. In addition to the key/value pairs
     #  returned by the API, `error-messages` contains an array of error messages mapped from the
     #  error codes.
 
@@ -73,6 +73,16 @@ module Fl::Google
 
       json['error-messages'] = map_error_codes(json) unless json['success']
       json
+    end
+
+    # Set the CAPTCHA factory to return an instnce of {RECAPTCHA}.
+
+    def self.register_factory()
+      Fl::Framework::CAPTCHA.class_eval do
+        def self.factory(config = {})
+          RECAPTCHA.new(config)
+        end
+      end
     end
 
     private

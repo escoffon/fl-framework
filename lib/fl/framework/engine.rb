@@ -41,6 +41,7 @@ module Fl
         require 'fl/framework/service'
         require 'fl/framework/controller'
         require 'fl/framework/test'
+        require 'fl/framework/captcha'
 
         require 'fl/framework/active_record'
         require 'fl/framework/application_record'
