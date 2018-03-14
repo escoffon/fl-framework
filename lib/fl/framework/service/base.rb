@@ -312,6 +312,8 @@ module Fl::Framework::Service
     #  the method does a CAPTCHA validation using an appropriate subclass of {Fl::CAPTCHA::Base}
     #  (typically {https://www.google.com/recaptcha/intro Google reCAPTCHA}).
     #  If the value is a hash, it is passed to the initializer for {Fl::CAPTCHA::Base}.
+    # @option opts [Symbol,String] :permission The name of the permission to request in order to
+    #  complete the operation. Defaults to {Fl::Framework::Access::Grants::CREATE}.
     # @option opts [Object] :context The context to pass to the access checker method {#class_allow_op?}.
     #  The special value +:params+ (a Symbol named +params+) indicates that the create parameters are to be
     #  passed as the context.
@@ -323,7 +325,7 @@ module Fl::Framework::Service
 
     def create(opts = {})
       p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
-
+      op = (opts[:permission]) ? opts[:permission].to_sym : Fl::Framework::Access::Grants::CREATE
       ctx = if opts.has_key?(:context)
               (opts[:context] == :params) ? p : opts[:context]
             else
@@ -332,7 +334,7 @@ module Fl::Framework::Service
               p
             end
 
-      if class_allow_op?(Fl::Framework::Access::Grants::CREATE, ctx)
+      if class_allow_op?(op, ctx)
         rs = verify_captcha(opts[:captcha], p)
         if rs['success']
           obj = self.model_class.new(p)
@@ -354,12 +356,13 @@ module Fl::Framework::Service
 
     # Convert parameters to `ActionController::Parameters`.
     #
-    # @param p [Hash,ActionController::Parameters] The parameters to convert.
+    # @param p [Hash,ActionController::Parameters] The parameters to convert; if +nil+, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the converted parameters.
 
     def strong_params(p)
-      (p.is_a?(ActionController::Parameters)) ? p : ActionController::Parameters.new(p)
+      sp = (p.nil?) ? self.params : p
+      (sp.is_a?(ActionController::Parameters)) ? sp : ActionController::Parameters.new(sp)
     end
 
     # Get create parameters.
