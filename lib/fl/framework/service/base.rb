@@ -310,7 +310,8 @@ module Fl::Framework::Service
     #  initializer. If not present or +nil+, use the value returned by {#create_params}.
     # @option opts [Boolean,Hash] :captcha If this option is present and is either +true+ or a hash,
     #  the method does a CAPTCHA validation using an appropriate subclass of {Fl::CAPTCHA::Base}
-    #  (typically {https://www.google.com/recaptcha/intro Google reCAPTCHA}).
+    #  (typically {Fl::Google::RECAPTCHA}, which implements
+    #  {https://www.google.com/recaptcha/intro Google reCAPTCHA}).
     #  If the value is a hash, it is passed to the initializer for {Fl::CAPTCHA::Base}.
     # @option opts [Symbol,String] :permission The name of the permission to request in order to
     #  complete the operation. Defaults to {Fl::Framework::Access::Grants::CREATE}.
@@ -605,7 +606,7 @@ module Fl::Framework::Service
       localization_prefix + '.' + key
     end
 
-    # Build a query to list stories.
+    # Build a query to list objects.
     # This method is expected to return a ActiveRecord::Relation set up according to the query
     # parameters in <i>query_opts</i>. The default implementation returns +nil+; subclasses are
     # expected to override it to return the correct relation instance.
@@ -626,7 +627,7 @@ module Fl::Framework::Service
     # The service manages instances of this class. For example, the {#get_and_check} method uses this
     # class to look up an object in the database by object identifier (i.e. it calls something like
     #   self.class.model_class.find(self.params[:id])
-    # to look up an object of the appropriate class.
+    # to look up an object of the appropriate class).
     #
     # Subclasses must call this method in the class definition, for example:
     #   class MyService < Fl::Framework::Service::Base

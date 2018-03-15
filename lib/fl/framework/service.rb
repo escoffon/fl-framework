@@ -23,5 +23,6 @@ module Fl::Framework
 end
 
 require 'fl/framework/service/base'
+require 'fl/framework/service/nested'
 require 'fl/framework/service/comment'
 require 'fl/framework/service/attachment'
