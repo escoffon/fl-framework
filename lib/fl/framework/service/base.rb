@@ -353,15 +353,13 @@ module Fl::Framework::Service
       end
     end
 
-    protected
-
     # Convert parameters to `ActionController::Parameters`.
     #
-    # @param p [Hash,ActionController::Parameters] The parameters to convert; if +nil+, use {#params}.
+    # @param p [Hash,ActionController::Parameters,nil] The parameters to convert; if +nil+, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the converted parameters.
 
-    def strong_params(p)
+    def strong_params(p = nil)
       sp = (p.nil?) ? self.params : p
       (sp.is_a?(ActionController::Parameters)) ? sp : ActionController::Parameters.new(sp)
     end
@@ -376,15 +374,17 @@ module Fl::Framework::Service
     #   end
     #
     # @param p [Hash,ActionController::Parameters] The parameters from which to extract the create parameters
-    #  subset.
+    #  subset. if +nil+, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the create parameters.
     #
     # @raise The base implementation raises an exception to force subclasses to override it.
 
-    def create_params(p)
+    def create_params(p = nil)
       raise "please implement #{self.class.name}#create_params"
     end
+
+    protected
 
     # The backstop values for the query options.
 

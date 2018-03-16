@@ -2,10 +2,10 @@ require 'fl/framework/service/attachment'
 
 module Fl::Framework::Service::Attachment
   # Service object for attachments that use an Active Record database.
-  # This service manages attachments associated with a attachable; one of the constructor arguments is the
+  # This service manages attachments associated with an attachable; one of the constructor arguments is the
   # actual class of the attachable.
 
-  class ActiveRecord < Fl::Framework::Service::Base
+  class ActiveRecord < Fl::Framework::Service::Nested
     self.model_class = Fl::Framework::Attachment::ActiveRecord::Base
 
     # Initializer.
@@ -18,69 +18,27 @@ module Fl::Framework::Service::Attachment
     # @param cfg [Hash] Configuration options. See {Fl::Framework::Service::Base#initialize}.
 
     def initialize(attachable_class, actor, params = nil, controller = nil, cfg = {})
-      @attachable_class = attachable_class
-
-      super(actor, params, controller, cfg)
+      super(attachable_class, actor, params, controller, cfg)
     end
 
     # @attribute [r] attachable_class
-    #
+    # This is synctactic sugar that wraps {#owner_class}.
     # @return [Class] Returns the class object for the attachable.
 
-    def attachable_class()
-      @attachable_class
-    end
+    alias attachable_class owner_class
 
-    # Look up a attachable in the database, and check if the service's actor has permissions on it.
-    # This method uses the attachable id entry in the {#params} to look up the object in the database
-    # (using the attachable model class as the context for +find+, and the value of _idname_ as the lookup
-    # key).
-    # If it does not find the object, it sets the status to {Fl::Framework::Service::NOT_FOUND} and
-    # returns +nil+.
-    # If it finds the object, it then calls {Fl::Framework::Access::Access::InstanceMethods#permission?} to
-    # confirm that the actor has _op_ access to the object.
-    # If the permission call fails, it sets the status to {Fl::Framework::Service::FORBIDDEN} and returns the
-    # object.
-    # Otherwise, it sets the status to {Fl::Framework::Service::OK} and returns the object.
+    # Get and check the attachable.
+    # This is synctactic sugar that wraps {#get_and_check_owner}.
     #
-    # @param [Symbol] op The operation for which to request permission. If +nil+, no access check is performed
-    #  and the call is the equivalent of a simple database lookup.
+    # @param [Symbol,nil] op The operation for which to request permission.
     # @param [Symbol, Array<Symbol>] idname The name or names of the key in _params_ that contain the object
-    #  identifier for the attachable. A +nil+ value defaults to +:attachable_id+.
+    #  identifier for the owner.
     # @param [Hash] params The parameters where to look up the +:id+ key used to fetch the object.
-    #  If +nil+, use the _params_ value that was passed to the constructor.
     #
-    # @return [Object, nil] Returns an object, or +nil+. Note that a non-nil return value is not a guarantee
-    #  that the check operation succeded.
+    # @return [Object, nil] Returns an object, or +nil+.
 
-    def get_and_check_attachable(op, idname = nil, params = nil)
-      idname = idname || :attachable_id
-      idname = [ idname ] unless idname.is_a?(Array)
-      found_id = nil
-      params = params || self.params
+    alias get_and_check_attachable get_and_check_owner
 
-      obj = nil
-      idname.each do |idn|
-        if params.has_key?(idn)
-          begin
-            obj = self.attachable_class.find(params[idn])
-            found_id = idn
-            break
-          rescue ActiveRecord::RecordNotFound => ex
-            obj = nil
-          end
-        end
-      end
-
-      if obj.nil?
-        self.set_status(Fl::Framework::Service::NOT_FOUND,
-                        I18n.tx(localization_key('not_found'), id: idname.join(',')))
-        return nil
-      end
-
-      self.clear_status if allow_op?(obj, op, nil, found_id)
-      obj
-    end
 
     # Run a query and return results and pagination controls.
     # This method calls {Fl::Framework::Service::Base#init_query_opts} to build the query parameters, and then
@@ -133,7 +91,7 @@ module Fl::Framework::Service::Attachment
     #  return value here does not indicate a successful call: clients need to check the object's status
     #  to confirm that it was created (for example, call +valid?+).
 
-    def create(opts = {})
+    def xx_create(opts = {})
       idname = (opts.has_key?(:attachable_id_name)) ? opts[:attachable_id_name].to_sym : :attachable_id
       p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
 
@@ -203,7 +161,97 @@ module Fl::Framework::Service::Attachment
       attachment
     end
 
-    protected
+    # Create an attachment for an attachable object.
+    # Overrides the superclass implementation to add attachment-specific checks and adjustments.
+    #
+    # @param opts [Hash] Options to the method. See {Fl::Framework::Service::Attachment::Nested#create_nested}
+    #  for details of the common options.
+    # @option opts [Symbol,String] :attachable_id_name The name of the parameter in {#params} that
+    #  contains the object identifier for the attachable; this is an alias for *:owner_id_name*.
+    #  Defaults to +:attachable_id+.
+    # @option opts [Symbol,String] :attachable_attribute_name The name of the attribute passed to the
+    #  initializer that contains the attachable object; this is an alias for *:owner_attribute_name*.
+    #  Defaults to +:attachable+.
+    #
+    # @return [Object] Returns the created attachment on success, +nil+ on error.
+    #  Note that a non-nil return value does not indicate that the call was successful; for that, you should
+    #  call #success? or check if the instance is valid.
+
+    def create_nested(opts = {})
+      idname = (opts.has_key?(:attachable_id_name)) ? [ opts[:attachable_id_name].to_sym ] : :attachable_id
+      idname << ((opts.has_key?(:owner_id_name)) ? opts[:owner_id_name].to_sym : :owner_id)
+      if opts.has_key?(:attachable_attribute_name)
+        attrname = opts[:attachable_attribute_name].to_sym
+      else
+        attrname = (opts.has_key?(:owner_attribute_name)) ? opts[:owner_attribute_name].to_sym : :attachable
+      end
+      p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
+      op = (opts[:permission]) ? opts[:permission].to_sym : Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_CREATE
+
+      # Creating an attachment requires a number of checks:
+      # 1. confirm that the actor has permission to attach.
+
+      attachable = get_and_check_attachable(op, idname)
+      attachment = nil
+      if attachable && success?
+        rs = verify_captcha(opts[:captcha], p)
+        if rs['success']
+          # 2. Confirm that the submitted file's content type is consistent with the declared type
+
+          afile = p[:attachment]
+          mtype = MimeMagic.by_magic(afile.tempfile)
+          if mtype.type != afile.content_type
+            set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                       I18n.tx('fl.framework.service.attachment.type_mismatch',
+                               declared_type: afile.content_type, detected_type: mtype.type))
+          else
+            # 3. Confirm that the attachable can create this type of attachment
+
+            unless attachable.attachments.allow?(afile.content_type)
+              set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                         I18n.tx('fl.framework.service.attachment.type_not_allowed',
+                                 type: afile.content_type, fingerprint: attachable.fingerprint))
+            else
+              # 4. get the attachment class
+
+              cr = Fl::Framework::Attachment::ClassRegistry.registry
+              aclass = cr.lookup(afile.content_type, Fl::Framework::Attachment::ClassRegistry::ORM_ACTIVE_RECORD)
+              if aclass
+                # 5. Finally! Create the attachment and save it
+
+                p[:attachable] = attachable
+                attachment = aclass.new(p)
+                if attachment.save
+                  # adding an attachment is considered an update
+
+                  attachable.updated_at = Time.now
+                  attachable.save
+                else
+                  attachment.errors.each do |ek, ev|
+                    ak = "attachment.#{ek}"
+                    if ev.is_a?(Array)
+                      ev.each { |e| attachable.errors.add(ak, e) }
+                    else
+                      attachable.errors.add(ak, ev)
+                    end
+                  end
+                  attachment = nil
+                  set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                             I18n.tx('fl.framework.service.attachment.cannot_create',
+                                     fingerprint: attachable.fingerprint),
+                             attachable.errors)
+                end
+              else
+                set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                           I18n.tx('fl.framework.service.attachment.no_class', type: afile.content_type))
+              end
+            end
+          end
+        end
+      end
+
+      attachment
+    end
 
     # Get create parameters.
     #
@@ -213,8 +261,14 @@ module Fl::Framework::Service::Attachment
     # @return [ActionController::Parameters] Returns the create parameters.
 
     def create_params(p)
-      strong_params(p).require(:attachment).permit(:title, :caption, :attachment, :watermarked)
+      # The actor is the attachment's author
+
+      cp = strong_params(p).require(:attachment).permit(:title, :caption, :attachment, :watermarked)
+      cp[:author] = actor
+      cp
     end
+
+    protected
 
     # Build a query to list attachments.
     # This method uses the _attachable_ {Fl::Framework::Attachment::Query#attachment_query} to build a query to

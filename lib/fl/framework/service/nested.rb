@@ -101,12 +101,8 @@ module Fl::Framework::Service
     # *:owner_attribute_name* it is +:author+.
     #
     # The method attempts to create and save an instance of the model class; if either operation fails,
-    # it sets the status to UNPROCESSABLE_ENTITY and loads a message and the :details key in the error status
+    # it sets the status to UNPROCESSABLE_ENTITY and loads a message and the *:details* key in the error status
     # from the object's errors.
-    #
-    # The method calls {#class_allow_op?} on _owner_ using the operation _op_ to confirm that the service's
-    # actor has permission to create bookmarks in _owner_. If the permission is not granted, +nil+ is
-    # returned.
     #
     # @param opts [Hash] Options to the method. This section describes the common options; subclasses may
     #  define type-specific ones.
@@ -128,7 +124,7 @@ module Fl::Framework::Service
     # @option opts [Symbol,String] :owner_attribute_name The name of the attribute passed to the initializer
     #  that contains the owner object. Defaults to +:owner+.
     #
-    # @return [Cf::Core::Bookmark] Returns the created bookmark on success, +nil+ on error.
+    # @return [Object] Returns the created object on success, +nil+ on error.
     #  Note that a non-nil return value does not indicate that the call was successful; for that, you should
     #  call #success? or check if the instance is valid.
 

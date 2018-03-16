@@ -26,7 +26,9 @@
     # POST /attachments
     def create
       service = Fl::Framework::Service::Attachment::ActiveRecord.new(<%=@full_class_name%>, current_user, nil, self)
-      @attachment = service.create(attachable_id_name: :<%=@label%>_id)
+      @attachment = service.create_nested(attachable_id_name: :<%=@label%>_id,
+                                          attachable_attribute_name: :attachable,
+                                          permission: Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_CREATE)
       respond_to do |format|
         format.json do
           if service.success?

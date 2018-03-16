@@ -26,7 +26,9 @@
     # POST /comments
     def create
       service = Fl::Framework::Service::Comment::ActiveRecord.new(<%=@full_class_name%>, current_user, nil, self)
-      @comment = service.create(commentable_id_name: :<%=@label%>_id)
+      @comment = service.create_nested(owner_id_name: :<%=@label%>_id,
+                                       owner_attribute_name: :commentable,
+                                       permission: Fl::Framework::Comment::Commentable::ACCESS_COMMENT_CREATE)
       respond_to do |format|
         format.json do
           if service.success?

@@ -9,12 +9,12 @@ module Fl::Framework::Service::Comment
   # This service manages comments associated with a commentable; one of the constructor arguments is the
   # actual class of the commentable.
 
-  class ActiveRecord < Fl::Framework::Service::Base
+  class ActiveRecord < Fl::Framework::Service::Nested
     self.model_class = Fl::Framework::Comment::ActiveRecord::Comment
 
     # Initializer.
     #
-    # @param commentable_class [Class] The class object for the commentable.
+    # @param commentable_class [Class] The class object for the commentable; this is saved as the owner class.
     # @param actor [Object] The actor on whose behalf the service operates. It may be +nil+.
     # @param params [Hash] Processing parameters; this is typically the +params+ hash from a controller.
     # @param controller [ActionController::Base] The controller (if any) that created the service object;
@@ -22,69 +22,26 @@ module Fl::Framework::Service::Comment
     # @param cfg [Hash] Configuration options. See {Fl::Framework::Service::Base#initialize}.
 
     def initialize(commentable_class, actor, params = nil, controller = nil, cfg = {})
-      @commentable_class = commentable_class
-
-      super(actor, params, controller, cfg)
+      super(commentable_class, actor, params, controller, cfg)
     end
 
     # @attribute [r] commentable_class
-    #
+    # This is synctactic sugar that wraps {#owner_class}.
     # @return [Class] Returns the class object for the commentable.
 
-    def commentable_class()
-      @commentable_class
-    end
+    alias commentable_class owner_class
 
-    # Look up a commentable in the database, and check if the service's actor has permissions on it.
-    # This method uses the commentable id entry in the {#params} to look up the object in the database
-    # (using the commentable model class as the context for +find+, and the value of _idname_ as the lookup
-    # key).
-    # If it does not find the object, it sets the status to {Fl::Framework::Service::NOT_FOUND} and
-    # returns +nil+.
-    # If it finds the object, it then calls {Fl::Framework::Access::Access::InstanceMethods#permission?} to
-    # confirm that the actor has _op_ access to the object.
-    # If the permission call fails, it sets the status to {Fl::Framework::Service::FORBIDDEN} and returns the
-    # object.
-    # Otherwise, it sets the status to {Fl::Framework::Service::OK} and returns the object.
+    # Get and check the commentable.
+    # This is synctactic sugar that wraps {#get_and_check_owner}.
     #
-    # @param [Symbol] op The operation for which to request permission. If +nil+, no access check is performed
-    #  and the call is the equivalent of a simple database lookup.
+    # @param [Symbol,nil] op The operation for which to request permission.
     # @param [Symbol, Array<Symbol>] idname The name or names of the key in _params_ that contain the object
-    #  identifier for the commentable. A +nil+ value defaults to +:commentable_id+.
+    #  identifier for the owner.
     # @param [Hash] params The parameters where to look up the +:id+ key used to fetch the object.
-    #  If +nil+, use the _params_ value that was passed to the constructor.
     #
-    # @return [Object, nil] Returns an object, or +nil+. Note that a non-nil return value is not a guarantee
-    #  that the check operation succeded.
+    # @return [Object, nil] Returns an object, or +nil+.
 
-    def get_and_check_commentable(op, idname = nil, params = nil)
-      idname = idname || :commentable_id
-      idname = [ idname ] unless idname.is_a?(Array)
-      found_id = nil
-      params = params || self.params
-
-      obj = nil
-      idname.each do |idn|
-        if params.has_key?(idn)
-          begin
-            obj = self.commentable_class.find(params[idn])
-            found_id = idn
-            break
-          rescue ActiveRecord::RecordNotFound => ex
-            obj = nil
-          end
-        end
-      end
-
-      if obj.nil?
-        self.set_status(Fl::Framework::Service::NOT_FOUND,
-                        I18n.tx(localization_key('not_found'), id: idname.join(',')))
-        return nil
-      end
-
-      self.clear_status if allow_op?(obj, op, nil, found_id)
-      obj
-    end
+    alias get_and_check_commentable get_and_check_owner
 
     # Run a query and return results and pagination controls.
     # This method calls {Fl::Framework::Service::Base#init_query_opts} to build the query parameters, and then
@@ -117,54 +74,6 @@ module Fl::Framework::Service::Comment
       end
     end
 
-    # Create a comment for a commentable object.
-    # This method looks up the commentable by id, using the {#commentable_class} value, and checks that
-    # the current user has +:comment_create+ privileges on it, and then creates a comment for it.
-    #
-    # @param opts [Hash] Options to the method. This section describes type-specific options;
-    #  for the common ones, see {Fl::Framework::Service::Base#create}.
-    # @option opts [Symbol,String] :commentable_id_name The name of the parameter in {#params} that
-    #  contains the object identifier for the commentable. Defaults to +:commentable_id+.
-    # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
-    #  initializer.
-    # @option params [String] :contents The comment contents; this is a required value.
-    # @option params [String] :title The comment title; if not present, the title is extracted from the
-    #  first 40 character of the contents.
-    #
-    # @return [Object] Returns a comment object (for example, an instance of
-    #  {Fl::Framework::Comment::ActiveRecord::Comment}. Note that a non-nil
-    #  return value here does not indicate a successful call: clients need to check the object's status
-    #  to confirm that it was created (for example, call +valid?+).
-
-    def create(opts = {})
-      idname = (opts.has_key?(:commentable_id_name)) ? opts[:commentable_id_name].to_sym : :commentable_id
-      p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
-
-      commentable = get_and_check_commentable(Fl::Framework::Comment::Commentable::ACCESS_COMMENT_CREATE, idname)
-      comment = nil
-      if success?
-        rs = verify_captcha(opts[:captcha], p)
-        if rs['success']
-          comment = commentable.add_comment(self.actor, p[:contents], p[:title])
-          if commentable.errors.count > 0
-            set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
-                       I18n.tx('fl.framework.service.comment.cannot_create',
-                               fingerprint: commentable.fingerprint),
-                       commentable.errors)
-          else
-            # adding a comment is considered an update
-
-            commentable.updated_at = Time.now
-            commentable.save
-          end
-        end
-      end
-
-      comment
-    end
-
-    protected
-
     # Get create parameters.
     #
     # @param p [Hash,ActionController::Parameters] The parameters from which to extract the create parameters
@@ -172,9 +81,16 @@ module Fl::Framework::Service::Comment
     #
     # @return [ActionController::Parameters] Returns the create parameters.
 
-    def create_params(p)
-      strong_params(p).require(:comment).permit(:title, :contents)
+    def create_params(p = nil)
+      # :author is implicit in the current user
+      cp = strong_params(p).require(:comment).permit(:title, :contents)
+
+      cp[:author] = actor
+
+      cp
     end
+
+    protected
 
     # Build a query to list comments.
     # This method uses the _commentable_ {Fl::Framework::Comment::Query#comment_query} to build a query to
