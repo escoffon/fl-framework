@@ -66,22 +66,20 @@ module Fl::Framework
 
     # PATCH/PUT /attachments/1
     def update
-      p = normalize_params(params)
-      service = Fl::Framework::Service::Attachment::ActiveRecord.new(Fl::Framework::Comment::ActiveRecord::Comment, current_user, p)
-      if get_and_check(service, Fl::Framework::Access::Grants::WRITE, '@attachment')
-        if @attachment.update_attributes(attachment_params)
-          respond_to do |format|
-            format.json do
-              render(:json => { :attachment => hash_one_object(@attachment, p[:to_hash]) },
-                     status: :ok)
-            end
+      service = Fl::Framework::Service::Attachment::ActiveRecord.new(Fl::Framework::Comment::ActiveRecord::Comment, current_user, nil, self)
+      @attachment = service.update()
+      if @attachment && service.success?
+        respond_to do |format|
+          format.json do
+            render(:json => { :attachment => hash_one_object(@attachment, p[:to_hash]) },
+                   status: :ok)
           end
-        else
-          respond_to do |format|
-            format.html
-            format.json do
-              error_response(generate_error_info(service))
-            end
+        end
+      else
+        respond_to do |format|
+          format.html
+          format.json do
+            error_response(generate_error_info(service, @attachment))
           end
         end
       end
@@ -115,9 +113,5 @@ module Fl::Framework
     end
 
     private
-      # Only allow a trusted parameter "white list" through.
-      def attachment_params
-        params.require(:attachment).permit(:attachable, :author, :title, :caption, :watermarked)
-      end
   end
 end

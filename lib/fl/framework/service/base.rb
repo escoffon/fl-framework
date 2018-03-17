@@ -230,13 +230,18 @@ module Fl::Framework::Service
     #  A +nil+ value defaults to +:id+.
     # @param [Hash] params The parameters where to look up the +:id+ key used to fetch the object.
     #  If +nil+, use the _params_ value that was passed to the constructor.
+    # @option [Object] context The context to pass to the access checker method {#allow_op?}.
+    #  The special value +:params+ (a Symbol named +params+) indicates that the value of _params_ is to be
+    #  passed as the context.
+    #  Defaults to +nil+.
     #
     # @return [Object, nil] Returns an object, or +nil+. Note that a non-nil return value is not a guarantee
     #  that the check operation succeded.
 
-    def get_and_check(op, idname = nil, params = nil)
+    def get_and_check(op, idname = nil, params = nil, context = nil)
       idname = idname || :id
       params = params || self.params
+      ctx = (:context == :params) ? params : context
 
       begin
         obj = self.model_class.find(params[idname])
@@ -248,7 +253,7 @@ module Fl::Framework::Service
         return nil
       end
 
-      self.clear_status if allow_op?(obj, op, nil, idname)
+      self.clear_status if allow_op?(obj, op, ctx, idname)
       obj
     end
 
@@ -301,7 +306,7 @@ module Fl::Framework::Service
     # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the +:details+
     # key in the error status from the object's +errors+. 
     #
-    # The method calls {#class_allow_op?} for {Fl::Framework::Access::Grants::CREATE} to confirm that the
+    # The method calls {#class_allow_op?} for `opts[:permission]` to confirm that the
     # service's _actor_ has permission to create objects. If the permission is not granted, +nil+ is returned.
     #
     # @param opts [Hash] Options to the method. This section describes the common options; subclasses may
@@ -353,6 +358,68 @@ module Fl::Framework::Service
       end
     end
 
+    # Update an instance of the model class.
+    # This method attempts to update an instance of the model class; if the operation fails,
+    # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the +:details+
+    # key in the error status from the object's +errors+. 
+    #
+    # The method calls {#allow_op?} for `opts[:permission]` to confirm that the
+    # service's _actor_ has permission to update the object.
+    # If the permission is not granted, +nil+ is returned.
+    #
+    # @param opts [Hash] Options to the method. This section describes the common options; subclasses may
+    #  define type-specific ones.
+    # @option opts [Symbol,String] :idname The name of the key in {#params} that contains the object identifier.
+    #  Defaults to +:id+.
+    # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
+    #  initializer. If not present or +nil+, use the value returned by {#update_params}.
+    # @option opts [Boolean,Hash] :captcha If this option is present and is either +true+ or a hash,
+    #  the method does a CAPTCHA validation using an appropriate subclass of {Fl::CAPTCHA::Base}
+    #  (typically {Fl::Google::RECAPTCHA}, which implements
+    #  {https://www.google.com/recaptcha/intro Google reCAPTCHA}).
+    #  If the value is a hash, it is passed to the initializer for {Fl::CAPTCHA::Base}.
+    # @option opts [Symbol,String] :permission The name of the permission to request in order to
+    #  complete the operation. Defaults to {Fl::Framework::Access::Grants::WRITE}.
+    # @option opts [Object] :context The context to pass to the access checker method {#class_allow_op?}.
+    #  The special value +:params+ (a Symbol named +params+) indicates that the create parameters are to be
+    #  passed as the context.
+    #  Defaults to +:params+.
+    #
+    # @return [Object, nil] Returns the updated object. Note that a non-nil return value
+    #  does not indicate that the call was successful; for that, you should call {#success?} or check if
+    #  the instance is valid.
+
+    def update(opts = {})
+      p = (opts[:params]) ? opts[:params].to_h : update_params(self.params).to_h
+      op = (opts[:permission]) ? opts[:permission].to_sym : Fl::Framework::Access::Grants::WRITE
+      ctx = if opts.has_key?(:context)
+              (opts[:context] == :params) ? p : opts[:context]
+            else
+              # This is equivalent to setting the default to :params
+
+              p
+            end
+      idname = (opts[:idname]) ? opts[:idname].to_sym : :id
+
+      obj = get_and_check(op, idname)
+      if obj && success?
+        rs = verify_captcha(opts[:captcha], p)
+        if rs['success']
+          unless obj.update_attributes(p)
+            self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                            I18n.tx(localization_key('update_failure')),
+                            (obj) ? obj.errors.messages : nil)
+          end
+        else
+          obj = nil
+        end
+      else
+        obj = nil
+      end
+
+      obj
+    end
+
     # Convert parameters to `ActionController::Parameters`.
     #
     # @param p [Hash,ActionController::Parameters,nil] The parameters to convert; if +nil+, use {#params}.
@@ -382,6 +449,26 @@ module Fl::Framework::Service
 
     def create_params(p = nil)
       raise "please implement #{self.class.name}#create_params"
+    end
+
+    # Get update parameters.
+    # This method is meant to be overridden by subclasses to implement class-specific lookup of update
+    # parameters. A typical implementation uses the Rails strong parameters functionality, as in the
+    # example below.
+    #   def update_params(p)
+    #     p = (p.nil?) ? params : strong_params(p)
+    #     p.require(:my_context).permit(:param1, { param2: [] })
+    #   end
+    #
+    # @param p [Hash,ActionController::Parameters] The parameters from which to extract the update parameters
+    #  subset. if +nil+, use {#params}.
+    #
+    # @return [ActionController::Parameters] Returns the update parameters.
+    #
+    # @raise The base implementation raises an exception to force subclasses to override it.
+
+    def update_params(p = nil)
+      raise "please implement #{self.class.name}#update_params"
     end
 
     protected

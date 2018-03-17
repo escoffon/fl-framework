@@ -39,7 +39,6 @@ module Fl::Framework::Service::Attachment
 
     alias get_and_check_attachable get_and_check_owner
 
-
     # Run a query and return results and pagination controls.
     # This method calls {Fl::Framework::Service::Base#init_query_opts} to build the query parameters, and then
     # {#index_query} to generate the query to use.
@@ -69,96 +68,6 @@ module Fl::Framework::Service::Attachment
       else
         nil
       end
-    end
-
-    # Create a attachment for a attachable object.
-    # This method looks up the attachable by id, using the {#attachable_class} value, and checks that
-    # the current user has +:attachment_create+ privileges on it, and then creates a attachment for it.
-    #
-    # @param opts [Hash] Options to the method. This section describes type-specific options;
-    #  for the common ones, see {Fl::Framework::Service::Base#create}.
-    # @option opts [Symbol,String] :attachable_id_name The name of the parameter in {#params} that
-    #  contains the object identifier for the commentable. Defaults to +:attachable_id+.
-    # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
-    #  initializer.
-    # @option params [ActionDispatch::Http::UploadedFile] attachment The attached file; this is a required value.
-    # @option params [String] :caption The attachment caption.
-    # @option params [String] :title The attachment title; if not present, the title is extracted from the
-    #  first 40 character of the caption.
-    #
-    # @return [Object] Returns an attachment object (for example, an instance of
-    #  {Fl::Framework::Attachment::ActiveRecord::Base}. Note that a non-nil
-    #  return value here does not indicate a successful call: clients need to check the object's status
-    #  to confirm that it was created (for example, call +valid?+).
-
-    def xx_create(opts = {})
-      idname = (opts.has_key?(:attachable_id_name)) ? opts[:attachable_id_name].to_sym : :attachable_id
-      p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
-
-      # Creating an attachment requires a number of checks:
-      # 1. confirm that the actor has permission to attach.
-
-      attachable = get_and_check_attachable(Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_CREATE, idname)
-      attachment = nil
-      if success?
-        rs = verify_captcha(opts[:captcha], p)
-        if rs['success']
-          # 2. Confirm that the submitted file's content type is consistent with the declared type
-
-          afile = p[:attachment]
-          mtype = MimeMagic.by_magic(afile.tempfile)
-          if mtype.type != afile.content_type
-            set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
-                       I18n.tx('fl.framework.service.attachment.type_mismatch',
-                               declared_type: afile.content_type, detected_type: mtype.type))
-          else
-            # 3. Confirm that the attachable can create this type of attachment
-
-            unless attachable.attachments.allow?(afile.content_type)
-              set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
-                         I18n.tx('fl.framework.service.attachment.type_not_allowed',
-                                 type: afile.content_type, fingerprint: attachable.fingerprint))
-            else
-              # 4. get the attachment class
-
-              cr = Fl::Framework::Attachment::ClassRegistry.registry
-              aclass = cr.lookup(afile.content_type, Fl::Framework::Attachment::ClassRegistry::ORM_ACTIVE_RECORD)
-              if aclass
-                # 5. Finally! Create the attachment and save it
-
-                p[:author] = self.actor
-                p[:attachable] = attachable
-                attachment = aclass.new(p)
-                if attachment.save
-                  # adding an attachment is considered an update
-
-                  attachable.updated_at = Time.now
-                  attachable.save
-                else
-                  attachment.errors.each do |ek, ev|
-                    ak = "attachment.#{ek}"
-                    if ev.is_a?(Array)
-                      ev.each { |e| attachable.errors.add(ak, e) }
-                    else
-                      attachable.errors.add(ak, ev)
-                    end
-                  end
-                  attachment = nil
-                  set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
-                             I18n.tx('fl.framework.service.attachment.cannot_create',
-                                     fingerprint: attachable.fingerprint),
-                             attachable.errors)
-                end
-              else
-                set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
-                           I18n.tx('fl.framework.service.attachment.no_class', type: afile.content_type))
-              end
-            end
-          end
-        end
-      end
-
-      attachment
     end
 
     # Create an attachment for an attachable object.
@@ -266,6 +175,17 @@ module Fl::Framework::Service::Attachment
       cp = strong_params(p).require(:attachment).permit(:title, :caption, :attachment, :watermarked)
       cp[:author] = actor
       cp
+    end
+
+    # Get update parameters.
+    #
+    # @param p [Hash,ActionController::Parameters] The parameters from which to extract the update parameters
+    #  subset. if +nil+, use {#params}.
+    #
+    # @return [ActionController::Parameters] Returns the update parameters.
+
+    def update_params(p = nil)
+      strong_params(p).require(:attachment).permit(:attachable, :author, :title, :caption, :watermarked)
     end
 
     protected

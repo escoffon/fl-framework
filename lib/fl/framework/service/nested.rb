@@ -57,15 +57,20 @@ module Fl::Framework::Service
     #  identifier for the owner. A +nil+ value defaults to +:owner_id+.
     # @param [Hash] params The parameters where to look up the +:id+ key used to fetch the object.
     #  If +nil+, use the value returned by {#params}.
+    # @option [Object] context The context to pass to the access checker method {#allow_op?}.
+    #  The special value +:params+ (a Symbol named +params+) indicates that the value of _params_ is to be
+    #  passed as the context.
+    #  Defaults to +nil+.
     #
     # @return [Object, nil] Returns an object, or +nil+. Note that a non-nil return value is not a guarantee
     #  that the check operation succeded. The object class will be the value of the owner_class parameter
     #  to {#initialize}.
 
-    def get_and_check_owner(op, idname = nil, params = nil)
+    def get_and_check_owner(op, idname = nil, params = nil, context = nil)
       idname = idname || :owner_id
       idname = [ idname ] unless idname.is_a?(Array)
       params = params || self.params
+      ctx = (:context == :params) ? params : context
 
       obj = nil
       idname.each do |idn|
@@ -85,7 +90,7 @@ module Fl::Framework::Service
         return nil
       end
 
-      self.clear_status if allow_op?(obj, op)
+      self.clear_status if allow_op?(obj, op, ctx)
       obj
     end
 
@@ -133,13 +138,20 @@ module Fl::Framework::Service
       attrname = (opts.has_key?(:owner_attribute_name)) ? opts[:owner_attribute_name].to_sym : :owner
       p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
       op = (opts[:permission]) ? opts[:permission].to_sym : Cf::Core::User::ACCESS_BOOKMARK_CREATE
+      ctx = if opts.has_key?(:context)
+              (opts[:context] == :params) ? p : opts[:context]
+            else
+              # This is equivalent to setting the default to :params
 
-      owner = get_and_check_owner(op, idname)
+              p
+            end
+
+      owner = get_and_check_owner(op, idname, nil, ctx)
       obj = nil
       if owner && success?
         rs = verify_captcha(opts[:captcha], p)
         if rs['success']
-          if allow_op?(owner, op)
+          if allow_op?(owner, op, ctx)
             p[attrname] = owner
             obj = self.model_class.new(p)
             unless obj.save
