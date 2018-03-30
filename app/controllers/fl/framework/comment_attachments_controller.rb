@@ -26,7 +26,9 @@ module Fl::Framework
     # POST /attachments
     def create
       service = Fl::Framework::Service::Attachment::ActiveRecord.new(Fl::Framework::Comment::ActiveRecord::Comment, current_user, nil, self)
-      @attachment = service.create(attachable_id_name: :comment_id)
+      @attachment = service.create_nested(attachable_id_name: :comment_id,
+                                          attachable_attribute_name: :attachable,
+                                          permission: Fl::Framework::Attachment::Attachable::ACCESS_ATTACHMENT_CREATE)
       respond_to do |format|
         format.json do
           if service.success?
@@ -39,7 +41,6 @@ module Fl::Framework
     end
 
     private
-    # Only allow a trusted parameter "white list" through.
 
     def query_params
       params.fetch(:_q, {}).permit(:order, :limit, :offset,
