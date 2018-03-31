@@ -71,7 +71,7 @@ module Fl::Framework
       if @attachment && service.success?
         respond_to do |format|
           format.json do
-            render(:json => { :attachment => hash_one_object(@attachment, p[:to_hash]) },
+            render(:json => { :attachment => hash_one_object(@attachment, service.params[:to_hash]) },
                    status: :ok)
           end
         end
