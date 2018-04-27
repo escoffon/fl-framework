@@ -8,7 +8,7 @@ module Fl::Framework::Test
   module CAPTCHATestHelper
     # A local CAPTCHA service that mocks a CAPTCHA verification call.
 
-    class CAPTCHA < Fl::Framework::CAPTCHA::Base
+    class CAPTCHA
       # Initializer.
       #
       # @param [Hash] config A hash containing configuration options.
