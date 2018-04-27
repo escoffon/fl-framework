@@ -1,41 +1,20 @@
+require 'fl/google/recaptcha'
+
 # Namespace for CAPTCHA support.
 # This namespace defines APIs to manage the implementation of CAPTCHA used by the framework.
-
-module Fl::Framework::CAPTCHA
-  # Base class for CAPTCHA verifiers.
-
-  class Base
-    # Initializer.
-    #
-    # @param [Hash] config A hash containing configuration options.
-
-    def initialize(config = {})
-      @config = {
-      }
-
-      config.each { |k, v| @config[k] = v }
-    end
-
-    # Validate the CAPTCHA response.
-    #
-    # @param [String] response The response as submitted by the form.
-    # @param [String] ip An optional IP address for the requestor.
-    #
-    # @return [Hash] Returns a hash containing the {Fl::Google::RECAPTCHA} API's response.
-    #  In addition to the key/value pairs
-    #  returned by the API, `error-messages` contains an array of error messages mapped from the
-    #  error codes. Note that we use the {Fl::Google::RECAPTCHA} return value, because it is the typical
-    #  implementation used; others will just have to conform.
-    #
-    # @raise Raises an exception to force subclasses to override it.
-
-    def verify(response, ip = nil)
-      raise "please implement #{self.class.name}#verify"
-    end
-  end
-end
-
-require 'fl/google/recaptcha'
+#
+# Implementations of CAPTCHA define the following method:
+#   def verify(response, ip = nil)
+#   end
+# where
+# - *response* is a string containing the response as submitted by the form.
+# - *ip* is a string containing an optional IP address for the requestor.
+# The method returns a hash containing the response from the verification API, using the format
+# returned by the Google RECAPTCHA API's response.
+# In addition to the key/value pairs
+# returned by the API, `error-messages` contains an array of error messages mapped from the
+# error codes. Note that we use the Google RECAPTCHA return value, because it is the typical
+# implementation used; others will just have to conform.
 
 module Fl::Framework::CAPTCHA
   # Factory for the framework CAPTCHA implementation.

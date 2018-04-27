@@ -14,5 +14,8 @@ gemspec
 # Git. Remember to move these dependencies to your gemspec before releasing
 # your gem to rubygems.org.
 
+#gem 'fl-google', :path => '/Users/escoffon/src/gems/fl/fl-google'
+gem 'fl-google', :git => 'https://github.com/escoffon/fl-google.git'
+
 # To use a debugger
 # gem 'byebug', group: [:development, :test]
