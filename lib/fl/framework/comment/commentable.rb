@@ -48,11 +48,6 @@ module Fl::Framework::Comment
       #   ActiveRecord returns an instance of {Fl::Framework::Comment::ActiveRecord::Comment}.
       # - If the ORM is Neo4j, includes the module {Fl::Framework::Neo4j::AssociationProxyCache}.
       # - Loads the instance methods from {Commentable::InstanceMethods}.
-      # - Registers new access checkers for the following operations: +:comment_index+, +:comment_create+.
-      #   These are registered as the two methods
-      #   {Fl::Comment::Commentable::InstanceMethods#_comment_index_check} and
-      #   {Fl::Comment::Commentable::InstanceMethods#_comment_create_check}, respectively.
-      #   Implementations can redefine the methods to change the access check behavior.
       # - Define the {#commentable?} method to return +true+ to indicate that the class supports comments.
       #
       # @param cfg [Hash] A hash containing configuration parameters.
@@ -117,11 +112,6 @@ module Fl::Framework::Comment
         def commentable?
           true
         end
-
-        # register the access checkers
-
-        access_op Fl::Framework::Comment::Commentable::ACCESS_COMMENT_INDEX, :_comment_index_check
-        access_op Fl::Framework::Comment::Commentable::ACCESS_COMMENT_CREATE, :_comment_create_check
       end
 
       # Check if this object manages comments.
@@ -205,38 +195,6 @@ module Fl::Framework::Comment
       end
 
       protected
-
-      # The access checker method for +:comment_index+.
-      # The default implementation returns the +:read+ permission for _obj_: if _actor_ has read access
-      # to the object, it can also list its comments.
-      #
-      # @param op [Fl::Framework::Access::Access::Checker] The requested operation.
-      # @param obj [Object] The target of the request.
-      # @param actor [Object] The actor requesting permission.
-      # @param context The context in which to do the check.
-      #
-      # @return [Symbol, nil] Returns a symbol corresponding to the access level granted, or +nil+ if
-      #  access was denied.
-
-      def _comment_index_check(op, obj, actor, context = nil)
-        obj.permission?(actor, Fl::Framework::Access::Grants::READ, context)
-      end
-
-      # The access checker method for +:comment_create+.
-      # The default implementation returns the +:read+ permission for _obj_: if _actor_ has read access
-      # to the object, it can also add to its comments.
-      #
-      # @param op [Fl::Framework::Access::Access::Checker] The requested operation.
-      # @param obj [Object] The target of the request.
-      # @param actor [Object] The actor requesting permission.
-      # @param context The context in which to do the check.
-      #
-      # @return [Symbol, nil] Returns a symbol corresponding to the access level granted, or +nil+ if
-      #  access was denied.
-
-      def _comment_create_check(op, obj, actor, context = nil)
-        obj.permission?(actor, Fl::Framework::Access::Grants::READ, context)
-      end
     end
 
     # Perform actions when the module is included.
