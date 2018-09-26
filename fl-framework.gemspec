@@ -72,8 +72,9 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "paperclip", "~> 5.0"
   s.add_runtime_dependency 'nokogiri', '~> 1.6'
   s.add_runtime_dependency 'mimemagic', '~> 0.3'
-  s.add_runtime_dependency 'fl-google'
-
+  # s.add_runtime_dependency 'fl-google'
+  s.add_runtime_dependency 'fl-google', :git => 'https://github.com/escoffon/fl-google.git'
+  
   s.add_development_dependency "sqlite3"
   s.add_development_dependency "factory_girl_rails"
 end
