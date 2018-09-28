@@ -37,9 +37,13 @@ module Fl::Framework::Core
       def extract_title(contents, max = 40)
         return '' unless contents
 
-        doc = Nokogiri::HTML(contents)
+        # we add a wrapper <fl-root> element so that the code fragment is valid XML; otherwise,
+        # Nokogiri puts everything inside a <p> element.
+        # And then we return the contents of the fl-root element.
+
+        doc = Nokogiri::HTML("<fl-root>#{contents}</fl-root>")
         doc.search('script').each { |e| e.remove }
-        b = doc.search('body')
+        b = doc.search('body fl-root')
         return '' unless b[0]
         s = ''
         b[0].search('text()').each do |e|

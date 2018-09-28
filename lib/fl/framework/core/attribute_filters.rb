@@ -215,6 +215,24 @@ module Fl::Framework::Core
       def html_text_only(attr, value)
         Fl::Framework::Core::HtmlHelper.text_only(value)
       end
+
+      # @!visibility private
+      
+      def _write_attribute_wrapper(base_method, attr, value)
+        # as a semi-hack, if the attribute does not exist, but there is a setter method by that name,
+        # call that instead of the base method. This supports, for example, assets and the :updated_at
+        # attribute: assets don't have the :updated_at attribute (which is in the attached resource
+        # instead), but they do define :updated_at=
+
+        attrs = self.attributes
+        if attrs.has_key?(attr) || attrs.has_key?(attr.to_sym) || attrs.has_key?(attr.to_s)
+          send(base_method, attr, filter_one_attribute(attr, value))
+        elsif respond_to?("#{attr}=")
+          self.send("#{attr}=", value)
+        else
+          raise "cannot write attribute '#{attr}'"
+        end
+      end
     end
 
     # Include actions.
@@ -242,23 +260,22 @@ module Fl::Framework::Core
         # If not, we override :write_attribute instead
 
         unless Module::const_defined?('Neo4j::ActiveNode')
-          if self.instance_methods.find { |m| m.to_sym == :write_attribute }
+          # Rails 5.2 introduced :_write_attribute, which is called by the attribute setter (in earlier
+          # releases, :write_attribute was called instead). And :write_attribute also calls
+          # :_write_attribute. Therefore, if :_write_attribute is present, we wrap that one instead.
+
+          iml = self.instance_methods.select { |m| m.to_s =~ /write_attribute/ }
+          if iml.include?(:_write_attribute)
+            alias base__write_attribute _write_attribute
+
+            def _write_attribute(attr, value)
+              _write_attribute_wrapper(:base__write_attribute, attr, value)
+            end
+          elsif iml.include?(:write_attribute)
             alias base_write_attribute write_attribute
 
             def write_attribute(attr, value)
-              # as a semi-hack, if the attribute does not exist, but there is a setter method by that name,
-              # call that instead of the base method. This supports, for example, assets and the :updated_at
-              # attribute: assets don't have the :updated_at attribute (which is in the attached resource
-              # instead), but they do define :updated_at=
-
-              attrs = self.attributes
-              if attrs.has_key?(attr) || attrs.has_key?(attr.to_sym) || attrs.has_key?(attr.to_s)
-                base_write_attribute(attr, filter_one_attribute(attr, value))
-              elsif respond_to?("#{attr}=")
-                self.send("#{attr}=", value)
-              else
-                raise "cannot write attribute '#{attr}'"
-              end
+              _write_attribute_wrapper(:base_write_attribute, attr, value)
             end
           end
         end

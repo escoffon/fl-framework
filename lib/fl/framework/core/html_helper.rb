@@ -18,7 +18,10 @@ module Fl::Framework::Core
       if value.nil? || (value.length < 1)
         value
       else
-        doc = Nokogiri::HTML(value)
+        # we add a wrapper <fl-root> element so that the code fragment is valid XML; otherwise,
+        # Nokogiri puts everything inside a <p> element.
+        
+        doc = Nokogiri::HTML("<fl-root>#{value}</fl-root>")
         doc.search('script').each { |e| e.remove }
         doc.search('object').each { |e| e.remove }
         doc.search('a').each do |e|
@@ -27,7 +30,10 @@ module Fl::Framework::Core
         doc.search('img').each do |e|
           e['src'] = '' unless (e['src'] =~ /^https?:/i) || (e['src'] =~ /^\//)
         end
-        b = doc.search('body')
+
+        # and we return the contents of the fl-root element.
+
+        b = doc.search('body fl-root')
         s = ''
         b[0].children.each { |e| s << e.serialize }
         s
@@ -47,8 +53,10 @@ module Fl::Framework::Core
       if value.nil? || (value.length < 1)
         value
       else
-        doc = Nokogiri::HTML(value)
-        b = doc.search('body')
+        # see comments above about fl-root
+        
+        doc = Nokogiri::HTML("<fl-root>#{value}</fl-root>")
+        b = doc.search('body fl-root')
         s = ''
         b[0].search('text()').each do |e|
           break if maxlen.is_a?(Numeric) && (s.length >= maxlen)
