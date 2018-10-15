@@ -1,14 +1,32 @@
+require 'nokogiri'
+require 'loofah'
+
 module Fl::Framework::Core
   # Helper methods for HTML processing.
 
   module HtmlHelper
+    # @!visibility private
+    
+    class AdjustURLs < Loofah::Scrubber
+      def initialize
+        super
+      end
+
+      def scrub(node)
+        if (node.type == Nokogiri::XML::Node::ELEMENT_NODE) && (node.name == 'a')
+          node['href'] = '#' unless (node['href'] =~ /^https?:/i) || (node['href'] =~ /^\//)
+        elsif (node.type == Nokogiri::XML::Node::ELEMENT_NODE) && (node.name == 'img')
+          node['src'] = '' unless (node['src'] =~ /^https?:/i) || (node['src'] =~ /^\//)
+        end
+      end
+    end
+
     # Strip dangerous elements from HTML content.
     # This method parses the value and:
     #
-    # - Removes any <script> elements.
-    # - Removes any <object> elements.
+    # - Removes any element that do not appear in the HTML5lib whitelist.
     # - Converts any urls in <a> to #, unless they use the HTTP/HTTPS scheme.
-    # - Converts any urls in <img> to an empty string, unless they use the HTTP/HTTPS scheme..
+    # - Converts any urls in <img> to an empty string, unless they use the HTTP/HTTPS scheme.
     #
     # @param value [String] The initial value.
     #
@@ -18,25 +36,7 @@ module Fl::Framework::Core
       if value.nil? || (value.length < 1)
         value
       else
-        # we add a wrapper <fl-root> element so that the code fragment is valid XML; otherwise,
-        # Nokogiri puts everything inside a <p> element.
-        
-        doc = Nokogiri::HTML("<fl-root>#{value}</fl-root>")
-        doc.search('script').each { |e| e.remove }
-        doc.search('object').each { |e| e.remove }
-        doc.search('a').each do |e|
-          e['href'] = '#' unless (e['href'] =~ /^https?:/i) || (e['href'] =~ /^\//)
-        end
-        doc.search('img').each do |e|
-          e['src'] = '' unless (e['src'] =~ /^https?:/i) || (e['src'] =~ /^\//)
-        end
-
-        # and we return the contents of the fl-root element.
-
-        b = doc.search('body fl-root')
-        s = ''
-        b[0].children.each { |e| s << e.serialize }
-        s
+        Loofah.fragment(value).scrub!(:prune).scrub!(AdjustURLs.new).to_s
       end
     end
 
@@ -53,7 +53,9 @@ module Fl::Framework::Core
       if value.nil? || (value.length < 1)
         value
       else
-        # see comments above about fl-root
+        # we add a wrapper <fl-root> element so that the code fragment is valid XML; otherwise,
+        # Nokogiri puts everything inside a <p> element.
+        # and we return the contents of the fl-root element.
         
         doc = Nokogiri::HTML("<fl-root>#{value}</fl-root>")
         b = doc.search('body fl-root')
