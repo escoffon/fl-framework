@@ -1,0 +1,20 @@
+{
+  "name": "fl-framework",
+  "private": true,
+  "dependencies": {
+    "js-cache": "^1.0.3",
+    "lodash": "^4.17.11"
+  },
+  "scripts": {},
+  "devDependencies": {
+    "canonical-path": "^0.0.2",
+    "chai": "^4.2.0",
+    "del": "^3.0.0",
+    "dgeni": "^0.4.10",
+    "dgeni-packages": "^0.26.10",
+    "fl-dgeni": "git+https://github.com/escoffon/fl-dgeni.git",
+    "gulp": "^3.9.1",
+    "mocha": "^5.2.0",
+    "run-sequence": "^2.2.1"
+  }
+}
