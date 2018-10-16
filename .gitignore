@@ -17,7 +17,7 @@ Gemfile.lock
 .DS_Store
 
 # Ignore the generated documentation
-doc/out
+public/doc
 
 # Ignore "saved" files
 *-s
@@ -31,3 +31,6 @@ doc/out
 
 # Ignore SQLite database files
 *.sqlite3
+
+# Ignore node modules
+node_modules

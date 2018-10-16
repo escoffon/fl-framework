@@ -1,0 +1,378 @@
+const _ = require('lodash');
+const chai = require('chai');
+const { FlExtensions, FlClassManager } = require('fl/framework/object_system');
+const {
+    FlModelBase, FlModelCache, FlModelFactory, FlGlobalModelFactory
+} = require('fl/framework/model_factory');
+const th = require('test_helpers');
+
+const expect = chai.expect;
+
+const MY_MODEL_DESC = {
+    name: 'MyModel',
+    superclass: 'FlModelBase',
+    initializer: function(data) {
+	this.__super(data);
+    },
+    instance_methods: {
+	refresh: function(data) {
+	    this.__super(data);
+	    if (!_.isNil(data.accessed_at)) this.accessed_at = new Date(data.accessed_at);
+	}
+    }
+};
+
+const MY_OTHER_DESC = {
+    name: 'MyOtherClass',
+    superclass: 'FlModelBase',
+    initializer: function(data) {
+	this.__super(data);
+    },
+    instance_methods: {
+	refresh: function(data) {
+	    this.__super(data);
+	}
+    }
+};
+
+const MODEL_1 = {
+    type: "My::Model",
+    api_root: "/my/model",
+    url_path: "my_model_path/2",
+    fingerprint: "My::Model/2",
+    id: 2,
+    created_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    updated_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    username: "user102",
+    first_name: "@user102",
+    last_name: null,
+    email: "user102@opoline.com",
+    full_name: "@user102",
+    intro: null,
+    roles: [ "customer" ],
+    accessed_at: 'Thu, 13 Sep 2018 22:10:20 UTC +00:00',
+    hash: { one: 1, two: 'two' }
+};
+
+const OTHER_1 = {
+    type: "My::Other",
+    api_root: "/my/other",
+    url_path: "my_other_path/4",
+    fingerprint: "My::Other/4",
+    id: 4,
+    created_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    updated_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    username: "user104"
+};
+
+const UNDEFINED_1 = {
+    type: "My::Undefined",
+    api_root: "/my/undefined",
+    url_path: "my_undefined_path/6",
+    fingerprint: "My::Undefined/6",
+    id: 6,
+    created_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    updated_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    username: "user106"
+};
+
+describe('fl.model_factory module', function() {
+    beforeEach(function() {
+	FlClassManager.make_class(MY_MODEL_DESC);
+	FlClassManager.make_class(MY_OTHER_DESC);
+    });
+    
+    afterEach(function() {
+	th.clear_model_services();
+	th.clear_ext();
+	th.clear_class();
+    });
+
+    context('loading', function() {
+	it('should register the FlBaseModelExtension extension', function() {
+	    expect(FlExtensions.lookup('FlBaseModelExtension', false)).to.not.be.null;
+	});
+
+	it('should register the FlModelBase class', function() {
+	    expect(FlClassManager.get_class('FlBaseModel')).to.not.be.null;
+	});
+    });
+    
+    describe('FlModelBase', function() {
+	context('creation', function() {
+	    it('with new should create an instance of the model class', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let mm = new MyModel(MODEL_1);
+
+		expect(mm).to.be.an.instanceof(MyModel);
+	    });
+
+	    it('with new should load data into properties', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let mm = new MyModel(MODEL_1);
+
+		let data_keys = _.reduce(MODEL_1, function(acc, mv, mk) {
+		    acc.push(mk);
+		    return acc;
+		}, [ ]);
+		let obj_keys = _.reduce(data_keys, function(acc, ov, oidx) {
+		    if (!_.isUndefined(mm[ov])) acc.push(ov);
+		    return acc;
+		}, [ ]);
+		expect(obj_keys).to.have.members(data_keys);
+	    });
+
+	    it('with new should convert datetime properties to Date', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let mm = new MyModel(MODEL_1);
+
+		expect(mm.created_at).to.be.an.instanceof(Date);
+		expect(mm.updated_at).to.be.an.instanceof(Date);
+		expect(mm.accessed_at).to.be.an.instanceof(Date);
+	    });
+
+	    it('with modelize should create an instance of the model class', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+
+		let mm = FlClassManager.modelize('MyModel', MODEL_1);
+		expect(mm).to.be.an.instanceof(MyModel);
+
+		mm = FlClassManager.modelize(MyModel, MODEL_1);
+		expect(mm).to.be.an.instanceof(MyModel);
+	    });
+
+	    it('with modelize should load data into properties', function() {
+		let mm = FlClassManager.modelize('MyModel', MODEL_1);
+
+		let data_keys = _.reduce(MODEL_1, function(acc, mv, mk) {
+		    acc.push(mk);
+		    return acc;
+		}, [ ]);
+		let obj_keys = _.reduce(data_keys, function(acc, ov, oidx) {
+		    if (!_.isUndefined(mm[ov])) acc.push(ov);
+		    return acc;
+		}, [ ]);
+		expect(obj_keys).to.have.members(data_keys);
+	    });
+
+	    it('with modelize should convert datetime properties to Date', function() {
+		let mm = FlClassManager.modelize('MyModel', MODEL_1);
+
+		expect(mm.created_at).to.be.an.instanceof(Date);
+		expect(mm.updated_at).to.be.an.instanceof(Date);
+		expect(mm.accessed_at).to.be.an.instanceof(Date);
+	    });
+	});
+	
+	context('#refresh', function() {
+	    it('should set properties from data', function() {
+		let mm = FlClassManager.modelize('MyModel', MODEL_1);
+
+		_.forEach(MODEL_1, function(mv, mk) {
+		    if ((mk == 'created_at') || (mk == 'updated_at') || (mk == 'accessed_at'))
+		    {
+			let d = new Date(mv);
+			expect(mm[mk].toString()).to.equal(d.toString());
+		    }
+		    else if (mk == 'roles')
+		    {
+			expect(mm[mk]).to.have.members(mv);
+		    }
+		    else if (mk == 'hash')
+		    {
+			expect(mm[mk]).to.deep.equal(mv);
+		    }
+		    else
+		    {
+			expect(mm[mk]).to.equal(mv);
+		    }
+		});
+	    });
+	    
+	    it('should convert arrays correctly', function() {
+		let mm = FlClassManager.modelize('MyModel', MODEL_1);
+		expect(mm.roles).to.have.members(MODEL_1.roles);
+	    });
+
+	    it('should convert objects correctly', function() {
+		let mm = FlClassManager.modelize('MyModel', MODEL_1);
+	    	expect(mm.hash).to.deep.equal(MODEL_1.hash);
+	    });
+	    
+	    it('should refresh partial data', function() {
+		let mm = FlClassManager.modelize('MyModel', MODEL_1);
+
+		expect(mm.first_name).to.equal("@user102");
+		expect(mm.last_name).to.be.null;
+
+		mm.refresh({ last_name: 'User' });
+		expect(mm.first_name).to.equal("@user102");
+		expect(mm.last_name).to.equal('User');
+	    });
+	});
+    });
+
+    describe('FlModelFactory', function() {
+	context('#register', function() {
+	    it('should register services', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyOtherClass = FlClassManager.get_class('MyOtherClass');
+
+		FlGlobalModelFactory.register('test_module', [
+		    { service: MyModel, class_name: 'My::Model' },
+		    { service: MyOtherClass, class_name: 'My::Other' }
+		]);
+
+		let reg = _.reduce(FlGlobalModelFactory._model_services, function(acc, sv, sk) {
+		    acc.push(sk);
+		    return acc;
+		}, [ ]);
+		expect(reg).to.include('MyModel');
+		expect(reg).to.include('MyOther');
+	    });
+
+	    it('should not register null services', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyOtherClass = FlClassManager.get_class('MyOtherClass');
+
+		FlGlobalModelFactory.register('test_module', [
+		    { class_name: 'My::Model' },
+		    { service: MyOtherClass, class_name: 'My::Other' }
+		]);
+
+		let reg = _.reduce(FlGlobalModelFactory._model_services, function(acc, sv, sk) {
+		    acc.push(sk);
+		    return acc;
+		}, [ ]);
+		expect(reg).to.not.include('MyModel');
+		expect(reg).to.include('MyOther');
+	    });
+
+	    it('should not register services with missing class_name', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyOtherClass = FlClassManager.get_class('MyOtherClass');
+
+		FlGlobalModelFactory.register('test_module', [
+		    { service: MyModel },
+		    { service: MyOtherClass, class_name: 'My::Other' }
+		]);
+
+		let reg = _.reduce(FlGlobalModelFactory._model_services, function(acc, sv, sk) {
+		    acc.push(sk);
+		    return acc;
+		}, [ ]);
+		expect(reg).to.not.include('MyModel');
+		expect(reg).to.include('MyOther');
+	    });
+
+	    it('should overwrite services', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyOtherClass = FlClassManager.get_class('MyOtherClass');
+
+		FlGlobalModelFactory.register('test_module', [
+		    { service: MyModel, class_name: 'My::Model' },
+		    { service: MyOtherClass, class_name: 'My::Other' }
+		]);
+
+		let reg = _.reduce(FlGlobalModelFactory._model_services, function(acc, sv, sk) {
+		    acc.push(sk);
+		    return acc;
+		}, [ ]);
+		expect(reg).to.include('MyModel');
+		expect(reg).to.include('MyOther');
+		let srv = FlGlobalModelFactory._model_services.MyModel.service;
+		expect(srv.__name).to.equal('MyModel');
+		
+		FlGlobalModelFactory.register('test_module_2', [
+		    { service: MyModel, class_name: 'My::Other' }
+		]);
+
+		reg = _.reduce(FlGlobalModelFactory._model_services, function(acc, sv, sk) {
+		    acc.push(sk);
+		    return acc;
+		}, [ ]);
+		expect(reg).to.include('MyModel');
+		expect(reg).to.include('MyOther');
+		srv = FlGlobalModelFactory._model_services.MyModel.service;
+		expect(srv.__name).to.equal('MyModel');
+	    });
+	});
+	
+	context('#service_for', function() {
+	    beforeEach(function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyOtherClass = FlClassManager.get_class('MyOtherClass');
+
+		FlGlobalModelFactory.register('test_module', [
+		    { service: MyModel, class_name: 'My::Model' },
+		    { service: MyOtherClass, class_name: 'My::Other' }
+		]);
+	    });
+	    
+	    it('should find a service by class name', function() {
+		expect(FlGlobalModelFactory.service_for('My::Model')).to.not.be.null;
+		expect(FlGlobalModelFactory.service_for('MyModel')).to.not.be.null;
+		expect(FlGlobalModelFactory.service_for('My::Other')).to.not.be.null;
+		expect(FlGlobalModelFactory.service_for('MyOther')).to.not.be.null;
+	    });
+	    
+	    it('should find a service by data object', function() {
+		expect(FlGlobalModelFactory.service_for(MODEL_1)).to.not.be.null;
+		expect(FlGlobalModelFactory.service_for(OTHER_1)).to.not.be.null;
+	    });
+	    
+	    it('should not find an undefined service by class name', function() {
+		expect(FlGlobalModelFactory.service_for('Not::Class')).to.be.null;
+	    });
+	    
+	    it('should not find an undefined service by data object', function() {
+		expect(FlGlobalModelFactory.service_for({ })).to.be.null;
+	    });
+	});
+	
+	context('#create', function() {
+	    beforeEach(function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyOtherClass = FlClassManager.get_class('MyOtherClass');
+
+		FlGlobalModelFactory.register('test_module', [
+		    { service: MyModel, class_name: 'My::Model' },
+		    { service: MyOtherClass, class_name: 'My::Other' }
+		]);
+	    });
+	    
+	    it('should create an object', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+
+		let obj = FlGlobalModelFactory.create(MODEL_1);
+		expect(obj.__class.__name).to.equal(MyModel.__name);
+		expect(obj.username).to.equal('user102');
+	    });
+	    
+	    it('should create an array of objects', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyOtherClass = FlClassManager.get_class('MyOtherClass');
+
+		let objs = FlGlobalModelFactory.create([ MODEL_1, OTHER_1 ]);
+		expect(objs[0].__class.__name).to.equal(MyModel.__name);
+		expect(objs[0].username).to.equal('user102');
+		expect(objs[1].__class.__name).to.equal(MyOtherClass.__name);
+		expect(objs[1].username).to.equal('user104');
+	    });
+
+	    it('should return null for unsupported model classes', function() {
+		expect(FlGlobalModelFactory.create(UNDEFINED_1)).to.be.null;
+	    });
+
+	    it('should return null elements for unsupported model classes in an array', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyOtherClass = FlClassManager.get_class('MyOtherClass');
+
+		let objs = FlGlobalModelFactory.create([ MODEL_1, UNDEFINED_1, OTHER_1 ]);
+		expect(objs[0].__class.__name).to.equal(MyModel.__name);
+		expect(objs[1]).to.be.null;
+		expect(objs[2].__class.__name).to.equal(MyOtherClass.__name);
+	    });
+	});
+    });
+});
