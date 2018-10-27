@@ -9,6 +9,7 @@ FLAGS="--recursive --reporter spec --file mocha/utils/setup.js"
 FILES=""
 
 GET_FILE=0
+GET_ARG=0
 
 GET_ENV=0
 USE_ENV="test"
@@ -16,7 +17,7 @@ USE_ENV="test"
 GET_HTTP_URL=0
 USE_HTTP_URL="http://localhost:3030"
 
-for F in $@ ; do
+for F in "$@" ; do
     case $F in
 	--env)
 	    GET_ENV=1
@@ -26,7 +27,10 @@ for F in $@ ; do
 	    ;;
 	--file)
 	    FLAGS="$FLAGS $F"
-	    GET_FILE=1 
+	    GET_FILE=1
+	    ;;
+	-f | --fgrep) FLAGS="$FLAGS $F"
+	    GET_ARG=1
 	    ;;
 	-*)
 	    FLAGS="$FLAGS $F"
@@ -35,6 +39,9 @@ for F in $@ ; do
 	    if test $GET_FILE = 1 ; then
 		FLAGS="$FLAGS $F"
 		GET_FILE=0
+	    elif test $GET_ARG = 1 ; then
+		FLAGS="$FLAGS \"$F\""
+		GET_ARG=0
 	    elif test $GET_ENV = 1 ; then
 		USE_ENV=$F
 		GET_ENV=0
@@ -48,6 +55,9 @@ for F in $@ ; do
     esac
 done
 
+echo "FLAGS=$FLAGS"
+echo "FILES=$FILES"
+
 if test "x$FILES" = "x" ; then
     FILES="mocha/db mocha/unit"
 fi
@@ -56,7 +66,6 @@ export NODE_PATH="mocha/utils:app/assets/javascripts"
 export NODE_ENV="$USE_ENV"
 export TEST_HTTP_URL="$USE_HTTP_URL"
 
-CMD="${MOCHA} $FLAGS $FILES"
-echo "running test command: $CMD"
-$CMD
+echo "running test command: ${MOCHA} $FLAGS $FILES"
+${MOCHA} $FLAGS $FILES
 

@@ -9,24 +9,13 @@
  * It exports two services:
  * - {@sref FlModelCache}, a global cache of model instances.
  * - {@sref FlModelFactory}, a service that creates or refreshes model instances from hash representations.
+ *
+ * It also exports {@sref FlModelBase}, the base class for all model classes.
  */
 
 const _ = require('lodash');
 const jscache = require('js-cache');
 const { FlExtensions, FlClassManager } = require('fl/framework/object_system');
-
-FlExtensions.named('FlBaseModelExtension', {
-    methods: {
-	has_permission: function(permission) {
-	    if (_.isObject(this.permissions))
-	    {
-		return (this.permissions[permission]) ? true : false;
-	    }
-
-	    return false;
-	}
-    }
-});
 
 /**
  * @ngdoc type
@@ -35,33 +24,33 @@ FlExtensions.named('FlBaseModelExtension', {
  * @extends FlRoot
  * @description
  *  The base class for model services.
+ *
  *  A model service is an object that is instantiated once per existing instance of a data
  *  object in the client. Model services are organized in a class hierarchy that tracks the class
  *  organization of data objects in the server.
  * 
- *  #### Managing data objects
+ *  ##### Managing data objects
  * 
  *  Each data class has a corresponding model service that inherits from FlModelBase and that defines
  *  the basic API configuration, and optionally adds subclass-specific functionality.
  *  Subclasses **must** define a class method called `type_class` that returns a string containing
- *  the name of the data class the service supports. The also typically define a `create` class method
+ *  the name of the data class the service supports. They also typically define a `create` class method
  *  that returns a new instance of the class.
  *  The general outline of such subclass runs along these lines:
  *  1. Define class name, superclass, and initializer:
  *     <pre ng-non-bindable>
- *  let MyDatum = FlClassManager.make_class(
- *  {
+ *  let MyDatum = FlClassManager.make_class({
  *    name: 'MyDatum',
  *    superclass: 'FlModelBase',
  *    initializer: function(data) {
- *      this.&#95;&#95;super(data);
+ *      this.&#95;&#95;super_init('FlModelBase', data);
  *      this.refresh(data);
  *    },</pre>
  *  2. This is followed by new and overridden instance methods:
  *     <pre ng-non-bindable>
  *    instance_methods: {
  *      refresh: function(data) {
- *        this.&#95;&#95;super(data);
+ *        this.&#95;&#95;super('FlModelBase', 'refresh', data);
  *        // additional processing of the instance data ...
  *      },
  *
@@ -82,8 +71,7 @@ FlExtensions.named('FlBaseModelExtension', {
  *     extensions: {
  *       core: FlExtensions.FlCoreExtension
  *     }
- *   }
- * );</pre>
+ *   });</pre>
  * 
  * An object instance is created as follows:
  * <pre ng-non-bindable>
@@ -105,90 +93,85 @@ FlExtensions.named('FlBaseModelExtension', {
  * @param {Object} data The data associated with the instance.
  */
 
-let FlModelBase = FlClassManager.make_class(
-    {
-	name: 'FlModelBase',
-	initializer: function(data) {
-	    this.__super(data);
-	    this.refresh(data);
+let FlModelBase = FlClassManager.make_class({
+    name: 'FlModelBase',
+    initializer: function(data) {
+	this.__super_init('FlRoot');
+	this.refresh(data);
+    },
+    instance_methods: {
+	/**
+	 * @ngdoc method
+	 * @name FlModelBase#refresh
+	 * @description Refresh the state of the instance based on the contents
+	 *  of the hash representation of an object.
+	 * 
+	 * @param {Object} data An object containing a representation of the 
+	 *  server object. This representation may be partial.
+	 */
+
+	refresh: function(data) {
+	    let self = this;
+	    _.forEach(data, function(v, k) {
+		self[k] = self._convert_value(v);
+	    });
+
+	    if (!_.isNil(data.created_at)) self.created_at = new Date(data.created_at);
+	    if (!_.isNil(data.updated_at)) self.updated_at = new Date(data.updated_at);
 	},
-	instance_methods: {
-	    /**
-	     * @ngdoc method
-	     * @name FlModelBase#refresh
-	     * @description Refresh the state of the instance based on the contents
-	     *  of the hash representation of an object.
-	     * 
-	     * @param {Object} data An object containing a representation of the 
-	     *  server object. This representation may be partial.
-	     */
 
-	    refresh: function(data) {
-		let self = this;
-		
-		_.forEach(data, function(v, k) {
-		    self[k] = self._convert_value(v);
-		});
+	/**
+	 * @ngdoc method
+	 * @name FlModelBase#has_permission
+	 * @description
+	 *  Check if the object has granted a permission to the current user.
+	 *  This method looks up the property **permissions**, and if present it looks
+	 *  up _op_ in the list of permissions. If _op_ is present and has a string value,
+	 *  permission is granted.
+	 * 
+	 * @param {String} op The name of the permission to check; for example, `read` or `write`.
+	 */
 
-		if (!_.isNil(data.created_at)) self.created_at = new Date(data.created_at);
-		if (!_.isNil(data.updated_at)) self.updated_at = new Date(data.updated_at);
-	    },
-
-	    /**
-	     * @ngdoc method
-	     * @name FlModelBase#has_permission
-	     * @description
-	     *  Check if the object has granted a permission to the current user.
-	     *  This method looks up the property **permissions**, and if present it looks
-	     *  up _op_ in the list of permissions. If _op_ is present and has a string value,
-	     *  permission is granted.
-	     * 
-	     * @param {String} op The name of the permission to check; for example, `read` or `write`.
-	     */
-
-	    has_permission: function(op) {
-		if (_.isObject(this.permissions) && _.isString(this.permissions[op]))
-		{
-		    return true;
-		}
-		else
-		{
-		    return false;
-		}
-	    },
-
-	    _convert_value: function(value) {
-		let self = this;
-		
-		if (_.isArray(value))
-		{
-		    return _.map(value, function(av, aidx) {
-			return self._convert_value(av);
-		    });
-		}
-		else if (_.isObject(value))
-		{
-		    return _.reduce(value, function(acc, ov, ok) {
-			acc[ok] = self._convert_value(ov);
-			return acc;
-		    }, { });
-		}
-		else
-		{
-		    return value;
-		}
+	has_permission: function(op) {
+	    if (_.isObject(this.permissions) && _.isString(this.permissions[op]))
+	    {
+		return true;
+	    }
+	    else
+	    {
+		return false;
 	    }
 	},
-	class_methods: {
-	},
-	extensions: {
-	    base: 'FlBaseModelExtension'
+
+	_convert_value: function(value) {
+	    let self = this;
+		
+	    if (_.isArray(value))
+	    {
+		return _.map(value, function(av, aidx) {
+		    return self._convert_value(av);
+		});
+	    }
+	    else if (_.isObject(value))
+	    {
+		return _.reduce(value, function(acc, ov, ok) {
+		    acc[ok] = self._convert_value(ov);
+		    return acc;
+		}, { });
+	    }
+	    else
+	    {
+		return value;
+	    }
 	}
-    }
-);
+    },
+    class_methods: {
+    },
+    extensions: [ ]
+});
 
 /**
- * @ngdoc type
+ * @ngdoc service
  * @name FlModelCache
  * @module fl.model_factory
  * @description
@@ -197,12 +180,9 @@ let FlModelBase = FlClassManager.make_class(
  */
 
 let FlModelCache = (function() {
-    function FlModelCache() {
-	this._model_cache = new jscache();
-    };
-    
     function _type(h) {
-	return h.type.replace(/::/g, '');
+	let s = (_.isString(h)) ? h : h.type;
+	return (_.isNil(s)) ? null : s.replace(/::/g, '');
     };
 
     function _id(h) {
@@ -236,6 +216,11 @@ let FlModelCache = (function() {
 	return (id == undefined) ? undefined : (_type(h) + '/' + id);
     };
 
+    function FlModelCache() {
+	this._model_cache = new jscache();
+    };
+    FlModelCache.prototype.constructor = FlModelCache;
+    
     /**
      * @ngdoc method
      * @name FlModelCache#get
@@ -295,11 +280,12 @@ let FlModelCache = (function() {
 })();
 
 /**
- * @ngdoc type
+ * @ngdoc service
  * @name FlModelFactory
  * @module fl.model_factory
  * @description
  * A service that manages a registry of names of model services.
+ *
  *  For example, a module registers its known model services as follows:
  *  <pre ng-non-bindable>
  *    const { FlClassManager } = require('fl/framework/object_system');
@@ -333,8 +319,7 @@ let FlModelFactory = (function() {
     function FlModelFactory() {
 	this._model_cache = new FlModelCache();
 	this._model_services = { };
-    };
-
+    }
     FlModelFactory.prototype.constructor = FlModelFactory;
 
     /**
@@ -477,7 +462,10 @@ let FlModelFactory = (function() {
 	{
 	    if (_.isArray(obj_or_array))
 	    {
-		return obj_or_array.map(this._create_internal.bind(this));
+		let self = this;
+		return _.map(obj_or_array, function(v, idx) {
+		    return self._create_internal(v);
+		});
 	    }
 	    else
 	    {
@@ -496,7 +484,7 @@ let FlModelFactory = (function() {
 /**
  * @ngdoc service
  * @name FlGlobalModelFactory
- * @module fl.object_system
+ * @module fl.model_factory
  * @description
  * The global model factory.
  */
