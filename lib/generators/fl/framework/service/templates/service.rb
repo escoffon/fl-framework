@@ -2,7 +2,7 @@
   # The service object for <%=@data_c[:full_name]%>.
 
   class <%=@service_c[:name]%> < Fl::Framework::Service::Base
-    self.model_c = <%=@data_c[:full_name]%>
+    self.model_class = <%=@data_c[:full_name]%>
 
     # Get create parameters.
     #
