@@ -26,6 +26,18 @@
       strong_params(p).require(:<%=@data_c[:full_name].underscore.gsub('/', '_')%>).permit(:param1, :param2)
     end
 
+    # Get `to_hash` parameters.
+    # Override the method here if you need to customize the `to_hash` permitted parameters.
+    #
+    # @param p [Hash,ActionController::Parameters] The parameters from which to extract the `to_hash`
+    #  parameters subset. If +nil+, use {#params}.
+    #
+    # @return [ActionController::Parameters] Returns the `to_hash` parameters.
+
+    def to_hash_params(p = nil)
+      super(p)
+    end
+
     protected
 
     # Build a query to list instances of <%=@data_c[:full_name]%>.
