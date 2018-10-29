@@ -127,5 +127,13 @@ module Fl::Framework::Controller
     def html_format?()
       self.response_format == :html
     end
+
+    # Check if we have a JSON request.
+    #
+    # @return Returns `true` if the request is marked as JSON.
+
+    def json_request?()
+      request.format.json?
+    end
   end
 end

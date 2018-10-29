@@ -53,7 +53,7 @@ module Fl::Framework::Service
                 elsif params.is_a?(ActionController::Parameters)
                   params
                 else
-                  {}
+                  ActionController::Parameters.new({ })
                 end
 
       raise "please define a target model class for #{self.class.name}" unless self.class.model_class
@@ -441,7 +441,7 @@ module Fl::Framework::Service
     #   end
     #
     # @param p [Hash,ActionController::Parameters] The parameters from which to extract the create parameters
-    #  subset. if +nil+, use {#params}.
+    #  subset. If +nil+, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the create parameters.
     #
@@ -461,7 +461,7 @@ module Fl::Framework::Service
     #   end
     #
     # @param p [Hash,ActionController::Parameters] The parameters from which to extract the update parameters
-    #  subset. if +nil+, use {#params}.
+    #  subset. If +nil+, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the update parameters.
     #
@@ -469,6 +469,32 @@ module Fl::Framework::Service
 
     def update_params(p = nil)
       raise "please implement #{self.class.name}#update_params"
+    end
+
+    # Get `to_hash` parameters.
+    # This method returns the permitted contents of the **to_hash** parameter.
+    # It permits the following options (which are the standard options described in
+    # {Fl::Framework::Core::ModelHash::InstanceMethods#to_hash}):
+    # - The scalars *:as_visible_to*, *:verbosity*.
+    # - The arrays *:only*, *:include*, *:except*, *:image_sizes*. All elements of these arrays are
+    #   permitted; if you want to tailor those contents, override the method in the subclass.
+    # - The hash *:to_hash*. All elements of this hash are permitted; if you want to tailor those
+    #   contents, override the method in the subclass.
+    #
+    # Note that, although the {Fl::Framework::Core::ModelHash::InstanceMethods#to_hash} method accepts
+    # scalars as values for the *:only*, *:include*, and *:except* arrays, clients should also pass
+    # the parameters as arrays, or they will be filtered out by the permission system.
+    #
+    # @param p [Hash,ActionController::Parameters] The parameters from which to extract the `to_hash`
+    #  parameters subset. If +nil+, use {#params}.
+    #
+    # @return [ActionController::Parameters] Returns the standard permitted `to_hash` parameters.
+
+    def to_hash_params(p = nil)
+      strong_params(p).fetch(:to_hash, { }).permit(:as_visible_to, :verbosity,
+                                                   { only: [ ] }, { include: [ ] },
+                                                   { except: [ ] }, { image_sizes: [ ] },
+                                                   { to_hash: { } })
     end
 
     protected
