@@ -48,6 +48,8 @@ module Fl
 
         require 'fl/google'
 
+        require 'fl/framework/generator_helper'
+
         # and let's add the locale files. How do we manage if the users want to customize?
 
         config.i18n.load_path.concat(Dir[File.expand_path('../locales/framework/*.yml', __FILE__)])
