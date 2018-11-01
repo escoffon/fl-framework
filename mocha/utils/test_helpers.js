@@ -3,6 +3,9 @@ const { FlExtensions, FlClassManager } = require('fl/framework/object_system');
 const {
     FlModelBase, FlModelCache, FlModelFactory, FlGlobalModelFactory
 } = require('fl/framework/model_factory');
+const {
+    FlAPIService, FlAPIServiceRegistry, FlGlobalAPIServiceRegistry
+} = require('fl/framework/api_services');
 
 function _clear_ext(name) {
     if (_.isString(name))
@@ -47,9 +50,23 @@ function _clear_model_services(factory, name) {
 	factory._model_services = { };
     }
 };
+    
+function _clear_api_services(registry, name) {
+    if (_.isNil(registry)) registry = FlGlobalAPIServiceRegistry;
+    
+    if (_.isString(name))
+    {
+	registry.unregister(name);
+    }
+    else
+    {
+	registry._services = { };
+    }
+};
 
 module.exports = {
     clear_ext: _clear_ext,
     clear_class: _clear_class,
-    clear_model_services: _clear_model_services
+    clear_model_services: _clear_model_services,
+    clear_api_services: _clear_api_services
 };

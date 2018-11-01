@@ -29,7 +29,7 @@ for F in "$@" ; do
 	    FLAGS="$FLAGS $F"
 	    GET_FILE=1
 	    ;;
-	-f | --fgrep) FLAGS="$FLAGS $F"
+	-f | --fgrep | --reporter) FLAGS="$FLAGS $F"
 	    GET_ARG=1
 	    ;;
 	-*)

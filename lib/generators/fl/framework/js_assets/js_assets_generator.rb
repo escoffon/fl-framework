@@ -17,6 +17,10 @@ module Fl::Framework
         from: File.join(APP_ROOT, 'object_system.js'),
         to: File.join(VENDOR_ROOT, 'object_system.js'),
       },
+      {
+        from: File.join(APP_ROOT, 'api_services.js'),
+        to: File.join(VENDOR_ROOT, 'api_services.js'),
+      }
     ]
 
     PACKAGE_FILE = 'package.json'
@@ -68,7 +72,7 @@ module Fl::Framework
 
     def _update_dependencies(dependencies, gem_p)
       num_updates = 0
-      
+
       gem_p[:names].each do |n|
         if dependencies.has_key?(n)
           if dependencies[n] != gem_p[:full][n]

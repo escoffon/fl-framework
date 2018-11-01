@@ -72,9 +72,14 @@ const MY_BASE_DESC = {
 	},
 	ctx: function() {
 	    return this._ctx;
-	},
-	a1: function() { return this._a1; },
-	a2: function() { return this._a2; }
+	}
+    },
+    instance_properties: {
+	a1: { get: function() { return this._a1; } },
+	a2: {
+	    get: function() { return this._a2; },
+	    set: function(v) { this._a2 = v; }
+	}
     }
 };
 
@@ -460,8 +465,8 @@ describe('fl.object_system module', function() {
 		expect(_.isFunction(my1.ctx)).to.be.true;
 		expect(_.isFunction(my1.my_method)).to.be.true;
 
-		expect(my1.a1()).to.equal('A1');
-		expect(my1.a2()).to.equal('MyClass - a2');
+		expect(my1.a1).to.equal('A1');
+		expect(my1.a2).to.equal('MyClass - a2');
 		
 		my1.set_msg('my1 msg');
 		expect(my1.ctx().msg).to.equal('my1 msg - MyClass');
@@ -514,6 +519,19 @@ describe('fl.object_system module', function() {
 	    	let s2s1 = new S2S1('S2S1_A1', 'S2S1_A2');
 		expect(s2s1._a1).to.equal('S2S1_A1');
 		expect(s2s1._a2).to.equal('S2S1_A2');
+	    });
+
+	    it('should register instance properties', function() {
+		let MyBase = FlClassManager.make_class(MY_BASE_DESC);
+		let MyClass = FlClassManager.make_class(MY_CLASS_DESC);
+
+		let my1 = new MyClass('A1');
+
+		expect(my1.a1).to.equal('A1');
+		expect(my1.a2).to.equal('MyClass - a2');
+
+		my1.a2 = 'new a2';
+		expect(my1.a2).to.equal('new a2');
 	    });
 	    
 	    it('should throw on a missing :name property', function() {
@@ -569,8 +587,8 @@ describe('fl.object_system module', function() {
 		expect(_.isFunction(my1.f2)).to.be.true;
 		expect(_.isFunction(my1.passes)).to.be.true;
 
-		expect(my1.a1()).to.equal('A1');
-		expect(my1.a2()).to.equal('MyClass1 - a2');
+		expect(my1.a1).to.equal('A1');
+		expect(my1.a2).to.equal('MyClass1 - a2');
 
 		expect(my1.passes()).to.have.members([ 'pass1: pre', 'pass1: post' ]);
 	    });
@@ -590,8 +608,8 @@ describe('fl.object_system module', function() {
 		expect(_.isFunction(my2.c4)).to.be.false;
 		expect(_.isFunction(MyClass2.c4)).to.be.true;
 
-		expect(my2.a1()).to.equal('A1');
-		expect(my2.a2()).to.equal('MyClass2 - a2');
+		expect(my2.a1).to.equal('A1');
+		expect(my2.a2).to.equal('MyClass2 - a2');
 	    });
 	});
 	
@@ -609,8 +627,8 @@ describe('fl.object_system module', function() {
 		expect(_.isFunction(my1.ctx)).to.be.true;
 		expect(_.isFunction(my1.my_method)).to.be.true;
 
-		expect(my1.a1()).to.equal('A100');
-		expect(my1.a2()).to.equal('MyClass - a2');
+		expect(my1.a1).to.equal('A100');
+		expect(my1.a2).to.equal('MyClass - a2');
 
 		my1.set_msg('my1 msg');
 		expect(my1.ctx().msg).to.equal('my1 msg - MyClass');

@@ -8,9 +8,11 @@ Arguments:
   No arguments needed.
 
 Example:
-  rails generate js_assets
+  rails generate fl:framework:js_assets
 
   The generator will create:
     vendor/assets/javascripts/fl/framework
   as a copy of app/assets/javascript/fl/framework in the gem.
 
+  It will also create a package.json file, or modify an existing one, to register
+  Yarn packages used by the Javascript assets.

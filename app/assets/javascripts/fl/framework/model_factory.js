@@ -486,7 +486,8 @@ let FlModelFactory = (function() {
  * @name FlGlobalModelFactory
  * @module fl.model_factory
  * @description
- * The global model factory.
+ * The global model factory. This is an instance of {@sref FlModelFactory} that is globally accessible
+ * and can be used as the applicationwide model factory.
  */
 
 const FlGlobalModelFactory = new FlModelFactory();

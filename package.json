@@ -2,11 +2,13 @@
   "name": "fl-framework",
   "private": true,
   "dependencies": {
+    "axios": "^0.18.0",
     "js-cache": "^1.0.3",
     "lodash": "^4.17.11"
   },
   "scripts": {},
   "devDependencies": {
+    "axios-mock-adapter": "^1.15.0",
     "canonical-path": "^0.0.2",
     "chai": "^4.2.0",
     "del": "^3.0.0",

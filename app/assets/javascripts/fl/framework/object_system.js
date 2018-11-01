@@ -68,8 +68,8 @@ FlExtensions.NotRegistered.prototype.constructor = FlExtensions.NotRegistered;
 
 /**
  * @ngdoc function
- * @name FlExtensions#named
- * @module fl.object_system.FlExtensions
+ * @name FlExtensions.named
+ * @module fl.object_system
  * @description
  * Create a named extension, which clients can then find by name.
  * 
@@ -107,7 +107,7 @@ FlExtensions.named = function(name, ext, overwrite) {
 /**
  * @ngdoc function
  * @name FlExtensions.list
- * @module fl.object_system.FlExtensions
+ * @module fl.object_system
  * @description
  * List the registered extensions.
  * 
@@ -129,8 +129,8 @@ FlExtensions.list = function(full) {
 
 /**
  * @ngdoc function
- * @name FlExtensions#lookup
- * @module fl.object_system.FlExtensions
+ * @name FlExtensions.lookup
+ * @module fl.object_system
  * @description
  * Look up a named extension.
  * 
@@ -170,7 +170,7 @@ FlExtensions.lookup = function(name, raise) {
 /**
  * @ngdoc function
  * @name FlExtensions.register
- * @module fl.object_system.FlExtensions
+ * @module fl.object_system
  * @description
  * Register the method components of an extension with an object.
  * 
@@ -234,7 +234,7 @@ FlExtensions.register = function(ex, obj) {
 /**
  * @ngdoc function
  * @name FlExtensions.initialize
- * @module fl.object_system.FlExtensions
+ * @module fl.object_system
  * @description
  * Call the extension initializer on an object.
  * 
@@ -448,6 +448,8 @@ FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.Alread
  *     this registers additional instance methods.
  * 10. If **opts.class_methods** is an object, copy all its key/value pairs to the constructor;
  *     this registers additional class (static) methods.
+ * 11. If **opts.instance_properties** is an object, register all its key/value pairs as properties in the
+ *     prototype.
  * 12. Register the class under the given class name; {@sref FlClassManager.get_class} can be used
  *     to fetch class constructors by name, and {@sref FlClassManager.instance_factory} to create
  *     instances of a given class.
@@ -470,10 +472,10 @@ FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.Alread
  * ```
  * Unfortunately, `super` is available only in methods defined in the class body, so that instance methods
  * in **opts.instance_methods** won't be able to call the superclass implementation.
- * {@sref FlRoot} defines the {@sref FlRoot.__super} method that provides equivalent functionality,
+ * {@sref FlRoot} defines the {@sref FlRoot#__super} method that provides equivalent functionality,
  * at the cost of some ugliness.
- * The arguments for {@sref FlRoot.__super} are the superclass name and the method name, followed by
- * arguments to the method itself; therefore, the equivalent usage of {@sref FlRoot.__super} is as follows:
+ * The arguments for {@sref FlRoot#__super} are the superclass name and the method name, followed by
+ * arguments to the method itself; therefore, the equivalent usage of {@sref FlRoot#__super} is as follows:
  * ```
  * let Sub = FlClassManager.make_class({
  *   name: 'Sub',
@@ -690,6 +692,9 @@ FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.Alread
  * @property {Object} opts.class_methods A hash containing the class methods for the class.
  *  The values for the object's properties are functions; the contents of the hash are placed in the
  *  constructor.
+ * @property {Object} opts.instance_properties A hash containing the instance properties for the class.
+ *  Each key/value pair is registered as a property in the prototype.
+ *  The keys are property names, and the values are objects containing the property descriptor.
  * @property {Array} opts.extensions An array containing the list of extensions for the class. The elements
  *  are the names of registered extensions. See {@sref FlExtensions}.
  * 
@@ -810,6 +815,13 @@ FlClassManager.make_class = function(opts) {
 	});
     }
 
+    if (_.isObject(opts.instance_properties))
+    {
+	_.forEach(opts.instance_properties, function(mv, mk) {
+	    Object.defineProperty(ctor.prototype, mk, mv);
+	});
+    }
+    
     FlClassManager._class_registry[cname] = ctor;
 
     return ctor;
