@@ -29,46 +29,7 @@ module.exports = new Package('fl_framework_docs', [
 	const XLINKS = [
 	    //		    { name: '', xlink: '' },
 
-	    // { name: 'jQuery', xlink: 'http://jquery.com' },
-
-	    // { name: 'templates', xlink: 'https://github.com/pitr/angular-rails-templates' },
-
-	    // { name: 'ipCookie', xlink: 'https://github.com/ivpusic/angular-cookie' },
-
-	    // { name: 'ui.router', xlink: 'https://ui-router.github.io/ng1/' },
-
-	    // { name: 'ui.bootstrap', xlink: 'https://angular-ui.github.io/bootstrap/' },
-	    // { name: '$uibModalInstance', xlink: 'https://angular-ui.github.io/bootstrap/#!#modal' },
-	    // { name: '$uibModal', xlink: 'https://angular-ui.github.io/bootstrap/#!#modal' },
-
-	    // { name: 'ng-token-auth', xlink: 'https://github.com/lynndylanhurley/ng-token-auth' },
-	    // { name: '$auth', xlink: 'https://github.com/lynndylanhurley/ng-token-auth' },
-
-	    // { name: 'angularFileUpload', xlink: 'https://github.com/nervgh/angular-file-upload' },
-	    // { name: 'angular-file-upload', xlink: 'https://github.com/nervgh/angular-file-upload' },
-	    // { name: 'FileUploader', xlink: 'https://github.com/nervgh/angular-file-upload/wiki/Module-API' },
-	    // { name: 'angular-translate', xlink: 'https://angular-translate.github.io/' },
-	    // { name: 'pascalprecht.translate', xlink: 'https://angular-translate.github.io/' },
-
-	    // { name: 'textAngular', xlink: 'https://github.com/textAngular/textAngular' },
-	    // { name: 'textAngularSetup', xlink: 'https://github.com/textAngular/textAngular' },
-
-	    // { name: 'slickCarousel', xlink: 'https://github.com/devmark/angular-slick-carousel' },
-
-	    // { name: 'Bootstrap', xlink: 'http://getbootstrap.com/' },
-
-	    // { name: 'Fancybox', xlink: 'https://github.com/fancyapps/fancybox.git' },
-
-	    // { name: 'Stripe', xlink: 'https://stripe.com/' },
-
-	    // { name: 'web3.js', xlink: 'https://github.com/ethereum/web3.js' },
-	    // { name: 'truffle-contract', xlink: 'https://github.com/trufflesuite/truffle-contract' },
-
-	    // { name: '$http', xlink: 'https://docs.angularjs.org/api/ng/service/$http' },
-	    // { name: '$q', xlink: 'https://docs.angularjs.org/api/ng/service/$q' },
-	    // { name: '$scope', xlink: 'https://docs.angularjs.org/api/ng/type/$rootScope.Scope' },
-	    // { name: '$rootScope', xlink: 'https://docs.angularjs.org/api/ng/service/$rootScope' },
-	    // { name: 'ng', xlink: 'https://angularjs.org/' }
+	    { name: 'Axios', xlink: 'https://github.com/axios/axios' },
 	];
 
 	externalLinks.register(XLINKS);

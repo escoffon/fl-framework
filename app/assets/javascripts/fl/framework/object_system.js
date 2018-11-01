@@ -68,8 +68,8 @@ FlExtensions.NotRegistered.prototype.constructor = FlExtensions.NotRegistered;
 
 /**
  * @ngdoc function
- * @name FlExtensions#named
- * @module fl.object_system.FlExtensions
+ * @name FlExtensions.named
+ * @module fl.object_system
  * @description
  * Create a named extension, which clients can then find by name.
  * 
@@ -107,7 +107,7 @@ FlExtensions.named = function(name, ext, overwrite) {
 /**
  * @ngdoc function
  * @name FlExtensions.list
- * @module fl.object_system.FlExtensions
+ * @module fl.object_system
  * @description
  * List the registered extensions.
  * 
@@ -129,8 +129,8 @@ FlExtensions.list = function(full) {
 
 /**
  * @ngdoc function
- * @name FlExtensions#lookup
- * @module fl.object_system.FlExtensions
+ * @name FlExtensions.lookup
+ * @module fl.object_system
  * @description
  * Look up a named extension.
  * 
@@ -170,7 +170,7 @@ FlExtensions.lookup = function(name, raise) {
 /**
  * @ngdoc function
  * @name FlExtensions.register
- * @module fl.object_system.FlExtensions
+ * @module fl.object_system
  * @description
  * Register the method components of an extension with an object.
  * 
@@ -234,7 +234,7 @@ FlExtensions.register = function(ex, obj) {
 /**
  * @ngdoc function
  * @name FlExtensions.initialize
- * @module fl.object_system.FlExtensions
+ * @module fl.object_system
  * @description
  * Call the extension initializer on an object.
  * 
@@ -472,10 +472,10 @@ FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.Alread
  * ```
  * Unfortunately, `super` is available only in methods defined in the class body, so that instance methods
  * in **opts.instance_methods** won't be able to call the superclass implementation.
- * {@sref FlRoot} defines the {@sref FlRoot.__super} method that provides equivalent functionality,
+ * {@sref FlRoot} defines the {@sref FlRoot#__super} method that provides equivalent functionality,
  * at the cost of some ugliness.
- * The arguments for {@sref FlRoot.__super} are the superclass name and the method name, followed by
- * arguments to the method itself; therefore, the equivalent usage of {@sref FlRoot.__super} is as follows:
+ * The arguments for {@sref FlRoot#__super} are the superclass name and the method name, followed by
+ * arguments to the method itself; therefore, the equivalent usage of {@sref FlRoot#__super} is as follows:
  * ```
  * let Sub = FlClassManager.make_class({
  *   name: 'Sub',
