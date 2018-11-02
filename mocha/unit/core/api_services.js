@@ -57,31 +57,29 @@ const API_CFG = {
 const axmock = new AxiosMockAdapter(axios);
 
 axmock
-    .onGet('/my/models.json').reply(200, {
+    .onGet('/my/models.json').reply(200, JSON.stringify({
 	models: [ MODEL_1, MODEL_2 ],
 	_pg: { _c: 2, _s:20 , _p: 2}
-    })
-    .onGet('/my/models/1.json').reply(200, {
-	model: MODEL_1
-    })
-    .onGet('/my/models/10.json').reply(404, {
+    }))
+
+    .onGet('/my/models/1.json').reply(200, JSON.stringify({ model: MODEL_1 }))
+
+    .onGet('/my/models/10.json').reply(404, JSON.stringify({
 	_error: { status: "not_found", message: "No user with id 10", details:null }
-    })
+    }))
+
     .onPost('/my/models.json').reply(function(cfg) {
 	let j = JSON.parse(cfg.data);
 	let m = _.merge({}, MODEL_1, j.my_model);
 
-	return [ 200, {
-	    model: m
-	} ];
+	return [ 200, JSON.stringify({ model: m }) ];
     })
+
     .onPatch('/my/models/1.json').reply(function(cfg) {
 	let j = JSON.parse(cfg.data);
 	let m = _.merge({}, MODEL_1, j.my_model);
 
-	return [ 200, {
-	    model: m
-	} ];
+	return [ 200, JSON.stringify({ model: m }) ];
     })
 ;
 
