@@ -9,6 +9,10 @@ module Fl::Framework
   The genertor also installs in app/controllers a sample controller that
   uses the service object.
 
+  It takes two mandatory arguments:
+    SERVICE_CLASS	The name of the service class to generate.
+    MODEL_CLASS         The name of the associated model class.
+
   For example, given this command:
     rails generate fl:framework:service My:Service::Component My::Component
 

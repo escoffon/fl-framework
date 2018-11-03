@@ -2,6 +2,48 @@ require 'json'
 
 module Fl::Framework
   class JsAssetsGenerator < Rails::Generators::Base
+    include Fl::Framework::GeneratorHelper
+    
+    desc <<-DESC
+  This generator installs the Javascript framework assets into vendor/assets/javascripts.
+  Some gems (for example, webpacker) do not support accessing assets outside of the
+  directory structure of the Rails application, and therefore you have to copy
+  those files over.
+
+  The generator also installs a starter documentation configuration directory and
+  the necessary Yard package references.
+
+  It takes one optional flag:
+    --nodoc    If present, the documentation configuration is not created.
+               By default, the documentation configuration is created.
+
+  For example, given this command:
+    rails generate fl:framework:js_assets
+  The generator will create:
+    vendor/assets/javascripts/fl/framework
+  as a copy of app/assets/javascript/fl/framework in the gem.
+
+  It will also create a package.json file, or modify an existing one, to register
+  Yarn packages used by the Javascript assets.
+
+  Finally, unless the --nodoc flag is given, a default configuration file is
+  created in
+    doc/dgeni/conf.js
+  template API and Guide content files are created under
+    doc/dgeni/contents
+  and
+    gulpfile.js
+  is created in the app's root directory. Running the Gulp tool generates
+  documentation in
+    public/doc/js
+  that documents the assets that were installed above, and any other sources in
+    app/assets/javascripts
+  (You can modify much of this behavior by editing the conf.js file.)
+DESC
+
+    class_option :nodoc, aliases: "-n", type: :boolean, required: false,
+    	         desc: "Controls generation of documentation configuration"
+
     APP_ROOT = File.join('app', 'assets', 'javascripts', 'fl', 'framework')
     VENDOR_ROOT = File.join('vendor', 'assets', 'javascripts', 'fl', 'framework')
     APP_ASSETS = [
@@ -33,6 +75,7 @@ module Fl::Framework
       copy_assets()
       generate_js_index()
       add_yarn_packages()
+      add_doc_config() unless options[:nodoc]
     end
 
     private
@@ -58,11 +101,21 @@ module Fl::Framework
       jp = File.open(File.join(root, PACKAGE_FILE)) { |f| JSON.parse(f.read) }
 
       {
-        full: jp['dependencies'],
-        names: jp['dependencies'].reduce([ ]) do |acc, (k, v)|
-          acc << k
-          acc
-        end
+        dependencies: {
+          full: jp['dependencies'],
+          names: jp['dependencies'].reduce([ ]) do |acc, (k, v)|
+            acc << k
+            acc
+          end
+        },
+
+        devDependencies: {
+          full: jp['devDependencies'],
+          names: jp['devDependencies'].reduce([ ]) do |acc, (k, v)|
+            acc << k
+            acc
+          end
+        }
       }
     end
 
@@ -70,9 +123,16 @@ module Fl::Framework
       "    \"#{name}\": \"#{version}\""
     end
 
+    def _format_package_list(pkg)
+      d = pkg[:names].sort.reduce([ ]) do |acc, n|
+        acc.push(_package_entry(n, pkg[:full][n]))
+        acc
+      end
+      d.join(",\n")
+    end
+
     def _update_dependencies(dependencies, gem_p)
       num_updates = 0
-
       gem_p[:names].each do |n|
         if dependencies.has_key?(n)
           if dependencies[n] != gem_p[:full][n]
@@ -92,15 +152,16 @@ module Fl::Framework
         acc
       end
 
-      [ num_updates, d.join(",\n") + "\n" ]
+      { updated: num_updates, output: d.join(",\n") + "\n" }
     end
     
     def _update_package_file(gem_p)
       pkg_file = File.join(destination_root, PACKAGE_FILE)
       pkg = File.open(File.join(destination_root, PACKAGE_FILE)) { |f| JSON.parse(f.read()) }
-      num_updated, d_output = _update_dependencies(pkg['dependencies'], gem_p)
+      deps = _update_dependencies(pkg['dependencies'], gem_p[:dependencies])
+      devDeps = _update_dependencies(pkg['devDependencies'], gem_p[:devDependencies])
 
-      return if num_updated < 1
+      return if (deps[:updated] + devDeps[:updated]) < 1
       
       plines = File.open(pkg_file) { |f| f.readlines() }
       output = ''
@@ -109,7 +170,18 @@ module Fl::Framework
         
         if l =~ /"dependencies":/
           output << l
-          output << d_output
+          output << deps[:output]
+
+          while plines.length > 0
+            l = plines.shift
+            if l =~ /}/
+              output << l
+              break
+            end
+          end
+        elsif l =~ /"devDependencies":/
+          output << l
+          output << devDeps[:output]
 
           while plines.length > 0
             l = plines.shift
@@ -140,13 +212,28 @@ module Fl::Framework
                     else
                       'Rails application'
                     end
-        d = gem_p[:names].sort.reduce([ ]) do |acc, n|
-          acc.push(_package_entry(n, gem_p[:full][n]))
-          acc
-        end
-        @dependencies = d.join(",\n")
+        @dependencies = _format_package_list(gem_p[:dependencies])
+        @devDependencies = _format_package_list(gem_p[:devDependencies])
 
         template('package.json', File.join(destination_root, PACKAGE_FILE))
+      end
+    end
+
+    def add_doc_config()
+      doc_files = [
+        { inp: [ 'conf.js' ], outp: [ destination_root, 'doc', 'dgeni', 'conf.js' ] },
+        { inp: [ 'content', 'api', 'index.md' ],
+          outp: [ destination_root, 'doc', 'dgeni', 'content', 'api', 'index.md' ] },
+        { inp: [ 'content', 'guide', 'index.md' ],
+          outp: [ destination_root, 'doc', 'dgeni', 'content', 'guide', 'index.md' ] },
+        { inp: [ 'content', 'guide', 'model_services.md' ],
+          outp: [ destination_root, 'doc', 'dgeni', 'content', 'guide', 'model_services.md' ] },
+        
+        { inp: [ 'gulpfile.js' ], outp: [ destination_root, 'gulpfile.js' ] },
+      ]
+        
+      doc_files.each do |df|
+        template(File.join(df[:inp]), File.join(df[:outp]))
       end
     end
   end
