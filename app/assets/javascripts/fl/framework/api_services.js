@@ -103,7 +103,7 @@ const {
  *  registered for the `My::Model` type. (If no such class has been registered, `null` is placed in
  *  the array.)
  *
- * ##### The API protocol
+ * #### The API protocol
  *
  * This service assumes that the server implements a specific API behavior. For successful responses,
  * the body of the response is a JSON object that contains at least one property, the data being
@@ -146,6 +146,33 @@ const {
  * - **_p** The next page to fetch, starting at 1 for the first page.
  * - **_c** How many results were returned by the last query. Note that, if `_c < _s`, then
  *   no more results are available.
+ *
+ * #### Webpack
+ *
+ * API service code relies on registered data model classes to generate model instances of the
+ * appropriate type. Unfortunately, {@sref Webpack} does not add a source file if its exports
+ * are nowhere imported by the other files in the package. As a consequence, the data model class
+ * associated with a given API service is not registered, and the data returned by **index** and
+ * **show** is `null`. For example, the `MyAPIService` class listed above expects to retrieve
+ * instances of the `My::Model` type, via the `MyModel` data model class:
+ * ```
+ * FlGlobalAPIServiceRegistry.register('my.services', { MyAPIService: 'My::Model' });
+ * ```
+ * If no other sources import `MyModel`, then a call to {@sref FlAPIService#show} attempts to
+ * load the model class for `My::Model`, finds none, and returns `null`.
+ *
+ * Typically, the source file for a data model includes registration code like this:
+ * ```
+ * FlGlobalModelFactory.register('my.models', [
+ *   { service: MyModel, class_name: 'My::Model' }
+ * ]);
+ * ```
+ * To ensure that the source file is packed (and therefore the class is registered), add the
+ * following statement in the source for `MyAPIService`:
+ * ```
+ * const { MyModel } = require('my/models/my_model');
+ * ```
+ * (or equivalent).
  */
 
 let FlAPIService = FlClassManager.make_class({

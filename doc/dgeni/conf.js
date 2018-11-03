@@ -30,6 +30,7 @@ module.exports = new Package('fl_framework_docs', [
 	    //		    { name: '', xlink: '' },
 
 	    { name: 'Axios', xlink: 'https://github.com/axios/axios' },
+	    { name: 'Webpack', xlink: 'https://webpack.js.org' }
 	];
 
 	externalLinks.register(XLINKS);
