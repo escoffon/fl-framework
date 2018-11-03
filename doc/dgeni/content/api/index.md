@@ -17,10 +17,10 @@ The following module are available:
 - {@sref fl.object_system} is the core module for Floopstreet JS code. It includes functions
   and objects for managing class hierarchies and object instantiation:
   - {@sref FlExtensions} contains code to support the mix-in (extension) features
-    of classes defined via {@sref FlClassManager.make_class}.
+    of classes defined via {@sref FlClassManager#make_class}.
   - {@sref FlClassManager} is used to manage the class hierarchy
-    ({@sref FlClassManager.make_class}) and create instances of registered classes
-    ({@sref FlClassManager.instance_factory} and {@sref FlClassManager.modelize}).
+    ({@sref FlClassManager#make_class}) and create instances of registered classes
+    ({@sref FlClassManager#instance_factory} and {@sref FlClassManager#modelize}).
 
   The root of the class hierarchy, {@sref FlRoot}, is also defined in this module.
 

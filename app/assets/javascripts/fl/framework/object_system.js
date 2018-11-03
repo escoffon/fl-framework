@@ -9,11 +9,11 @@ const _ = require('lodash');
  */
 
 /**
- * @ngdoc module
+ * @ngdoc service
  * @name FlExtensions
  * @module fl.object_system
  * @description
- * Namespace for class extension functionality.
+ * A service to provide class extension functionality.
  * A class extension is an object that contains information about how to extend the functionality of
  * another object (typically, a class).
  * 
@@ -21,14 +21,14 @@ const _ = require('lodash');
  * - *instance_methods* are functions to be installed in the object's prototype, if one is present.
  * - *class_methods* are functions to be installed in the object itself.
  * - *methods* acts as an alias for *instance_methods*, and also is used to provide dynamic method
- *   definitions, as described in {@sref FlExtensions.register}.
+ *   definitions, as described in {@sref FlExtensions#register}.
  * - the *initializer* is a function called during object construction, and used to initialize
  *   properties related to the extension.
  *
  * All properties are optional, although an extension that defines none is obviously not very useful.
  * 
  * The *methods* component can be implemented as either an object (hash), or as a function; the extension
- * utilities install it differently, depending on its type; see {@sref FlExtensions.register}.
+ * utilities install it differently, depending on its type; see {@sref FlExtensions#register}.
  * The *class_methods* and *instance_methods* components are always objects.
  *
  * For example, this extension defines a method `_append` that appends two values to a common prefix,
@@ -67,8 +67,9 @@ FlExtensions.NotRegistered = function NotRegistered(message) {
 FlExtensions.NotRegistered.prototype.constructor = FlExtensions.NotRegistered;
 
 /**
- * @ngdoc function
- * @name FlExtensions.named
+ * @ngdoc method
+ * @name FlExtensions#named
+ * @classmethod
  * @module fl.object_system
  * @description
  * Create a named extension, which clients can then find by name.
@@ -105,8 +106,9 @@ FlExtensions.named = function(name, ext, overwrite) {
 };
 
 /**
- * @ngdoc function
- * @name FlExtensions.list
+ * @ngdoc method
+ * @name FlExtensions#list
+ * @classmethod
  * @module fl.object_system
  * @description
  * List the registered extensions.
@@ -128,8 +130,9 @@ FlExtensions.list = function(full) {
 };
 
 /**
- * @ngdoc function
- * @name FlExtensions.lookup
+ * @ngdoc method
+ * @name FlExtensions#lookup
+ * @classmethod
  * @module fl.object_system
  * @description
  * Look up a named extension.
@@ -168,8 +171,9 @@ FlExtensions.lookup = function(name, raise) {
 };
 
 /**
- * @ngdoc function
- * @name FlExtensions.register
+ * @ngdoc method
+ * @name FlExtensions#register
+ * @classmethod
  * @module fl.object_system
  * @description
  * Register the method components of an extension with an object.
@@ -232,8 +236,9 @@ FlExtensions.register = function(ex, obj) {
 };
 
 /**
- * @ngdoc function
- * @name FlExtensions.initialize
+ * @ngdoc method
+ * @name FlExtensions#initialize
+ * @classmethod
  * @module fl.object_system
  * @description
  * Call the extension initializer on an object.
@@ -270,8 +275,8 @@ FlExtensions.initialize = function(ex, obj, pass) {
  * @description
  * The root class for all Fl classes.
  *
- * This is the root of the Fl class hierarchy; {@sref FlClassManager.make_class} uses it as the superclass if
- * one is not defined in the options.
+ * This is the root of the Fl class hierarchy; {@sref FlClassManager#make_class} uses it as the
+ * superclass if one is not defined in the options.
  *
  * Note that FlRoot is a ECMAScript 2015 (and later) class.
  * 
@@ -297,14 +302,14 @@ FlRoot.prototype.initialize = function() { };
  * Load the **initializer** component of a set of extensions.
  *
  * If _ext_ is an object, it iterates over all its elements and registers each
- * extension's **initializer** component with **this**, using {@sref FlExtensions.initialize}.
+ * extension's **initializer** component with **this**, using {@sref FlExtensions#initialize}.
  * This initializes all the listed extension properties in the object.
  * 
- * The class builder {@sref FlClassManager.make_class} automatically generates a call to this method
+ * The class builder {@sref FlClassManager#make_class} automatically generates a call to this method
  * in each class initializer, passing the extensions in the class options' **extensions** property.
  * 
  * @param {Array} ext An array containing the extension descriptors.
- * @param {String} pass The initialization pass; see {@sref FlExtensions.initialize}.
+ * @param {String} pass The initialization pass; see {@sref FlExtensions#initialize}.
  */
 
 FlRoot.prototype.__init_extensions = function(ext, pass) {
@@ -370,7 +375,7 @@ FlRoot.prototype.__super = function(sc, name) {
 };
 
 /**
- * @ngdoc module
+ * @ngdoc service
  * @name FlClassManager
  * @module fl.object_system
  * @description
@@ -408,8 +413,9 @@ FlClassManager.AlreadyDefinedClass = function AlreadyDefinedClass(message) {
 FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.AlreadyDefinedClass;
 
 /**
- * @ngdoc function
- * @name FlClassManager.make_class
+ * @ngdoc method
+ * @name FlClassManager#make_class
+ * @classmethod
  * @module fl.object_system
  * @description
  * Build an ECMAScript 2015 class.
@@ -443,15 +449,15 @@ FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.Alread
  *     same parameters as the constructor, and is defined early enough that it can be overridden by a
  *     **factory** method defined in **class_methods**.
  *  8. Iterate over all elements of **opts.extensions** register each extension with the class,
- *     using {@sref FlExtensions.register}. 
+ *     using {@sref FlExtensions#register}. 
  *  9. If **opts.instance_methods** is an object, copy all its key/value pairs to the prototype;
  *     this registers additional instance methods.
  * 10. If **opts.class_methods** is an object, copy all its key/value pairs to the constructor;
  *     this registers additional class (static) methods.
  * 11. If **opts.instance_properties** is an object, register all its key/value pairs as properties in the
  *     prototype.
- * 12. Register the class under the given class name; {@sref FlClassManager.get_class} can be used
- *     to fetch class constructors by name, and {@sref FlClassManager.instance_factory} to create
+ * 12. Register the class under the given class name; {@sref FlClassManager#get_class} can be used
+ *     to fetch class constructors by name, and {@sref FlClassManager#instance_factory} to create
  *     instances of a given class.
  * 
  * Note that the order in which actions are performed implies that instance methods by the same name as those
@@ -521,7 +527,7 @@ FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.Alread
  * ```
  * Sub { __extensions: [], _a1: 'A1', _a2: 'A2' }
  * ```
- * If subclasses don't define an initializer, {@sref FlClassManager.make_class} generates one that
+ * If subclasses don't define an initializer, {@sref FlClassManager#make_class} generates one that
  * makes a call to {@sref FlRoot#__super_init} using all the arguments passed to the constructor; this way,
  * class definitions in the chain can leave the initializer undefined, and the objects will still
  * be initialized properly. The test case contain an example of this behavior.
@@ -828,8 +834,9 @@ FlClassManager.make_class = function(opts) {
 };
 
 /**
- * @ngdoc function
- * @name FlClassManager.register_class
+ * @ngdoc method
+ * @name FlClassManager#register_class
+ * @classmethod
  * @module fl.object_system
  * @description
  * Register a class constructor.
@@ -859,14 +866,15 @@ FlClassManager.register_class = function(ctor, name) {
 };
 
 /**
- * @ngdoc function
- * @name FlClassManager.get_class
+ * @ngdoc method
+ * @name FlClassManager#get_class
+ * @classmethod
  * @module fl.object_system
  * @description
  * Get a registered class constructor.
  * 
  * @param {String|Function} name The name of the class to look up; as a convenience, if the value is a
- *  function that looks like a class created by {@sref FlClassManager.make_class}, it is returned as-is.
+ *  function that looks like a class created by {@sref FlClassManager#make_class}, it is returned as-is.
  * 
  * @return {Function|undefined} Returns the constructor registered under _name_ if one is available;
  *  otherwise, returns **undefined**.
@@ -880,13 +888,14 @@ FlClassManager.get_class = function(name) {
 };
 
 /**
- * @ngdoc function
- * @name FlClassManager.instance_factory
+ * @ngdoc method
+ * @name FlClassManager#instance_factory
+ * @classmethod
  * @module fl.object_system
  * @description
  * Factory function for registered classes.
  *
- * This function calls {@sref FlClassManager.get_class} to obtain a constructor, and if one is found
+ * This function calls {@sref FlClassManager#get_class} to obtain a constructor, and if one is found
  * it returns an instance of the class (using the **new** operator). Any arguments following _name_ 
  * are passed to the constructor.
  * 
@@ -914,8 +923,9 @@ FlClassManager.instance_factory = function(name) {
 };
 
 /**
- * @ngdoc function
- * @name FlClassManager.modelize
+ * @ngdoc method
+ * @name FlClassManager#modelize
+ * @classmethod
  * @module fl.object_system
  * @description
  * Modelize a hash.
@@ -934,7 +944,7 @@ FlClassManager.instance_factory = function(name) {
  *     creates a new class instance.
  * 
  * @param {String|Function} ctor The constructor function to use; if passed as a string, the value is
- *  looked up in the class registry (using {@sref FlClassManager.get_class}).
+ *  looked up in the class registry (using {@sref FlClassManager#get_class}).
  * @param {Object} data The object containing the hash to convert into a model object.
  */
 
