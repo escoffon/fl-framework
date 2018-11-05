@@ -74,6 +74,13 @@ const MY_BASE_DESC = {
 	    return this._ctx;
 	}
     },
+    class_properties: {
+	c1: { get: function() { return (_.isUndefined(this._c1)) ? 'c1' : this._c1; } },
+	c2: {
+	    get: function() { return (_.isUndefined(this._c2)) ? 'c2' : this._c2; },
+	    set: function(v) { this._c2 = v; }
+	}
+    },
     instance_properties: {
 	a1: { get: function() { return this._a1; } },
 	a2: {
@@ -519,6 +526,16 @@ describe('fl.object_system module', function() {
 	    	let s2s1 = new S2S1('S2S1_A1', 'S2S1_A2');
 		expect(s2s1._a1).to.equal('S2S1_A1');
 		expect(s2s1._a2).to.equal('S2S1_A2');
+	    });
+
+	    it('should register class properties', function() {
+		let MyBase = FlClassManager.make_class(MY_BASE_DESC);
+
+		expect(MyBase.c1).to.equal('c1');
+		expect(MyBase.c2).to.equal('c2');
+
+		MyBase.c2 = 'new c2';
+		expect(MyBase.c2).to.equal('new c2');
 	    });
 
 	    it('should register instance properties', function() {
