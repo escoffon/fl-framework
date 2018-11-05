@@ -81,11 +81,16 @@ axmock
 
 	return [ 200, JSON.stringify({ model: m }) ];
     })
-;
 
-const SRV_CFG = {
-    axios: axios
-};
+    .onPatch('/my/models/10.json').reply(function(cfg) {
+	let j = JSON.parse(cfg.data);
+	let m = _.merge({}, MODEL_1, j.my_model);
+
+	return [ 404, JSON.stringify({
+	    _error: { status: "not_found", message: "No user with id 10", details:null }
+	}) ];
+    })
+;
 
 const MY_SERVICE_DESC = {
     name: 'MyAPIService',
@@ -113,11 +118,139 @@ describe('fl.api_services module', function() {
     });
 
     describe('FlAPIService', function() {
+	context('default (global) configuration', function() {
+	    it('should include the XSRF token names', function() {
+		let cfg = FlAPIService.getDefaultConfig();
+		expect(cfg).to.be.an.instanceof(Object);
+		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName');
+	    });
+
+	    it('should merge values', function() {
+		let orig = FlAPIService.getDefaultConfig();
+		expect(orig).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName');
+
+		FlAPIService.setDefaultConfig({ c1: 'c1', xsrfCookieName: 'NEW_NAME' });
+		let cfg = FlAPIService.getDefaultConfig();
+		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName', 'c1');
+		expect(cfg.xsrfCookieName).to.eq('NEW_NAME');
+		expect(cfg.xsrfHeaderName).to.eq(orig.xsrfHeaderName);
+		expect(cfg.c1).to.eq('c1');
+		
+		FlAPIService.setDefaultConfig(orig, true);
+	    });
+
+	    it('should replace values', function() {
+		let orig = FlAPIService.getDefaultConfig();
+
+		FlAPIService.setDefaultConfig({ c1: 'c1' }, true);
+		let cfg = FlAPIService.getDefaultConfig();
+		expect(cfg).to.include.all.keys('c1');
+
+		FlAPIService.setDefaultConfig(orig, true);
+	    });
+
+	    it('should support config properties', function() {
+		let orig = FlAPIService.getDefaultConfig();
+
+		expect(FlAPIService.xsrfCookieNameDefault).to.eq(orig.xsrfCookieName);
+		FlAPIService.xsrfCookieNameDefault = 'NEW-NAME';
+		expect(FlAPIService.xsrfCookieNameDefault).to.eq('NEW-NAME');
+
+		expect(FlAPIService.xsrfHeaderNameDefault).to.eq(orig.xsrfHeaderName);
+		FlAPIService.xsrfHeaderNameDefault = 'NEW-NAME';
+		expect(FlAPIService.xsrfHeaderNameDefault).to.eq('NEW-NAME');
+
+		expect(FlAPIService.xsrfTokenDefault).to.be.undefined;
+		FlAPIService.xsrfTokenDefault = 'MY-TOKEN';
+		expect(FlAPIService.xsrfTokenDefault).to.eq('MY-TOKEN');
+		
+		FlAPIService.setDefaultConfig(orig, true);
+	    });
+	});
+	
+	context('service (local) configuration', function() {
+	    it('should inherit from global defaults', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.getConfig()).to.include(FlAPIService.getDefaultConfig());
+	    });
+
+	    it('should include the XSRF token names', function() {
+		let srv = new FlAPIService(API_CFG);
+		let cfg = srv.getConfig();
+	       
+		expect(cfg).to.be.an.instanceof(Object);
+		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName');
+	    });
+
+	    it('should include the XSRF token value', function() {
+		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
+		let cfg = srv.getConfig();
+	       
+		expect(cfg).to.be.an.instanceof(Object);
+		expect(cfg.xsrfToken).to.eq('MY-TOKEN');
+	    });
+
+	    it('should merge values in the constructor', function() {
+		let srv = new FlAPIService(API_CFG, { c1: 'c1', xsrfCookieName: 'NEW_NAME' });
+		let cfg = srv.getConfig();
+
+		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName', 'c1');
+		expect(cfg.xsrfCookieName).to.eq('NEW_NAME');
+		expect(cfg.xsrfHeaderName).to.eq(FlAPIService.getDefaultConfig().xsrfHeaderName);
+		expect(cfg.c1).to.eq('c1');
+	    });
+
+	    it('should merge values in the setter', function() {
+		let srv = new FlAPIService(API_CFG);
+		let cfg = srv.getConfig();
+
+		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName');
+		srv.setConfig({ c1: 'c1', xsrfCookieName: 'NEW_NAME' });
+		cfg = srv.getConfig();
+		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName', 'c1');
+		expect(cfg.xsrfCookieName).to.eq('NEW_NAME');
+		expect(cfg.xsrfHeaderName).to.eq(FlAPIService.getDefaultConfig().xsrfHeaderName);
+		expect(cfg.c1).to.eq('c1');
+	    });
+
+	    it('should replace values in the setter', function() {
+		let srv = new FlAPIService(API_CFG, { c1: 'c1', xsrfCookieName: 'NEW_NAME' });
+		let cfg = srv.getConfig();
+	       
+		expect(cfg).to.be.an.instanceof(Object);
+		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName', 'c1');
+		srv.setConfig({ c1: 'c1', xsrfCookieName: 'NEW_NAME' }, true);
+		cfg = srv.getConfig();
+		expect(cfg).to.include.all.keys('xsrfCookieName', 'c1');
+		expect(cfg.xsrfCookieName).to.eq('NEW_NAME');
+		expect(cfg.c1).to.eq('c1');
+	    });
+
+	    it('should support config properties', function() {
+		let defs = FlAPIService.getDefaultConfig();
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.xsrfCookieName).to.eq(defs.xsrfCookieName);
+		srv.xsrfCookieName = 'NEW-NAME';
+		expect(srv.xsrfCookieName).to.eq('NEW-NAME');
+
+		expect(srv.xsrfHeaderName).to.eq(defs.xsrfHeaderName);
+		srv.xsrfHeaderName = 'NEW-NAME';
+		expect(srv.xsrfHeaderName).to.eq('NEW-NAME');
+
+		expect(srv.xsrfTokenDefault).to.be.undefined;
+		srv.xsrfTokenDefault = 'MY-TOKEN';
+		expect(srv.xsrfTokenDefault).to.eq('MY-TOKEN');
+	    });
+	});
+	
 	context(':index', function() {
 	    it('should return objects', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
-		let srv = new FlAPIService(API_CFG, SRV_CFG);
-		
+		let srv = new FlAPIService(API_CFG);
+
 		return srv.index()
 		    .then(function(data) {
 			expect(data).to.be.an('array');
@@ -129,12 +262,40 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    });
 	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.index()
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.index({ xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
 	});
 
 	context(':show', function() {
 	    it('should return a known object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
-		let srv = new FlAPIService(API_CFG, SRV_CFG);
+		let srv = new FlAPIService(API_CFG);
 		
 		return srv.show(1)
 		    .then(function(data) {
@@ -145,16 +306,47 @@ describe('fl.api_services module', function() {
 		    });
 	    });
 
-	    it.skip('should error on an unknown object', function() {
+	    it('should error on an unknown object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
-		let srv = new FlAPIService(API_CFG, SRV_CFG);
+		let srv = new FlAPIService(API_CFG);
 		
 		return srv.show(10)
 		    .then(function(data) {
 			return Promise.reject('should not have reached this');
 		    })
-		    .catch(function(e) {
-			console.log(">>>>>>>>>> e"); console.log(e); console.log("<<<<<<<<<<");
+		    .catch(function(r) {
+			expect(r.status).to.eq(404);
+			let err = srv.response_error(r);
+			expect(err.status).to.eq('not_found');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.show(1)
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.show(1, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
 			return Promise.resolve(true);
 		    });
 	    });
@@ -163,7 +355,7 @@ describe('fl.api_services module', function() {
 	context(':create', function() {
 	    it('should return a new object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
-		let srv = new FlAPIService(API_CFG, SRV_CFG);
+		let srv = new FlAPIService(API_CFG);
 		
 		return srv.create({ value1: 'new value1' })
 		    .then(function(data) {
@@ -173,12 +365,52 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    });
 	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.create({ value1: 'new value1' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.create({ value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should add the XSRF header', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
+		
+		return srv.create({ value1: 'new value1' })
+		    .then(function(data) {
+			let r = srv.response;
+			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
+			return Promise.resolve(true);
+		    });
+	    });
 	});
 
 	context(':update', function() {
 	    it('should return the edited object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
-		let srv = new FlAPIService(API_CFG, SRV_CFG);
+		let srv = new FlAPIService(API_CFG);
 		
 		return srv.update(1, { value1: 'new value1' })
 		    .then(function(data) {
@@ -186,6 +418,63 @@ describe('fl.api_services module', function() {
 			expect(data.id).to.eq(1);
 			expect(data.value1).to.eq('new value1');
 
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should error on an unknown object', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG);
+		
+		return srv.update(10, { value1: 'new value1' })
+		    .then(function(data) {
+			return Promise.reject('should not have reached this');
+		    })
+		    .catch(function(r) {
+			expect(r.status).to.eq(404);
+			let err = srv.response_error(r);
+			expect(err.status).to.eq('not_found');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.update(1, { value1: 'new value1' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.update(1, { value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should add the XSRF header', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
+		
+		return srv.update(1, { value1: 'new value1' })
+		    .then(function(data) {
+			let r = srv.response;
+			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
 			return Promise.resolve(true);
 		    });
 	    });
@@ -197,7 +486,7 @@ describe('fl.api_services module', function() {
 	    it('should return objects', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
-		let srv = new MyAPIService(SRV_CFG);
+		let srv = new MyAPIService();
 		
 		return srv.index()
 		    .then(function(data) {
@@ -210,13 +499,43 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    });
 	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.index()
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.index({ xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
 	});
 
 	context(':show', function() {
 	    it('should return a known object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
-		let srv = new MyAPIService(SRV_CFG);
+		let srv = new MyAPIService();
 		
 		return srv.show(1)
 		    .then(function(data) {
@@ -227,17 +546,46 @@ describe('fl.api_services module', function() {
 		    });
 	    });
 
-	    it.skip('should error on an unknown object', function() {
+	    it('should error on an unknown object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
-		let srv = new MyAPIService(SRV_CFG);
+		let srv = new MyAPIService();
 		
 		return srv.show(10)
 		    .then(function(data) {
 			return Promise.reject('should not have reached this');
 		    })
 		    .catch(function(e) {
-			console.log(">>>>>>>>>> e"); console.log(e); console.log("<<<<<<<<<<");
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.show(1)
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.show(1, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
 			return Promise.resolve(true);
 		    });
 	    });
@@ -247,7 +595,7 @@ describe('fl.api_services module', function() {
 	    it('should return a new object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
-		let srv = new MyAPIService(SRV_CFG);
+		let srv = new MyAPIService();
 		
 		return srv.create({ value1: 'new value1' })
 		    .then(function(data) {
@@ -257,13 +605,56 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    });
 	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.create({ value1: 'new value1' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.create({ value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should add the XSRF header', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfHeaderName: 'NEW-HEADER-NAME', xsrfToken: 'MY-TOKEN' });
+		
+		return srv.create({ value1: 'new value1' })
+		    .then(function(data) {
+			let r = srv.response;
+			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
+			return Promise.resolve(true);
+		    });
+	    });
 	});
 
 	context(':update', function() {
 	    it('should return the edited object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
-		let srv = new MyAPIService(SRV_CFG);
+		let srv = new MyAPIService();
 		
 		return srv.update(1, { value1: 'new value1' })
 		    .then(function(data) {
@@ -271,6 +662,67 @@ describe('fl.api_services module', function() {
 			expect(data.id).to.eq(1);
 			expect(data.value1).to.eq('new value1');
 
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should error on an unknown object', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+		
+		return srv.update(10, { value1: 'new value1' })
+		    .then(function(data) {
+			return Promise.reject('should not have reached this');
+		    })
+		    .catch(function(r) {
+			expect(r.status).to.eq(404);
+			let err = srv.response_error(r);
+			expect(err.status).to.eq('not_found');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.update(1, { value1: 'new value1' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.update(1, { value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should add the XSRF header', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfHeaderName: 'NEW-HEADER-NAME', xsrfToken: 'MY-TOKEN' });
+		
+		return srv.update(1, { value1: 'new value1' })
+		    .then(function(data) {
+			let r = srv.response;
+			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
 			return Promise.resolve(true);
 		    });
 	    });

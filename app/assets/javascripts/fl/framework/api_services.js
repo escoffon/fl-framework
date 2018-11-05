@@ -14,6 +14,11 @@ const {
     FlModelBase, FlModelCache, FlModelFactory, FlGlobalModelFactory
 } = require('fl/framework/model_factory');
 
+const DEFAULT_SRV_CFG = {
+    xsrfCookieName: 'XSRF-TOKEN',
+    xsrfHeaderName: 'X-XSRF-TOKEN'
+};
+
 /**
  * @ngdoc type
  * @name FlAPIService
@@ -205,10 +210,17 @@ let FlAPIService = FlClassManager.make_class({
      * @property {Object} srv_cfg.model_factory The instance of {@sref FlModelFactory} to use to create
      *  model instances.
      *  Defaults to {@sref FlGlobalModelFactory}.
+     * @property {String} srv_cfg.xsrfCookieName The name of the cookie to use as a value for the XSRF token.
+     *  Defaults to `XSRF-TOKEN`.
+     * @property {String} srv_cfg.xsrfHeaderName The name of the http header that carries the XSRF token
+     *  value.
+     *  Defaults to `X-XSRF-TOKEN`.
+     * @property {String} srv_cfg.xsrfToken The value of the XSRF token.
+     *  Defaults to `undefined`.
      */
     initializer: function(api_cfg, srv_cfg) {
-	this._api_cfg = (_.isObject(api_cfg)) ? api_cfg : { };
-	this._srv_cfg = (_.isObject(srv_cfg)) ? srv_cfg : { };
+	this._api_cfg = _.merge({ }, (_.isObject(api_cfg)) ? api_cfg : { });
+	this._srv_cfg = _.merge({ }, FlAPIService.getDefaultConfig(), (_.isObject(srv_cfg)) ? srv_cfg : { });
 
 	this._http_service = (_.isNil(this._srv_cfg.axios)) ? axios : this._srv_cfg.axios;
 	this._pg_names = (_.isArray(this._api_cfg.pg_names)) ? this._api_cfg.pg_names : [ '_pg' ];
@@ -218,6 +230,56 @@ let FlAPIService = FlClassManager.make_class({
 	this.pagination_controls = 'init';
     },
     instance_properties: {
+	/**
+	 * @ngdoc property
+	 * @name FlAPIService#xsrfCookieName
+	 * @description Accessor for the name of the XSRF cookie, from the current configuation.
+	 *  This property is just an accessor for the `xsrfCookieName` configuration property
+	 *  from the *srv_cfg* argument to the constructor..
+	 * 
+	 * @param {String} name The name of the cookie to use as a value for the XSRF token.
+	 *
+	 * @return {String} The getter returns the name of the XSRF cookie from the current configuation.
+	 */
+
+	xsrfCookieName: {
+	    get: function() { return this._srv_cfg.xsrfCookieName; },
+	    set: function(name) { this._srv_cfg.xsrfCookieName = name; }
+	},
+
+	/**
+	 * @ngdoc property
+	 * @name FlAPIService#xsrfHeaderName
+	 * @description Accessor for the name of http header that carries the XSRF token value,
+	 *  from the current configuation.
+	 *  This property is just an accessor for the `xsrfHeaderName` configuration property
+	 *  from the *srv_cfg* argument to the constructor..
+	 * 
+	 * @param {String} name The name of the http header that carries the XSRF token value.
+	 *
+	 * @return {String} The getter returns the name of the XSRF header from the current configuation.
+	 */
+
+	xsrfHeaderName: {
+	    get: function() { return this._srv_cfg.xsrfHeaderName; },
+	    set: function(name) { this._srv_cfg.xsrfHeaderName = name; }
+	},
+
+	/**
+	 * @ngdoc property
+	 * @name FlAPIService#xsrfToken
+	 * @description Accessor for the value of the local XSRF token.
+	 *
+	 * @param {String} token The new value of the token.
+	 *
+	 * @return {String} The getter returns the current value of the local XSRF token.
+	 */
+
+	xsrfToken: {
+	    get: function() { return this._srv_cfg.xsrfToken; },
+	    set: function(token) { this._srv_cfg.xsrfToken = token; }
+	},
+
 	/**
 	 * @ngdoc property
 	 * @name FlAPIService#root_url
@@ -326,14 +388,52 @@ let FlAPIService = FlClassManager.make_class({
     instance_methods: {
 	/**
 	 * @ngdoc method
+	 * @name FlAPIService#setConfig
+	 * @description Sets initial values for the service configuration (the **srv_cfg**
+	 *  argument to various instance methods).
+	 *
+	 * @param {Object} srv_cfg The configuration to merge into the existing state, or to
+	 *  completely replace the existing configuration.
+	 * @param {Boolean} replace If `true`, the *srv_cfg* value replaces the current configuration;
+	 *  otherwise, the content of *srv_cfg* are merged into the current ones.
+	 */
+
+	setConfig: function(srv_cfg, replace) {
+	    if (replace)
+	    {
+		this._srv_cfg = _.merge({ }, srv_cfg);
+	    }
+	    else
+	    {
+		this._srv_cfg = _.merge(this._srv_cfg, srv_cfg);
+	    }
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#getConfig
+	 * @description Gets the current configuration.
+	 *
+	 * @return {Object} Returns a copy of the current configuration.
+	 */
+
+	getConfig: function() {
+	    return _.merge({ }, this._srv_cfg);
+	},
+	
+	/**
+	 * @ngdoc method
 	 * @name FlAPIService#index
 	 * @description Make an :index call by calling `axios.get` against the root URL.
 	 *
 	 * @param {Object} [config] Configuration object to pass to `axios.get`; this object is
 	 *  merged into the default HTTP configuration object.
 	 *
-	 * @return On success, returns a promise containing the response data.
-	 *  Clients will register the error handler.
+	 * @return On success, returns a resolved promise containing the response data converted
+	 *  to an array of model objects.
+	 *  On error, returns a rejected promise containing the response.
+	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
+	 *  property.
 	 */
 
 	index: function(config) {
@@ -343,7 +443,11 @@ let FlAPIService = FlClassManager.make_class({
 		.then(function(r) {
 		    self._response = r;
 		    self._set_pagination_controls(r);
-		    return self._model_factory.create(self._response_data(r));
+		    return Promise.resolve(self._model_factory.create(self._response_data(r)));
+		})
+		.catch(function(e) {
+		    self._response = e.response;
+		    return Promise.reject(e.response);
 		});
 	},
 
@@ -373,8 +477,11 @@ let FlAPIService = FlClassManager.make_class({
 	 * @param {Object} [config] Configuration object to pass to `axios.get`; this object is
 	 *  merged into the default HTTP configuration.
 	 *
-	 * @return On success, returns the response data converted to a model object.
-	 *  Clients will register the error handler.
+	 * @return On success, returns a resolved promise containing the response data converted to a
+	 *  model object.
+	 *  On error, returns a rejected promise containing the response.
+	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
+	 *  property.
 	 */
 
 	show: function(id, config) {
@@ -389,6 +496,10 @@ let FlAPIService = FlClassManager.make_class({
 			self._showDidSucceed.call(self, model);
 		    }
 		    return model;
+		})
+		.catch(function(e) {
+		    self._response = e.response;
+		    return Promise.reject(e.response);
 		});
 	},
 
@@ -396,24 +507,28 @@ let FlAPIService = FlClassManager.make_class({
 	 * @ngdoc method
 	 * @name FlAPIService#process
 	 * @description Make a processing call; this is the method that the high level
-	 *  processing methods (*create*, *update*, *delete*) call.
+	 *  processing methods (**create**, **update**, **delete**) call.
 	 *  A processing call causes the state of the server to change: a :create, :update, or
-	 *  :destroy call (which are executed via a *post*, *patch*, or *delete* method,
-	 *  respectively).
+	 *  :destroy call (which are executed via a `POST`, `PATCH`, or `DELETE` method,
+	 *  respectively). The `PUT` method is also supported, althoug the Rails API uses `PATCH`
+	 *  now for updates.
 	 * 
-	 *  The method checks if the _data_ contain file objects, and if so sets up the `axios`
+	 *  If the **xsrfToken** property is defined, an XSRF header is generated.
+	 *  The method also checks if the _data_ contain file objects, and if so sets up the `axios`
 	 *  service to submit data in multipart form.
 	 *
-	 * @param {String} method The method to use: *post*, *patch* (*put*), *delete*.
+	 * @param {String} method The method to use: `post`, `patch`, `put`, `delete`.
 	 * @param {String} url The URL of the server endpoint.
 	 * @param {Object} data The data to submit to the server; see above for a discussion of
 	 *  how the data are submitted.
 	 * @param {Object} [config] Configuration object to pass to axios.patch; this object is
 	 *  merged into the default HTTP configuration.
 	 *
-	 * @return On success, returns a promise containing the response data.
-	 *  Clients will register the error handler.
-	 *  Returns the promise returned by axios.post, axios.patch, or axios.delete.
+	 * @return On success, returns a promise as returned by the supported processing methods.
+	 *  On error, returns a rejected promise containing the response; it also returns a
+	 *  rejected promise if _method_ is not the name of a supported method.
+	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
+	 *  property.
 	 */
 
 	process: function(method, url, data, config) {
@@ -421,7 +536,13 @@ let FlAPIService = FlClassManager.make_class({
 	    let api_data = data;
 	    let cfg = this._make_config(config);
 	    let args;
+	    let um = method.toLowerCase();
 
+	    if (!_.isNil(self.xsrfToken))
+	    {
+		_.merge(cfg, { headers: { [self.xsrfHeaderName]: self.xsrfToken } });
+	    }
+	    
 	    if (self._has_file_item(api_data))
 	    {
 		self._add_content_type(cfg, undefined);
@@ -431,22 +552,22 @@ let FlAPIService = FlClassManager.make_class({
 	    }
 
 	    let m;
-	    if (method == 'post')
+	    if (um == 'post')
 	    {
 		m = this._http_service.post;
 		args = [ url, api_data, cfg ];
 	    }
-	    else if (method == 'patch')
+	    else if (um == 'patch')
 	    {
 		m = this._http_service.patch;
 		args = [ url, api_data, cfg ];
 	    }
-	    else if (method == 'put')
+	    else if (um == 'put')
 	    {
 		m = this._http_service.put;
 		args = [ url, api_data, cfg ];
 	    }
-	    else if (method == 'delete')
+	    else if (um == 'delete')
 	    {
 		m = this._http_service.delete;
 		args = [ url, cfg ];
@@ -478,9 +599,10 @@ let FlAPIService = FlClassManager.make_class({
 	 * @param {Object} [config] Configuration object to pass to axios.post; this object is
 	 *  merged into the default HTTP configuration.
 	 *
-	 * @return On success, returns a promise containing the response data.
-	 *  Clients will register the error handler.
-	 *  Returns the promise returned by `axios.post`.
+	 * @return On success, returns a resolved promise containing the response data.
+	 *  On error, returns a rejected promise containing the response.
+	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
+	 *  property.
 	 */
 
 	create: function(data, config) {
@@ -498,7 +620,11 @@ let FlAPIService = FlClassManager.make_class({
 	    return this.process('post', this.root_url + '.json', api_data, config)
 		.then(function(r) {
 		    self._response = r;
-		    return self._model_factory.create(self._response_data(r));
+		    return Promise.resolve(self._model_factory.create(self._response_data(r)));
+		})
+		.catch(function(e) {
+		    self._response = e.response;
+		    return Promise.reject(e.response);
 		});
 	},
 
@@ -516,9 +642,10 @@ let FlAPIService = FlClassManager.make_class({
 	 * @param {Object} [config] Configuration object to pass to axios.patch; this object is
 	 *  merged into the default HTTP configuration.
 	 *
-	 * @return On success, returns a promise containing the response data.
-	 *  Clients will register the error handler.
-	 *  Returns the promise returned by `axios.patch`.
+	 * @return On success, returns a resolved promise containing the response data.
+	 *  On error, returns a rejected promise containing the response.
+	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
+	 *  property.
 	 */
 
 	update: function(id, data, config) {
@@ -536,7 +663,11 @@ let FlAPIService = FlClassManager.make_class({
 	    return this.process('patch', this.root_url + '/' + id + '.json', api_data, config)
 		.then(function(r) {
 		    self._response = r;
-		    return self._model_factory.create(self._response_data(r));
+		    return Promise.resolve(self._model_factory.create(self._response_data(r)));
+		})
+		.catch(function(e) {
+		    self._response = e.response;
+		    return Promise.reject(e.response);
 		});
 	},
 
@@ -551,9 +682,10 @@ let FlAPIService = FlClassManager.make_class({
 	 * @param {Object} [config] Configuration object to pass to axios.delete; this object is
 	 *  merged into the default HTTP configuration.
 	 *
-	 * @return On success, returns a promise containing the response data.
-	 *  Clients will register the error handler.
-	 *  Returns the promise returned by `axios.delete`.
+	 * @return On success, returns a resolved promise containing the response data.
+	 *  On error, returns a rejected promise containing the response.
+	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
+	 *  property.
 	 */
 
 	delete: function(id, config) {
@@ -561,7 +693,11 @@ let FlAPIService = FlClassManager.make_class({
 	    return this.process('delete', this.root_url + '/' + id + '.json', { }, config)
 		.then(function(r) {
 		    self._response = r;
-		    return self.response_status(r);
+		    return Promise.resolve(self.response_status(r));
+		})
+		.catch(function(e) {
+		    self._response = e.response;
+		    return Promise.reject(e.response);
 		});
 	},
 
@@ -582,7 +718,7 @@ let FlAPIService = FlClassManager.make_class({
 	_make_config: function(config) {
 	    if (!_.isObject(config)) config = {};
 
-	    return _.merge({}, config);
+	    return _.merge({}, this._srv_cfg, config);
 	},
 
 	/**
@@ -683,7 +819,7 @@ let FlAPIService = FlClassManager.make_class({
 	 *  - *:status* The response status.
 	 *  - *:message* A string containing an error message.
 	 */
-		    
+
 	response_error: function(r) {
 	    let err = { };
 	    if (r.status)
@@ -832,10 +968,101 @@ let FlAPIService = FlClassManager.make_class({
 	    }
 	}
     },
+    class_properties: {
+	/**
+	 * @ngdoc property
+	 * @name FlAPIService#xsrfCookieNameDefault
+	 * @description Accessor for the name of the XSRF cookie from the current configuation
+	 *  defaults. This property is just an accessor for the `xsrfCookieName` configuration property.
+	 * 
+	 * @param {String} name The name of the cookie to use as a value for the XSRF token.
+	 *
+	 * @return {String} The getter returns the name of the XSRF cookie from the current configuation
+	 *  defaults.
+	 */
+
+	xsrfCookieNameDefault: {
+	    get: function() { return this._default_srv_cfg.xsrfCookieName; },
+	    set: function(name) { this._default_srv_cfg.xsrfCookieName = name; }
+	},
+
+	/**
+	 * @ngdoc property
+	 * @name FlAPIService#xsrfHeaderNameDefault
+	 * @description Accessor for the name of the http header that carries the XSRF token value,
+	 *  from the current configuation defaults.
+	 *  This property is just an accessor for the `xsrfHeaderName` configuration property.
+	 * 
+	 * @param {String} name The name of the http header that carries the XSRF token value.
+	 *
+	 * @return {String} The getter returns the name of the XSRF header from the current configuation
+	 *  defaults.
+	 */
+
+	xsrfHeaderNameDefault: {
+	    get: function() { return this._default_srv_cfg.xsrfHeaderName; },
+	    set: function(name) { this._default_srv_cfg.xsrfHeaderName = name; }
+	},
+
+	/**
+	 * @ngdoc property
+	 * @name FlAPIService#xsrfTokenDefault
+	 * @description Accessor for the default (current) value of the XSRF token.
+	 *  This property is the global, applicationwide, XSRF token. Instances of {@sref FlAPIservice}
+	 *  may override this value, but typically won't.
+	 *
+	 * @param {String} token The new value of the token.
+	 *
+	 * @return {String} The getter returns the current value of the global XSRF token.
+	 */
+
+	xsrfTokenDefault: {
+	    get: function() { return this._default_srv_cfg.xsrfToken; },
+	    set: function(token) { this._default_srv_cfg.xsrfToken = token; }
+	}
+    },
     class_methods: {
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#setDefaultConfig
+	 * @classmethod
+	 * @description Sets default values for the service configuration (the **srv_cfg**
+	 *  argument to various instance methods).
+	 *
+	 * @param {Object} srv_cfg The configuration to merge into the existing defaults, or to
+	 *  completely replace the existing defaults.
+	 * @param {Boolean} replace If `true`, the *srv_cfg* value replaces the current defaults;
+	 *  otherwise, the content of *srv_cfg* are merged into the current defaults.
+	 */
+
+	setDefaultConfig: function(srv_cfg, replace) {
+	    if (replace)
+	    {
+		FlAPIService._default_srv_cfg = _.merge({ }, srv_cfg);
+	    }
+	    else
+	    {
+		FlAPIService._default_srv_cfg = _.merge(FlAPIService._default_srv_cfg, srv_cfg);
+	    }
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#getDefaultConfig
+	 * @classmethod
+	 * @description Gets the current default configuration.
+	 *
+	 * @return {Object} Returns a copy of the current default configuration.
+	 */
+
+	getDefaultConfig: function() {
+	    return _.merge({ }, FlAPIService._default_srv_cfg);
+	}
     },
     extensions: [ ]
 });
+
+FlAPIService._default_srv_cfg = _.merge({ }, DEFAULT_SRV_CFG);
 
 /**
  * @ngdoc service
