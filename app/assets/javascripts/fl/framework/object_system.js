@@ -454,9 +454,11 @@ FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.Alread
  *     this registers additional instance methods.
  * 10. If **opts.class_methods** is an object, copy all its key/value pairs to the constructor;
  *     this registers additional class (static) methods.
- * 11. If **opts.instance_properties** is an object, register all its key/value pairs as properties in the
+ * 11. If **opts.class_properties** is an object, register all its key/value pairs as properties in the
+ *     constructor.
+ * 12. If **opts.instance_properties** is an object, register all its key/value pairs as properties in the
  *     prototype.
- * 12. Register the class under the given class name; {@sref FlClassManager#get_class} can be used
+ * 13. Register the class under the given class name; {@sref FlClassManager#get_class} can be used
  *     to fetch class constructors by name, and {@sref FlClassManager#instance_factory} to create
  *     instances of a given class.
  * 
@@ -698,6 +700,9 @@ FlClassManager.AlreadyDefinedClass.prototype.constructor = FlClassManager.Alread
  * @property {Object} opts.class_methods A hash containing the class methods for the class.
  *  The values for the object's properties are functions; the contents of the hash are placed in the
  *  constructor.
+ * @property {Object} opts.class_properties A hash containing the class properties for the class.
+ *  Each key/value pair is registered as a property in the constructor.
+ *  The keys are property names, and the values are objects containing the property descriptor.
  * @property {Object} opts.instance_properties A hash containing the instance properties for the class.
  *  Each key/value pair is registered as a property in the prototype.
  *  The keys are property names, and the values are objects containing the property descriptor.
@@ -818,6 +823,13 @@ FlClassManager.make_class = function(opts) {
     {
 	_.forEach(opts.class_methods, function(mv, mk) {
 	    ctor[mk] = mv;
+	});
+    }
+
+    if (_.isObject(opts.class_properties))
+    {
+	_.forEach(opts.class_properties, function(mv, mk) {
+	    Object.defineProperty(ctor, mk, mv);
 	});
     }
 
