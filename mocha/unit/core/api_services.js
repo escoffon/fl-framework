@@ -152,17 +152,17 @@ describe('fl.api_services module', function() {
 	    it('should support config properties', function() {
 		let orig = FlAPIService.getDefaultConfig();
 
-		expect(FlAPIService.xsrfCookieNameDefault).to.eq(orig.xsrfCookieName);
-		FlAPIService.xsrfCookieNameDefault = 'NEW-NAME';
-		expect(FlAPIService.xsrfCookieNameDefault).to.eq('NEW-NAME');
+		expect(FlAPIService.xsrfCookieName).to.eq(orig.xsrfCookieName);
+		FlAPIService.xsrfCookieName = 'NEW-NAME';
+		expect(FlAPIService.xsrfCookieName).to.eq('NEW-NAME');
 
-		expect(FlAPIService.xsrfHeaderNameDefault).to.eq(orig.xsrfHeaderName);
-		FlAPIService.xsrfHeaderNameDefault = 'NEW-NAME';
-		expect(FlAPIService.xsrfHeaderNameDefault).to.eq('NEW-NAME');
+		expect(FlAPIService.xsrfHeaderName).to.eq(orig.xsrfHeaderName);
+		FlAPIService.xsrfHeaderName = 'NEW-NAME';
+		expect(FlAPIService.xsrfHeaderName).to.eq('NEW-NAME');
 
-		expect(FlAPIService.xsrfTokenDefault).to.be.undefined;
-		FlAPIService.xsrfTokenDefault = 'MY-TOKEN';
-		expect(FlAPIService.xsrfTokenDefault).to.eq('MY-TOKEN');
+		expect(FlAPIService.xsrfToken).to.be.undefined;
+		FlAPIService.xsrfToken = 'MY-TOKEN';
+		expect(FlAPIService.xsrfToken).to.eq('MY-TOKEN');
 		
 		FlAPIService.setDefaultConfig(orig, true);
 	    });
@@ -240,9 +240,9 @@ describe('fl.api_services module', function() {
 		srv.xsrfHeaderName = 'NEW-NAME';
 		expect(srv.xsrfHeaderName).to.eq('NEW-NAME');
 
-		expect(srv.xsrfTokenDefault).to.be.undefined;
-		srv.xsrfTokenDefault = 'MY-TOKEN';
-		expect(srv.xsrfTokenDefault).to.eq('MY-TOKEN');
+		expect(srv.xsrfToken).to.be.undefined;
+		srv.xsrfToken = 'MY-TOKEN';
+		expect(srv.xsrfToken).to.eq('MY-TOKEN');
 	    });
 	});
 	
