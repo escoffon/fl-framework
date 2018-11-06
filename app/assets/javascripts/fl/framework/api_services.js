@@ -985,7 +985,7 @@ let FlAPIService = FlClassManager.make_class({
 	/**
 	 * @ngdoc property
 	 * @name FlAPIService#xsrfCookieName
-	 * @classmethod
+	 * @classproperty
 	 * @description Accessor for the name of the XSRF cookie from the current configuation
 	 *  defaults. This property is just an accessor for the `xsrfCookieName` configuration property.
 	 * 
@@ -1003,6 +1003,7 @@ let FlAPIService = FlClassManager.make_class({
 	/**
 	 * @ngdoc property
 	 * @name FlAPIService#xsrfHeaderName
+	 * @classproperty
 	 * @description Accessor for the name of the http header that carries the XSRF token value,
 	 *  from the current configuation defaults.
 	 *  This property is just an accessor for the `xsrfHeaderName` configuration property.
@@ -1021,6 +1022,7 @@ let FlAPIService = FlClassManager.make_class({
 	/**
 	 * @ngdoc property
 	 * @name FlAPIService#xsrfToken
+	 * @classproperty
 	 * @description Accessor for the default (current) value of the XSRF token.
 	 *  This property is the global, applicationwide, XSRF token. Instances of {@sref FlAPIservice}
 	 *  may override this value, but typically won't.
