@@ -16,7 +16,8 @@ const {
 
 const DEFAULT_SRV_CFG = {
     xsrfCookieName: 'XSRF-TOKEN',
-    xsrfHeaderName: 'X-XSRF-TOKEN'
+    xsrfHeaderName: 'X-XSRF-TOKEN',
+    modelFactory: FlGlobalModelFactory
 };
 
 /**
@@ -186,7 +187,7 @@ let FlAPIService = FlClassManager.make_class({
      * @ngdoc method
      * @name FlAPIService#constructor
      * @description The constructor; called during `new` creation.
-     * 
+     *
      * @param {Object} api_cfg Configuration for the API object.
      * @property {String} api_cfg.root_url The root URL; see the properties section for details.
      * @property {String} api_cfg.namespace The parameter namespace for create/update calls.
@@ -207,7 +208,7 @@ let FlAPIService = FlClassManager.make_class({
      * @property {Object} srv_cfg.axios The underlying {@sref Axios} service to use for HTTP requests.
      *  By default, an instance of Axios is created and installed, but one can provide a custom
      *  instance if desired. This feature is often used for testing, to install a mocked version of Axios.
-     * @property {Object} srv_cfg.model_factory The instance of {@sref FlModelFactory} to use to create
+     * @property {Object} srv_cfg.modelFactory The instance of {@sref FlModelFactory} to use to create
      *  model instances.
      *  Defaults to {@sref FlGlobalModelFactory}.
      * @property {String} srv_cfg.xsrfCookieName The name of the cookie to use as a value for the XSRF token.
@@ -220,11 +221,11 @@ let FlAPIService = FlClassManager.make_class({
      */
     initializer: function(api_cfg, srv_cfg) {
 	this._api_cfg = _.merge({ }, (_.isObject(api_cfg)) ? api_cfg : { });
-	this._srv_cfg = _.merge({ }, FlAPIService.getDefaultConfig(), (_.isObject(srv_cfg)) ? srv_cfg : { });
+	this._srv_cfg = _.merge({ }, FlAPIService.getServiceConfig(), (_.isObject(srv_cfg)) ? srv_cfg : { });
 
 	this._http_service = (_.isNil(this._srv_cfg.axios)) ? axios : this._srv_cfg.axios;
 	this._pg_names = (_.isArray(this._api_cfg.pg_names)) ? this._api_cfg.pg_names : [ '_pg' ];
-	this._model_factory = (_.isNil(this._srv_cfg.model_factory)) ? FlGlobalModelFactory : this._srv_cfg.model_factory;
+	if (_.isNil(this._srv_cfg.modelFactory)) this._srv_cfg.modelFactory = FlGlobalModelFactory;
 
 	this._showDidSucceed = null;
 	this.pagination_controls = 'init';
@@ -235,8 +236,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @name FlAPIService#xsrfCookieName
 	 * @description Accessor for the name of the XSRF cookie, from the current configuation.
 	 *  This property is just an accessor for the `xsrfCookieName` configuration property
-	 *  from the *srv_cfg* argument to the constructor..
-	 * 
+	 *  from the *srv_cfg* argument to the constructor.
+	 *
 	 * @param {String} name The name of the cookie to use as a value for the XSRF token.
 	 *
 	 * @return {String} The getter returns the name of the XSRF cookie from the current configuation.
@@ -253,8 +254,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Accessor for the name of http header that carries the XSRF token value,
 	 *  from the current configuation.
 	 *  This property is just an accessor for the `xsrfHeaderName` configuration property
-	 *  from the *srv_cfg* argument to the constructor..
-	 * 
+	 *  from the *srv_cfg* argument to the constructor.
+	 *
 	 * @param {String} name The name of the http header that carries the XSRF token value.
 	 *
 	 * @return {String} The getter returns the name of the XSRF header from the current configuation.
@@ -269,6 +270,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @ngdoc property
 	 * @name FlAPIService#xsrfToken
 	 * @description Accessor for the value of the local XSRF token.
+	 *  This property is just an accessor for the `xsrfToken` configuration property
+	 *  from the *srv_cfg* argument to the constructor.
 	 *
 	 * @param {String} token The new value of the token.
 	 *
@@ -282,15 +285,16 @@ let FlAPIService = FlClassManager.make_class({
 
 	/**
 	 * @ngdoc property
-	 * @name FlAPIService#model_factory
-	 * @description Getter for **model_factory** property.
-	 * @return {String} Returns the value of the **model_factory** property in the object.
+	 * @name FlAPIService#modelFactory
+	 * @description Getter for **modelFactory** property.
+	 *  This property is just an accessor for the `modelFactory` configuration property
+	 *  from the *srv_cfg* argument to the constructor.
+	 *
+	 * @return {String} Returns the value of the **modelFactory** property in the object.
 	 */
 
-	model_factory: {
-	    get: function() {
-		return this._model_factory;
-	    }
+	modelFactory: {
+	    get: function() { return this._srv_cfg.modelFactory; }
 	},
 
 	/**
@@ -353,9 +357,9 @@ let FlAPIService = FlClassManager.make_class({
 	 *   - *_s* is an integer containing the page size (how many results are returned by the query).
 	 *   - *_p* is an integer containing the 1-based index of the _next_ page to load.
 	 *     For example, a value of 3 indicates that this is the _third_ page loaded.
-	 * 
-	 *  The setter takes a hash with the same two key/value pairs, the string *init*, or
-	 *  *null*; a value of *init* sets the default control values; any other value 
+	 *
+	 *  The setter takes a hash with the same two key/value pairs, the string `'init'`, or
+	 *  `null`; a value of `'init'` sets the default control values; any other value
 	 *  (including  *null*) disables use of the pagination controls.
 	 */
 
@@ -383,7 +387,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @ngdoc property
 	 * @name FlAPIService#initial_pagination_controls
 	 * @description Get the initial pagination_controls.
-	 * 
+	 *
 	 * @return {Object} Returns a hash containing key/value pairs:
 	 *  - *_s* is an integer containing the page size (how many results are returned by
 	 *    the query). The value returned is 20.
@@ -433,7 +437,7 @@ let FlAPIService = FlClassManager.make_class({
 	getConfig: function() {
 	    return _.merge({ }, this._srv_cfg);
 	},
-	
+
 	/**
 	 * @ngdoc method
 	 * @name FlAPIService#index
@@ -456,7 +460,7 @@ let FlAPIService = FlClassManager.make_class({
 		.then(function(r) {
 		    self._response = r;
 		    self._set_pagination_controls(r);
-		    return Promise.resolve(self.model_factory.create(self._response_data(r)));
+		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
 		.catch(function(e) {
 		    self._response = e.response;
@@ -470,7 +474,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Register a callback for the :show action.
 	 *  This function is called on a successful :show action; it takes one argument, the
 	 *  model object created from the response from the `axios.get` call.
-	 * 
+	 *
 	 * @param {Function} cb A function that will be installed as the :show callback.
 	 *  Set it to `null` to disable it (this is the default value).
 	 *  This function can modify the model object before it is returned by the :show action.
@@ -503,7 +507,7 @@ let FlAPIService = FlClassManager.make_class({
 		.then(function(r) {
 		    self._response = r;
 
-		    let model = self.model_factory.create(self._response_data(r));
+		    let model = self.modelFactory.create(self._response_data(r));
 		    if (_.isFunction(self._showDidSucceed))
 		    {
 			self._showDidSucceed.call(self, model);
@@ -525,7 +529,7 @@ let FlAPIService = FlClassManager.make_class({
 	 *  :destroy call (which are executed via a `POST`, `PATCH`, or `DELETE` method,
 	 *  respectively). The `PUT` method is also supported, althoug the Rails API uses `PATCH`
 	 *  now for updates.
-	 * 
+	 *
 	 *  If the **xsrfToken** property is defined, an XSRF header is generated.
 	 *  The method also checks if the _data_ contain file objects, and if so sets up the `axios`
 	 *  service to submit data in multipart form.
@@ -555,7 +559,7 @@ let FlAPIService = FlClassManager.make_class({
 	    {
 		_.merge(cfg, { headers: { [self.xsrfHeaderName]: self.xsrfToken } });
 	    }
-	    
+
 	    if (self._has_file_item(api_data))
 	    {
 		self._add_content_type(cfg, undefined);
@@ -633,7 +637,7 @@ let FlAPIService = FlClassManager.make_class({
 	    return this.process('post', this.root_url + '.json', api_data, config)
 		.then(function(r) {
 		    self._response = r;
-		    return Promise.resolve(self.model_factory.create(self._response_data(r)));
+		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
 		.catch(function(e) {
 		    self._response = e.response;
@@ -676,7 +680,7 @@ let FlAPIService = FlClassManager.make_class({
 	    return this.process('patch', this.root_url + '/' + id + '.json', api_data, config)
 		.then(function(r) {
 		    self._response = r;
-		    return Promise.resolve(self.model_factory.create(self._response_data(r)));
+		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
 		.catch(function(e) {
 		    self._response = e.response;
@@ -718,7 +722,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @ngdoc method
 	 * @name FlAPIService#_make_config
 	 * @description Build configuration parameters for a call to Axios.
-	 * 
+	 *
 	 *  Subclasses likely won't need to override this method.
 	 *
 	 * @param {Object} [config] Configuration object to pass to Axios; this object is
@@ -740,7 +744,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Build configuration parameters for an :index call to Axios.
 	 *  The method first calls *_make_config*, and then tags on the pagination
 	 *  controls if they are enabled.
-	 * 
+	 *
 	 *  Subclasses likely won't need to override this method.
 	 *
 	 * @param {Object} [config] Configuration object to pass to axios; this object is
@@ -773,7 +777,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Look for the pagination controls in the response data and extract them.
 	 *  This method looks up all registered names for pagination controls and loads them
 	 *  on the first hit.
-	 * 
+	 *
 	 * @param {Object} r The response object.
 	 */
 
@@ -795,12 +799,12 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Extract a status object from a successful response.
 	 *
 	 * @param {Object} r The response.
-	 * 
+	 *
 	 * @return {Object} Returns an object containing a status report:
 	 *  - *:status* The response status.
 	 *  - *:message* A string containing a status message.
 	 */
-		    
+
 	response_status: function(r) {
 	    let s = {
 		status: r.status
@@ -827,7 +831,7 @@ let FlAPIService = FlClassManager.make_class({
 	 *  an API error status, or an exception raised.
 	 *
 	 * @param {Object} r The response.
-	 * 
+	 *
 	 * @return {Object} Returns an object containing an error report:
 	 *  - *:status* The response status.
 	 *  - *:message* A string containing an error message.
@@ -875,9 +879,9 @@ let FlAPIService = FlClassManager.make_class({
 	 *  The default implementation iterates over the values in *data_names*,
 	 *  looking for a property by that name in *response.data*; the first hit
 	 *  is returned.
-	 * 
+	 *
 	 *  Most subclasses won't need to override this method.
-	 * 
+	 *
 	 * @param {Object} response The response data.
 	 */
 
@@ -919,7 +923,7 @@ let FlAPIService = FlClassManager.make_class({
 		    if (v instanceof(File)) return true;
 		} catch (x) {
 		}
-		
+
 		if (_.isObject(v))
 		{
 		    if (self._has_file_item(v))
@@ -934,7 +938,7 @@ let FlAPIService = FlClassManager.make_class({
 
 	_flatten_data: function(data, f, root) {
 	    let self = this;
-	    
+
 	    _.forEach(data, function(v, k) {
 		let fk = (root.length > 0) ? (root + '[' + k + ']') : k;
 
@@ -956,7 +960,7 @@ let FlAPIService = FlClassManager.make_class({
 	_form_data: function(data) {
 	    let fd = new FormData();
 	    let self = this;
-	    
+
 	    _.forEach(data, function(v, k) {
 		if (v instanceof(File))
 		{
@@ -984,11 +988,25 @@ let FlAPIService = FlClassManager.make_class({
     class_properties: {
 	/**
 	 * @ngdoc property
+	 * @name FlAPIService#modelFactory
+	 * @classproperty
+	 * @description Getter for **modelFactory** property.
+	 *  This property is just an accessor for the `modelFactory` in the current configuration.
+	 *
+	 * @return {String} Returns the value of the **modelFactory** property in the object.
+	 */
+
+	modelFactory: {
+	    get: function() { return this._srv_cfg.modelFactory; }
+	},
+
+	/**
+	 * @ngdoc property
 	 * @name FlAPIService#xsrfCookieName
 	 * @classproperty
 	 * @description Accessor for the name of the XSRF cookie from the current configuation
 	 *  defaults. This property is just an accessor for the `xsrfCookieName` configuration property.
-	 * 
+	 *
 	 * @param {String} name The name of the cookie to use as a value for the XSRF token.
 	 *
 	 * @return {String} The getter returns the name of the XSRF cookie from the current configuation
@@ -996,8 +1014,8 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	xsrfCookieName: {
-	    get: function() { return this._default_srv_cfg.xsrfCookieName; },
-	    set: function(name) { this._default_srv_cfg.xsrfCookieName = name; }
+	    get: function() { return this._srv_cfg.xsrfCookieName; },
+	    set: function(name) { this._srv_cfg.xsrfCookieName = name; }
 	},
 
 	/**
@@ -1007,7 +1025,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Accessor for the name of the http header that carries the XSRF token value,
 	 *  from the current configuation defaults.
 	 *  This property is just an accessor for the `xsrfHeaderName` configuration property.
-	 * 
+	 *
 	 * @param {String} name The name of the http header that carries the XSRF token value.
 	 *
 	 * @return {String} The getter returns the name of the XSRF header from the current configuation
@@ -1015,8 +1033,8 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	xsrfHeaderName: {
-	    get: function() { return this._default_srv_cfg.xsrfHeaderName; },
-	    set: function(name) { this._default_srv_cfg.xsrfHeaderName = name; }
+	    get: function() { return this._srv_cfg.xsrfHeaderName; },
+	    set: function(name) { this._srv_cfg.xsrfHeaderName = name; }
 	},
 
 	/**
@@ -1033,14 +1051,14 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	xsrfToken: {
-	    get: function() { return this._default_srv_cfg.xsrfToken; },
-	    set: function(token) { this._default_srv_cfg.xsrfToken = token; }
+	    get: function() { return this._srv_cfg.xsrfToken; },
+	    set: function(token) { this._srv_cfg.xsrfToken = token; }
 	}
     },
     class_methods: {
 	/**
 	 * @ngdoc method
-	 * @name FlAPIService#setDefaultConfig
+	 * @name FlAPIService#setServiceConfig
 	 * @classmethod
 	 * @description Sets default values for the service configuration (the **srv_cfg**
 	 *  argument to various instance methods).
@@ -1051,34 +1069,34 @@ let FlAPIService = FlClassManager.make_class({
 	 *  otherwise, the content of *srv_cfg* are merged into the current defaults.
 	 */
 
-	setDefaultConfig: function(srv_cfg, replace) {
+	setServiceConfig: function(srv_cfg, replace) {
 	    if (replace)
 	    {
-		FlAPIService._default_srv_cfg = _.merge({ }, srv_cfg);
+		this._srv_cfg = _.merge({ }, srv_cfg);
 	    }
 	    else
 	    {
-		FlAPIService._default_srv_cfg = _.merge(FlAPIService._default_srv_cfg, srv_cfg);
+		this._srv_cfg = _.merge(this._srv_cfg, srv_cfg);
 	    }
 	},
 
 	/**
 	 * @ngdoc method
-	 * @name FlAPIService#getDefaultConfig
+	 * @name FlAPIService#getServiceConfig
 	 * @classmethod
-	 * @description Gets the current default configuration.
+	 * @description Gets the current global service default configuration.
 	 *
 	 * @return {Object} Returns a copy of the current default configuration.
 	 */
 
-	getDefaultConfig: function() {
-	    return _.merge({ }, FlAPIService._default_srv_cfg);
+	getServiceConfig: function() {
+	    return _.merge({ }, this._srv_cfg);
 	}
     },
     extensions: [ ]
 });
 
-FlAPIService._default_srv_cfg = _.merge({ }, DEFAULT_SRV_CFG);
+FlAPIService._srv_cfg = _.merge({ }, DEFAULT_SRV_CFG);
 
 /**
  * @ngdoc service
@@ -1123,7 +1141,7 @@ let FlAPIServiceRegistry = FlClassManager.make_class({
 	 *    'MyAPIService': 'My::Datum'
 	 *  });
 	 *  ```
-	 * 
+	 *
 	 * @param {String} module The module name.
 	 * @param {Object} services A hash mapping the name of API services provided by the module
 	 *  to model service names. Properties are API service names, and their values the
@@ -1132,7 +1150,7 @@ let FlAPIServiceRegistry = FlClassManager.make_class({
 
 	register: function(module, services) {
 	    let self = this;
-	    
+
 	    _.forEach(services, function(sv, sk) {
 		let k = self._normalize_name(sv);
 		if (self._services[k])
@@ -1223,7 +1241,7 @@ let FlAPIServiceRegistry = FlClassManager.make_class({
 		return null;
 	    }
 	},
-	
+
 	_normalize_name: function(s) {
 	    return s.replace(/::/g, '');
 	}

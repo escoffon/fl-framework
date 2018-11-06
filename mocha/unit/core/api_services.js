@@ -120,37 +120,37 @@ describe('fl.api_services module', function() {
     describe('FlAPIService', function() {
 	context('default (global) configuration', function() {
 	    it('should include the XSRF token names', function() {
-		let cfg = FlAPIService.getDefaultConfig();
+		let cfg = FlAPIService.getServiceConfig();
 		expect(cfg).to.be.an.instanceof(Object);
 		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName');
 	    });
 
 	    it('should merge values', function() {
-		let orig = FlAPIService.getDefaultConfig();
+		let orig = FlAPIService.getServiceConfig();
 		expect(orig).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName');
 
-		FlAPIService.setDefaultConfig({ c1: 'c1', xsrfCookieName: 'NEW_NAME' });
-		let cfg = FlAPIService.getDefaultConfig();
+		FlAPIService.setServiceConfig({ c1: 'c1', xsrfCookieName: 'NEW_NAME' });
+		let cfg = FlAPIService.getServiceConfig();
 		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName', 'c1');
 		expect(cfg.xsrfCookieName).to.eq('NEW_NAME');
 		expect(cfg.xsrfHeaderName).to.eq(orig.xsrfHeaderName);
 		expect(cfg.c1).to.eq('c1');
 		
-		FlAPIService.setDefaultConfig(orig, true);
+		FlAPIService.setServiceConfig(orig, true);
 	    });
 
 	    it('should replace values', function() {
-		let orig = FlAPIService.getDefaultConfig();
+		let orig = FlAPIService.getServiceConfig();
 
-		FlAPIService.setDefaultConfig({ c1: 'c1' }, true);
-		let cfg = FlAPIService.getDefaultConfig();
+		FlAPIService.setServiceConfig({ c1: 'c1' }, true);
+		let cfg = FlAPIService.getServiceConfig();
 		expect(cfg).to.include.all.keys('c1');
 
-		FlAPIService.setDefaultConfig(orig, true);
+		FlAPIService.setServiceConfig(orig, true);
 	    });
 
 	    it('should support config properties', function() {
-		let orig = FlAPIService.getDefaultConfig();
+		let orig = FlAPIService.getServiceConfig();
 
 		expect(FlAPIService.xsrfCookieName).to.eq(orig.xsrfCookieName);
 		FlAPIService.xsrfCookieName = 'NEW-NAME';
@@ -164,7 +164,7 @@ describe('fl.api_services module', function() {
 		FlAPIService.xsrfToken = 'MY-TOKEN';
 		expect(FlAPIService.xsrfToken).to.eq('MY-TOKEN');
 		
-		FlAPIService.setDefaultConfig(orig, true);
+		FlAPIService.setServiceConfig(orig, true);
 	    });
 	});
 	
@@ -173,7 +173,7 @@ describe('fl.api_services module', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
 		let srv = new FlAPIService(API_CFG);
 
-		expect(srv.getConfig()).to.include(FlAPIService.getDefaultConfig());
+		expect(srv.getConfig()).to.include(FlAPIService.getServiceConfig());
 	    });
 
 	    it('should include the XSRF token names', function() {
@@ -198,7 +198,7 @@ describe('fl.api_services module', function() {
 
 		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName', 'c1');
 		expect(cfg.xsrfCookieName).to.eq('NEW_NAME');
-		expect(cfg.xsrfHeaderName).to.eq(FlAPIService.getDefaultConfig().xsrfHeaderName);
+		expect(cfg.xsrfHeaderName).to.eq(FlAPIService.getServiceConfig().xsrfHeaderName);
 		expect(cfg.c1).to.eq('c1');
 	    });
 
@@ -211,7 +211,7 @@ describe('fl.api_services module', function() {
 		cfg = srv.getConfig();
 		expect(cfg).to.include.all.keys('xsrfCookieName', 'xsrfHeaderName', 'c1');
 		expect(cfg.xsrfCookieName).to.eq('NEW_NAME');
-		expect(cfg.xsrfHeaderName).to.eq(FlAPIService.getDefaultConfig().xsrfHeaderName);
+		expect(cfg.xsrfHeaderName).to.eq(FlAPIService.getServiceConfig().xsrfHeaderName);
 		expect(cfg.c1).to.eq('c1');
 	    });
 
@@ -229,7 +229,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should support config properties', function() {
-		let defs = FlAPIService.getDefaultConfig();
+		let defs = FlAPIService.getServiceConfig();
 		let srv = new FlAPIService(API_CFG);
 
 		expect(srv.xsrfCookieName).to.eq(defs.xsrfCookieName);
