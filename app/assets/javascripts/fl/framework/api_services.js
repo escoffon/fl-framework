@@ -70,26 +70,40 @@ const DEFAULT_SRV_CFG = {
  *  To get a list of data:
  *  ```
  *  let srv = new MyDatumAPIService();
- *  srv.index().then(function(data) {
- *    // do something with the returned data
- *  },
- *  function(r) {
- *     // report error
- *  });
+ *  srv.index()
+ *     .then(function(data) {
+ *       // do something with the returned data
+ *     })
+ *     .catch(function(e) {
+ *       // report error
+ *     });
  *  ```
  *  Or to update an item:
  *  ```
  *  let id = getItemId();
  *  let srv = new MyDatumAPIService();
- *  srv.update(id, { prop1: 'prop1 value' }).then(function(data) {
- *    // do something with the returned data
- *  },
- *  function(r) {
- *    // report error
- *  });
+ *  srv.update(id, { prop1: 'prop1 value' })
+ *     .then(function(data) {
+ *       // do something with the returned data
+ *     })
+ *     .catch(function(r) {
+ *       // report error
+ *     });
  *  ```
- *  Note that the submission data are *not* wrapped in the namespace: this step is
+ *  Note that the submission data should *not* be wrapped in the namespace, since this step is
  *  left to the service object.
+ *
+ *  #### Two types of API methods
+ *
+ *  The service class defines two types of API methods. The first group consists of wrappers around
+ *  the standard HTTP methods `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, which are named
+ *  **get**, **post**, **put**, **patch**, **delete**, **head**, respectively.
+ *
+ *  The second group implements a higher level API to standard Rails controller actions
+ *  `index`, `show`, `create`, `update`, `destroy`, which are named
+ *  **index**, **show**, **create**, **update**, **destroy**, respectively.
+ *  These methods call the appropriate lower level API described above; for example, **index** and
+ *  **show** call **get**.
  *
  *  #### Automatic generation of data model instances
  *
@@ -440,6 +454,170 @@ let FlAPIService = FlClassManager.make_class({
 
 	/**
 	 * @ngdoc method
+	 * @name FlAPIService#get
+	 * @description Execute a `GET` method.
+	 *  This method is more or less a straight passthrough to the Axios `get` method.
+	 *
+	 * @param {String} url The target URL.
+	 * @param {Object} [config] Configuration object to pass to the Axios `get` method; this object
+	 *  is merged into the default HTTP configuration object.
+	 *
+	 * @return {Promise} Returns a promise that resolves or rejects based on the return value
+	 *  from the Axios `get` method.
+	 *  The response object is also saved in the {@sref FlAPIService#response} property.
+	 */
+
+	get: function(url, config) {
+	    let self = this;
+	    
+	    return this._http_service.get(url, this._make_config(config))
+		.then(function(r) {
+		    self._response = r;
+		    return Promise.resolve(r);
+		})
+		.catch(function(e) {
+		    self._response = e.response;
+		    return Promise.reject(e);
+		});
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#post
+	 * @description Execute a `POST` method.
+	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to the
+	 *  Axios `post` method. As a consequence, the special processing implemented by
+	 *  {@sref FlAPIService#process} is triggered; for example, the XSRF header is added to the
+	 *  headers list if the **xsrfToken** configuration property is non-nil.
+	 *
+	 * @param {String} url The target URL.
+	 * @param {Object} data The data to submit to the server; note that, differently from the "action"
+	 *  methods {@sref FlAPIService#create} and {@sref FlAPIService#update}, the value of *data* is not
+	 *  wrapped inside the namespace.
+	 * @param {Object} [config] Configuration object to pass to axios.post; this object is
+	 *  merged into the default service configuration.
+	 *
+	 * @return {Promise} Returns a promise that resolves or rejects based on the return value
+	 *  from the Axios `post` method.
+	 *  The response object is also saved in the {@sref FlAPIService#response} property.
+	 */
+
+	post: function(url, data, config) {
+	    let self = this;
+	    
+	    return this.process('post', url, data, config);
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#put
+	 * @description Execute a `PUT` method.
+	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to the
+	 *  Axios `put` method. As a consequence, the special processing implemented by
+	 *  {@sref FlAPIService#process} is triggered; for example, the XSRF header is added to the
+	 *  headers list if the **xsrfToken** configuration property is non-nil.
+	 *
+	 * @param {String} url The target URL.
+	 * @param {Object} data The data to submit to the server; note that, differently from the "action"
+	 *  methods {@sref FlAPIService#create} and {@sref FlAPIService#update}, the value of *data* is not
+	 *  wrapped inside the namespace.
+	 * @param {Object} [config] Configuration object to pass to axios.put; this object is
+	 *  merged into the default service configuration.
+	 *
+	 * @return {Promise} Returns a promise that resolves or rejects based on the return value
+	 *  from the Axios `put` method.
+	 *  The response object is also saved in the {@sref FlAPIService#response} property.
+	 */
+
+	put: function(url, data, config) {
+	    let self = this;
+	    
+	    return this.process('put', url, data, config);
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#patch
+	 * @description Execute a `PATCH` method.
+	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to the
+	 *  Axios `patch` method. As a consequence, the special processing implemented by
+	 *  {@sref FlAPIService#process} is triggered; for example, the XSRF header is added to the
+	 *  headers list if the **xsrfToken** configuration property is non-nil.
+	 *
+	 * @param {String} url The target URL.
+	 * @param {Object} data The data to submit to the server; note that, differently from the "action"
+	 *  methods {@sref FlAPIService#create} and {@sref FlAPIService#update}, the value of *data* is not
+	 *  wrapped inside the namespace.
+	 * @param {Object} [config] Configuration object to pass to axios.patch; this object is
+	 *  merged into the default service configuration.
+	 *
+	 * @return {Promise} Returns a promise that resolves or rejects based on the return value
+	 *  from the Axios `patch` method.
+	 *  The response object is also saved in the {@sref FlAPIService#response} property.
+	 */
+
+	patch: function(url, data, config) {
+	    let self = this;
+	    
+	    return this.process('patch', url, data, config);
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#delete
+	 * @description Execute a `DELETE` method.
+	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to the
+	 *  Axios `delete` method. As a consequence, the special processing implemented by
+	 *  {@sref FlAPIService#process} is triggered; for example, the XSRF header is added to the
+	 *  headers list if the **xsrfToken** configuration property is non-nil.
+	 *
+	 * @param {String} url The target URL.
+	 * @param {Object} [data] Data to send; this is typically an empty object.
+	 * @param {Object} [config] Configuration object to pass to axios.delete; this object is
+	 *  merged into the default HTTP configuration.
+	 *
+	 * @return On success, returns a resolved promise containing the response data.
+	 *  On error, returns a rejected promise containing the response.
+	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
+	 *  property.
+	 */
+
+	delete: function(url, data, config) {
+	    let self = this;
+	    return this.process('delete', url, data, config);
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#head
+	 * @description Execute a `HEAD` method.
+	 *  This method is more or less a straight passthrough to the Axios `head` method.
+	 *
+	 * @param {String} url The target URL.
+	 * @param {Object} [config] Configuration object to pass to the Axios `head` method; this object
+	 *  is merged into the default HTTP configuration object.
+	 *
+	 * @return {Promise} Returns a promise that resolves or rejects based on the return value
+	 *  from the Axios `get` method.
+	 *  The response object is also saved in the {@sref FlAPIService#response} property.
+	 */
+
+	head: function(url, config) {
+	    let self = this;
+	    
+	    return this._http_service.head(url, this._make_config(config))
+		.then(function(r) {
+		    self._response = r;
+		    return Promise.resolve(r);
+		})
+		.catch(function(e) {
+		    self._response = e.response;
+		    return Promise.reject(e);
+		});
+	},
+
+	/**
+	 * @ngdoc method
 	 * @name FlAPIService#index
 	 * @description Make an :index call by calling `axios.get` against the root URL.
 	 *
@@ -456,14 +634,12 @@ let FlAPIService = FlClassManager.make_class({
 	index: function(config) {
 	    let self = this;
 
-	    return this._http_service.get(this.root_url + '.json', this._make_index_config(config))
+	    return this.get(this.root_url + '.json', this._make_index_config(config))
 		.then(function(r) {
-		    self._response = r;
 		    self._set_pagination_controls(r);
 		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
 		.catch(function(e) {
-		    self._response = e.response;
 		    return Promise.reject(e.response);
 		});
 	},
@@ -503,10 +679,8 @@ let FlAPIService = FlClassManager.make_class({
 
 	show: function(id, config) {
 	    let self = this;
-	    return this._http_service.get(this.root_url + '/' + id + '.json', this._make_config(config))
+	    return this.get(this.root_url + '/' + id + '.json', this._make_config(config))
 		.then(function(r) {
-		    self._response = r;
-
 		    let model = self.modelFactory.create(self._response_data(r));
 		    if (_.isFunction(self._showDidSucceed))
 		    {
@@ -515,7 +689,6 @@ let FlAPIService = FlClassManager.make_class({
 		    return model;
 		})
 		.catch(function(e) {
-		    self._response = e.response;
 		    return Promise.reject(e.response);
 		});
 	},
@@ -596,7 +769,15 @@ let FlAPIService = FlClassManager.make_class({
 
 	    if (m)
 	    {
-		return m.apply(this._http_service, args);
+		return m.apply(this._http_service, args)
+		    .then(function(r) {
+			self._response = r;
+			return Promise.resolve(r);
+		    })
+		    .catch(function(e) {
+			self._response = e.response;
+			return Promise.reject(e);
+		    });
 	    }
 	    else
 	    {
@@ -634,13 +815,12 @@ let FlAPIService = FlClassManager.make_class({
 	    {
 		api_data = data;
 	    }
-	    return this.process('post', this.root_url + '.json', api_data, config)
+	    
+	    return this.post(this.root_url + '.json', api_data, config)
 		.then(function(r) {
-		    self._response = r;
 		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
 		.catch(function(e) {
-		    self._response = e.response;
 		    return Promise.reject(e.response);
 		});
 	},
@@ -677,20 +857,19 @@ let FlAPIService = FlClassManager.make_class({
 	    {
 		api_data = data;
 	    }
-	    return this.process('patch', this.root_url + '/' + id + '.json', api_data, config)
+
+	    return this.patch(this.root_url + '/' + id + '.json', api_data, config)
 		.then(function(r) {
-		    self._response = r;
 		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
 		.catch(function(e) {
-		    self._response = e.response;
 		    return Promise.reject(e.response);
 		});
 	},
 
 	/**
 	 * @ngdoc method
-	 * @name FlAPIService#delete
+	 * @name FlAPIService#destroy
 	 * @description Make a :destroy call by calling `axios.delete` against the root URL/:id.
 	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to `axios.delete`.
 	 *
@@ -705,15 +884,13 @@ let FlAPIService = FlClassManager.make_class({
 	 *  property.
 	 */
 
-	delete: function(id, config) {
+	destroy: function(id, config) {
 	    let self = this;
-	    return this.process('delete', this.root_url + '/' + id + '.json', { }, config)
+	    return this.delete(this.root_url + '/' + id + '.json', { }, config)
 		.then(function(r) {
-		    self._response = r;
 		    return Promise.resolve(self.response_status(r));
 		})
 		.catch(function(e) {
-		    self._response = e.response;
 		    return Promise.reject(e.response);
 		});
 	},
