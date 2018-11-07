@@ -290,6 +290,19 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    });
 	    });
+
+	    it('should set response on success', function() {
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.index()
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
 	});
 
 	context(':show', function() {
@@ -350,6 +363,32 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    });
 	    });
+
+	    it('should set response on success', function() {
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.show(1)
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on error', function() {
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.show(10)
+		    .catch(function(r) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
 	});
 
 	context(':create', function() {
@@ -402,6 +441,19 @@ describe('fl.api_services module', function() {
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on success', function() {
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.create({ value1: 'new value1' })
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
 			return Promise.resolve(true);
 		    });
 	    });
@@ -478,6 +530,32 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    });
 	    });
+
+	    it('should set response on success', function() {
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.update(1, { value1: 'new value1' })
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on error', function() {
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.update(10, { value1: 'new value1' })
+		    .catch(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
 	});
     });
 
@@ -526,6 +604,20 @@ describe('fl.api_services module', function() {
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
 			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on success', function() {
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.index()
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
 			return Promise.resolve(true);
 		    });
 	    });
@@ -589,6 +681,34 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    });
 	    });
+
+	    it('should set response on success', function() {
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.show(1)
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on error', function() {
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.show(10)
+		    .catch(function(r) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
 	});
 
 	context(':create', function() {
@@ -645,6 +765,20 @@ describe('fl.api_services module', function() {
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on success', function() {
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.create({ value1: 'new value1' })
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
 			return Promise.resolve(true);
 		    });
 	    });
@@ -723,6 +857,34 @@ describe('fl.api_services module', function() {
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on success', function() {
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.update(1, { value1: 'new value1' })
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on error', function() {
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.update(10, { value1: 'new value1' })
+		    .catch(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
 			return Promise.resolve(true);
 		    });
 	    });
