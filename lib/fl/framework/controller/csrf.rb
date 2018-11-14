@@ -134,7 +134,7 @@ module Fl::Framework::Controller
         # The client is expected to look for a cookie that contains the CSRF token, and send it down the pipe
         # in a header on subsequent requests.
 
-        after_action :set_custom_csrf_cookie
+#        after_action :set_custom_csrf_cookie
       end
     end
   end

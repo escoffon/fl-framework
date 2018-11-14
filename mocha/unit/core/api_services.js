@@ -557,6 +557,74 @@ describe('fl.api_services module', function() {
 		    });
 	    });
 	});
+
+	context('response_error', function() {
+	    it('should extract standard API data', function() {
+		let srv = new FlAPIService(API_CFG);
+		let err = srv.response_error({ status: 'test_status', data: {
+		    _error: {
+			status: 'error_status',
+			message: 'error_message',
+			details: 'error_details'
+		    }}});
+
+		expect(err).to.include({
+		    status: 'error_status', message: 'error_message', details: 'error_details'
+		});
+	    });
+
+	    it('should extract (almost) standard API data', function() {
+		let srv = new FlAPIService(API_CFG);
+		let err = srv.response_error({ data: {
+		    _error: {
+			status: 'error_status',
+			message: 'error_message',
+			details: 'error_details'
+		    }}});
+
+		expect(err).to.include({
+		    status: 'error_status', message: 'error_message', details: 'error_details'
+		});
+	    });
+
+	    it('should extract with missing data', function() {
+		let srv = new FlAPIService(API_CFG);
+		let err = srv.response_error({ status: 'test_status', message: 'test_message' });
+
+		expect(err).to.include({
+		    status: 'test_status', message: 'test_message'
+		});
+	    });
+
+	    it('should extract with incomplete data', function() {
+		let srv = new FlAPIService(API_CFG);
+		let err = srv.response_error({ status: 'test_status', message: 'test_message', data: {
+		}});
+
+		expect(err).to.include({
+		    status: 'test_status', message: 'test_message'
+		});
+	    });
+
+	    it('should extract with correct priorities', function() {
+		let srv = new FlAPIService(API_CFG);
+		let err = srv.response_error({
+		    status: 'test_status',
+		    message: 'test_message',
+		    data: {
+			_error: {
+			    status: 'error_status',
+			    message: 'error_message',
+			    details: 'error_details'
+			}
+		    }
+		});
+
+		expect(err).to.include({
+		    status: 'error_status', message: 'error_message', details: 'error_details'
+		});
+	    });
+	});
     });
 
     describe('FlAPIService subclass', function() {
