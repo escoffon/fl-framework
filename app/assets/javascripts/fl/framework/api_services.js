@@ -1016,23 +1016,18 @@ let FlAPIService = FlClassManager.make_class({
 
 	response_error: function(r) {
 	    let err = { };
-	    if (r.status)
-	    {
-		err.status = r.status;
+	    if (r.status) err.status = r.status;
 
-		let rd = r.data;
-		if (_.isObject(rd) && _.isObject(rd._error))
-		{
-		    err = rd._error;
-		}
-		else
-		{
-		    err.message = r.statusText;
-		}
-	    }
-	    else if (r.message)
+	    let rd = r.data;
+	    if (_.isObject(rd) && _.isObject(rd._error))
 	    {
-		err.message = r.message;
+		err = rd._error;
+	    }
+	    else
+	    {
+		err.message = "response error";
+		if (_.isString(r.statusText)) err.message = r.statusText;
+		if (_.isString(r.message)) err.message = r.message;
 
 		if (r.stack)
 		{
@@ -1040,10 +1035,6 @@ let FlAPIService = FlClassManager.make_class({
 			stack: r.stack.split("\n")
 		    };
 		}
-	    }
-	    else
-	    {
-		err.message = "response error";
 	    }
 
 	    return err;
