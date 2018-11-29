@@ -1210,7 +1210,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @name FlAPIService#xsrfToken
 	 * @classproperty
 	 * @description Accessor for the default (current) value of the XSRF token.
-	 *  This property is the global, applicationwide, XSRF token. Instances of {@sref FlAPIservice}
+	 *  This property is the global, applicationwide, XSRF token. Instances of {@sref FlAPIService}
 	 *  may override this value, but typically won't.
 	 *
 	 * @param {String} token The new value of the token.

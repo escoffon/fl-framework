@@ -27,6 +27,8 @@ module Fl::Framework::Core
     #  of one of them, the check succeeds.
     #  Finally, if it is a Proc, the proc is called with a single argument, the object; a falsy return
     #  value fails the conversion.
+    # @param strict [Boolean] If `true`, the *expect* check uses `instance_of` for the type checking;
+    #  if `false`, it uses `is_a?`, which matches the given class and subclasses.
     #
     # @return Returns an object, or +nil+ if no object was found.
     #
@@ -73,7 +75,7 @@ module Fl::Framework::Core
     #
     #  o = MyClass.new(obj: 'SampleClass/10', key: 'value', other: 'other')
 
-    def self.object_from_parameter(p, key = nil, expect = nil)
+    def self.object_from_parameter(p, key = nil, expect = nil, strict = false)
       obj = nil
       h = nil
 
@@ -121,6 +123,7 @@ module Fl::Framework::Core
 
       # OK, we have the object. Now see if it is one of the expected ones
 
+      check_method = (strict) ? 'instance_of?'.to_sym : 'is_a?'.to_sym
       case expect
       when String
         begin
@@ -129,12 +132,12 @@ module Fl::Framework::Core
           raise ConversionError, I18n.tx('fl.framework.core.conversion.missing_class', :class => expect)
         end
         
-        if obj.class != klass
+        if !obj.send(check_method, klass)
           raise ConversionError, I18n.tx('fl.framework.core.conversion.unexpected',
                                          :class => obj.class, :expect => expect)
         end
       when Class
-        if obj.class != expect
+        if !obj.send(check_method, expect)
           raise ConversionError, I18n.tx('fl.framework.core.conversion.unexpected',
                                          :class => obj.class, :expect => expect)
         end
@@ -144,11 +147,11 @@ module Fl::Framework::Core
           when String
             begin
               klass = x.constantize
-              obj.class == klass
+              obj.send(check_method, klass)
             rescue => exc
             end
           when Class
-            obj.class == x
+            obj.send(check_method, x)
           end
         end
         
