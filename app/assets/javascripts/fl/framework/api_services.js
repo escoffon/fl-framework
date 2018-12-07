@@ -665,8 +665,9 @@ let FlAPIService = FlClassManager.make_class({
 	 * @name FlAPIService#show
 	 * @description Make a :show call by calling `axios.get` against the root URL/:id.
 	 *
-	 * @param {Integer|String} id A string or integer containing the identifier to append to
-	 *  the root URL.
+	 * @param {Integer|String|Object} id A string or integer containing the identifier to append to
+	 *  the root URL. You can also pass an object with an `id` property, whose value will be used
+	 *  for the identifier; this makes it possible to pass model instances to the method.
 	 * @param {Object} [config] Configuration object to pass to `axios.get`; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -679,7 +680,7 @@ let FlAPIService = FlClassManager.make_class({
 
 	show: function(id, config) {
 	    let self = this;
-	    return this.get(this.root_url + '/' + id + '.json', this._make_config(config))
+	    return this.get(this.root_url + '/' + this._id(id) + '.json', this._make_config(config))
 		.then(function(r) {
 		    let model = self.modelFactory.create(self._response_data(r));
 		    if (_.isFunction(self._showDidSucceed))
@@ -831,8 +832,9 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Make a :update call by calling `axios.patch` against the root URL/:id.
 	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to `axios.patch`.
 	 *
-	 * @param {Integer|String} id An integer or string containing the identifier to append to
-	 *  the root URL.
+	 * @param {Integer|String|Object} id A string or integer containing the identifier to append to
+	 *  the root URL. You can also pass an object with an `id` property, whose value will be used
+	 *  for the identifier; this makes it possible to pass model instances to the method.
 	 * @param {Object} data The data to submit to the server; these data will be placed inside
 	 *  the service's namespace, so that the actual data will be in a
 	 *  property named after the namespace.
@@ -858,7 +860,7 @@ let FlAPIService = FlClassManager.make_class({
 		api_data = data;
 	    }
 
-	    return this.patch(this.root_url + '/' + id + '.json', api_data, config)
+	    return this.patch(this.root_url + '/' + this._id(id) + '.json', api_data, config)
 		.then(function(r) {
 		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
@@ -873,8 +875,9 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Make a :destroy call by calling `axios.delete` against the root URL/:id.
 	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to `axios.delete`.
 	 *
-	 * @param {Integer|String} id An integer or string containing the identifier to append to
-	 *  the root URL.
+	 * @param {Integer|String|Object} id A string or integer containing the identifier to append to
+	 *  the root URL. You can also pass an object with an `id` property, whose value will be used
+	 *  for the identifier; this makes it possible to pass model instances to the method.
 	 * @param {Object} [config] Configuration object to pass to axios.delete; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -886,7 +889,7 @@ let FlAPIService = FlClassManager.make_class({
 
 	destroy: function(id, config) {
 	    let self = this;
-	    return this.delete(this.root_url + '/' + id + '.json', { }, config)
+	    return this.delete(this.root_url + '/' + this._id(id) + '.json', { }, config)
 		.then(function(r) {
 		    return Promise.resolve(self.response_status(r));
 		})
@@ -1151,6 +1154,22 @@ let FlAPIService = FlClassManager.make_class({
 	    {
 		cfg.headers = { 'Content-Type': ct };
 	    }
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#_id
+	 * @description Converts an identifier parameter to an identifier value.
+	 *  if *id* is an object with a non-null **id** property, the value of `id.id` is returned.
+	 *  Otherwise, the value of *id* is returned as is.
+	 *
+	 * @param {Integer|String|Object} id A string or integer containing the identifier.
+	 *  You can also pass an object with an `id` property, whose value will be used
+	 *  for the identifier; this makes it possible to pass model instances to the method.
+	 */
+
+	_id: function(id) {
+	    return (_.isObject(id) && !_.isNil(id.id)) ? id.id : id;
 	}
     },
     class_properties: {
@@ -1210,7 +1229,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @name FlAPIService#xsrfToken
 	 * @classproperty
 	 * @description Accessor for the default (current) value of the XSRF token.
-	 *  This property is the global, applicationwide, XSRF token. Instances of {@sref FlAPIservice}
+	 *  This property is the global, applicationwide, XSRF token. Instances of {@sref FlAPIService}
 	 *  may override this value, but typically won't.
 	 *
 	 * @param {String} token The new value of the token.
