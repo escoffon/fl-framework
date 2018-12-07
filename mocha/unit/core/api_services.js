@@ -319,6 +319,20 @@ describe('fl.api_services module', function() {
 		    });
 	    });
 
+	    it('should accept a model instance', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG);
+		let my1 = new MyModel(MODEL_1);
+		
+		return srv.show(my1)
+		    .then(function(data) {
+			expect(data).to.be.an.instanceof(MyModel);
+			expect(data.value1).to.eq('model1 - value1');
+
+			return Promise.resolve(true);
+		    });
+	    });
+
 	    it('should error on an unknown object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
 		let srv = new FlAPIService(API_CFG);
@@ -465,6 +479,21 @@ describe('fl.api_services module', function() {
 		let srv = new FlAPIService(API_CFG);
 		
 		return srv.update(1, { value1: 'new value1' })
+		    .then(function(data) {
+			expect(data).to.be.an.instanceof(MyModel);
+			expect(data.id).to.eq(1);
+			expect(data.value1).to.eq('new value1');
+
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should accept a model instance', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let srv = new FlAPIService(API_CFG);
+		let my1 = new MyModel(MODEL_1);
+		
+		return srv.update(my1, { value1: 'new value1' })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyModel);
 			expect(data.id).to.eq(1);
@@ -706,6 +735,21 @@ describe('fl.api_services module', function() {
 		    });
 	    });
 
+	    it('should accept a model instance', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+		let my1 = new MyModel(MODEL_1);
+		
+		return srv.show(my1)
+		    .then(function(data) {
+			expect(data).to.be.an.instanceof(MyModel);
+			expect(data.value1).to.eq('model1 - value1');
+
+			return Promise.resolve(true);
+		    });
+	    });
+
 	    it('should error on an unknown object', function() {
 		let MyModel = FlClassManager.get_class('MyModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
@@ -859,6 +903,22 @@ describe('fl.api_services module', function() {
 		let srv = new MyAPIService();
 		
 		return srv.update(1, { value1: 'new value1' })
+		    .then(function(data) {
+			expect(data).to.be.an.instanceof(MyModel);
+			expect(data.id).to.eq(1);
+			expect(data.value1).to.eq('new value1');
+
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should accept a model instance', function() {
+		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+		let my1 = new MyModel(MODEL_1);
+		
+		return srv.update(my1, { value1: 'new value1' })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyModel);
 			expect(data.id).to.eq(1);
