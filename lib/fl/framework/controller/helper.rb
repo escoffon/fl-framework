@@ -38,8 +38,60 @@ module Fl::Framework::Controller
       hn
     end
 
+    # Normalize the value of a parameter.
+    # This method returns the value of the _key_ in +params+, converted as necessary.
+    # For example, some clients (Axios for one) convert complex parameter values into JSON representations,
+    # rather than building the traditional nested set of parameter names. This method assumes that a string
+    # value for _key_ is a JSON representation and processes it accordingly.
+    #
+    # @param key [Symbol,String] The key for the parameter; a string value is converted to a symbol.
+    #
+    # @return [ActionController::Parameters] Returns the parameter value. Controllers
+    #  are responsible for allowing only permitted ones.
+
+    def normalize_param_value(key)
+      p = params.fetch(key.to_sym, {})
+      case p
+      when Hash
+        ActionController::Parameters.new(p)
+      when ActionController::Parameters
+        p
+      when String
+        begin
+          ActionController::Parameters.new(normalize_params(JSON.parse(p)))
+        rescue
+          ActionController::Parameters.new({ })
+        end
+      else
+        ActionController::Parameters.new({ })
+      end
+    end
+
+    # Normalize the query parameters.
+    # This is a wrapper around {#normalize_param_value}, using the key *:_q*.
+    #
+    # @return [ActionController::Parameters] Returns the query parameters. Controller implementations
+    #  of {#query_parameters} are responsible for allowing only permitted ones.
+
+    def normalize_query_params()
+      normalize_param_value(:_q)
+    end
+
+    # Default accessor for the query parameters.
+    # Provided in case that controllers don't define an implementation (which they should).
+    #
+    # @return [ActionController::Parameters] Returns the default parameters, which are currently an
+    #  empty set.
+
+    def query_params()
+      ActionController::Parameters.new({ })
+    end
+
     # Get the pagination parameters.
     # Looks up the *:_pg* key in +params+ and returns the permitted values.
+    # Some clients (Axios for one) convert complex parameter values into JSON representations, rather
+    # than building the traditional nested set of parameter names. This method assumes that a string
+    # value for *:_pg* is a JSON representation and processes it accordingly.
     #
     # @return [ActionController::Parameters] Returns the permitted pagination parameters, which are:
     # - *:_s* The page size.
@@ -48,7 +100,7 @@ module Fl::Framework::Controller
     #   query parameters, but rather is returned by the query.
 
     def pagination_params()
-      params.fetch(:_pg, {}).permit(:_s, :_p, :_c)
+      normalize_param_value(:_pg).permit(:_s, :_p, :_c)
     end
 
     # Hash support: returns a hash representation of an object, for the current user.
