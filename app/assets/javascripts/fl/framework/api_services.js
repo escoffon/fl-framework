@@ -17,7 +17,7 @@ const {
 const DEFAULT_SRV_CFG = {
     xsrfCookieName: 'XSRF-TOKEN',
     xsrfHeaderName: 'X-XSRF-TOKEN',
-    modelFactory: FlGlobalModelFactory
+    modelFactory: FlModelFactory.defaultFactory()
 };
 
 /**
@@ -183,7 +183,7 @@ const DEFAULT_SRV_CFG = {
  *
  * Typically, the source file for a data model includes registration code like this:
  * ```
- * FlGlobalModelFactory.register('my.models', [
+ * FlModelFactory.defaultFactory().register('my.models', [
  *   { service: MyModel, class_name: 'My::Model' }
  * ]);
  * ```
@@ -239,7 +239,7 @@ let FlAPIService = FlClassManager.make_class({
 
 	this._http_service = (_.isNil(this._srv_cfg.axios)) ? axios : this._srv_cfg.axios;
 	this._pg_names = (_.isArray(this._api_cfg.pg_names)) ? this._api_cfg.pg_names : [ '_pg' ];
-	if (_.isNil(this._srv_cfg.modelFactory)) this._srv_cfg.modelFactory = FlGlobalModelFactory;
+	if (_.isNil(this._srv_cfg.modelFactory)) this._srv_cfg.modelFactory = FlModelFactory.defaultFactory();
 
 	this._showDidSucceed = null;
 	this.pagination_controls = 'init';
@@ -1316,7 +1316,7 @@ let FlAPIServiceRegistry = FlClassManager.make_class({
 	 *  let MyDatum = FlClassRegistry.make_class({
 	 *    ...
 	 *  });
-	 *  FlGlobalModelFactory.register('my_service', [
+	 *  FlModelFactory.defaultFactory().register('my_service', [
 	 *    { service: MyDatum, class_name: 'My::Datum' }
 	 *  ]);
 	 *
