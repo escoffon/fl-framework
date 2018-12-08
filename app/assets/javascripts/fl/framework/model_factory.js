@@ -420,7 +420,6 @@ let FlModelFactory = (function() {
     };
 
     FlModelFactory.prototype._create_internal = function(h) {
-
 	let o = this._model_cache.get(h);
 	if (o)
 	{
