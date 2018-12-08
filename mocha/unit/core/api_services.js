@@ -14,7 +14,7 @@ const AxiosMockAdapter = require('axios-mock-adapter');
 const expect = chai.expect;
 
 const MY_MODEL_DESC = {
-    name: 'MyModel',
+    name: 'MyAPITestModel',
     superclass: 'FlModelBase',
     initializer: function(data) {
 	this.__super_init('FlModelBase', data);
@@ -27,10 +27,10 @@ const MY_MODEL_DESC = {
 };
 
 const MODEL_1 = {
-    type: "My::Model",
+    type: "My::API::Test::Model",
     api_root: "/my/models",
     url_path: "my/models/1",
-    fingerprint: "My::Model/1",
+    fingerprint: "My::API::Test::Model/1",
     id: 1,
     created_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
     updated_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
@@ -38,10 +38,10 @@ const MODEL_1 = {
 };
 
 const MODEL_2 = {
-    type: "My::Model",
+    type: "My::API::Test::Model",
     api_root: "/my/models",
     url_path: "my/models/2",
-    fingerprint: "My::Model/2",
+    fingerprint: "My::API::Test::Model/2",
     id: 2,
     created_at: 'Thu, 13 Sep 2018 22:57:27 UTC +00:00',
     updated_at: 'Thu, 13 Sep 2028 22:57:27 UTC +00:00',
@@ -102,10 +102,10 @@ const MY_SERVICE_DESC = {
 
 describe('fl.api_services module', function() {
     before(function() {
-	let MyModel = FlClassManager.make_class(MY_MODEL_DESC);
+	let MyAPITestModel = FlClassManager.make_class(MY_MODEL_DESC);
 
 	FlGlobalModelFactory.register('api_services_tester', [
-	    { service: MyModel, class_name: 'My::Model' }
+	    { service: MyAPITestModel, class_name: 'My::API::Test::Model' }
 	]);
 
 	let MyAPIService = FlClassManager.make_class(MY_SERVICE_DESC);
@@ -170,7 +170,7 @@ describe('fl.api_services module', function() {
 	
 	context('service (local) configuration', function() {
 	    it('should inherit from global defaults', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 
 		expect(srv.getConfig()).to.include(FlAPIService.getServiceConfig());
@@ -248,23 +248,23 @@ describe('fl.api_services module', function() {
 	
 	context(':index', function() {
 	    it('should return objects', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 
 		return srv.index()
 		    .then(function(data) {
 			expect(data).to.be.an('array');
 			expect(data.length).to.eq(2);
-			expect(data[0]).to.be.an.instanceof(MyModel);
+			expect(data[0]).to.be.an.instanceof(MyAPITestModel);
 			expect(data[0].value1).to.eq('model1 - value1');
-			expect(data[1]).to.be.an.instanceof(MyModel);
+			expect(data[1]).to.be.an.instanceof(MyAPITestModel);
 			expect(data[1].value1).to.eq('model2 - value1');
 			return Promise.resolve(true);
 		    });
 	    });
 
 	    it('should pick up the local configuration', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
 		return srv.index()
@@ -278,7 +278,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the configuration argument', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
 		return srv.index({ xsrfCookieName: 'YET-COOKIE-NAME' })
@@ -307,12 +307,12 @@ describe('fl.api_services module', function() {
 
 	context(':show', function() {
 	    it('should return a known object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
 		return srv.show(1)
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('model1 - value1');
 
 			return Promise.resolve(true);
@@ -320,13 +320,13 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should accept a model instance', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
-		let my1 = new MyModel(MODEL_1);
+		let my1 = new MyAPITestModel(MODEL_1);
 		
 		return srv.show(my1)
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('model1 - value1');
 
 			return Promise.resolve(true);
@@ -334,7 +334,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should error on an unknown object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
 		return srv.show(10)
@@ -351,7 +351,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the local configuration', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
 		return srv.show(1)
@@ -365,7 +365,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the configuration argument', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
 		return srv.show(1, { xsrfCookieName: 'YET-COOKIE-NAME' })
@@ -407,12 +407,12 @@ describe('fl.api_services module', function() {
 
 	context(':create', function() {
 	    it('should return a new object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
 		return srv.create({ value1: 'new value1' })
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('new value1');
 
 			return Promise.resolve(true);
@@ -420,7 +420,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the local configuration', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
 		return srv.create({ value1: 'new value1' })
@@ -434,7 +434,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the configuration argument', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
 		return srv.create({ value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
@@ -448,7 +448,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should add the XSRF header', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
 		
 		return srv.create({ value1: 'new value1' })
@@ -475,12 +475,12 @@ describe('fl.api_services module', function() {
 
 	context(':update', function() {
 	    it('should return the edited object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
 		return srv.update(1, { value1: 'new value1' })
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
 			expect(data.value1).to.eq('new value1');
 
@@ -489,13 +489,13 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should accept a model instance', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
-		let my1 = new MyModel(MODEL_1);
+		let my1 = new MyAPITestModel(MODEL_1);
 		
 		return srv.update(my1, { value1: 'new value1' })
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
 			expect(data.value1).to.eq('new value1');
 
@@ -504,7 +504,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should error on an unknown object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
 		return srv.update(10, { value1: 'new value1' })
@@ -521,7 +521,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the local configuration', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
 		return srv.update(1, { value1: 'new value1' })
@@ -535,7 +535,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the configuration argument', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
 		return srv.update(1, { value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
@@ -549,7 +549,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should add the XSRF header', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
 		
 		return srv.update(1, { value1: 'new value1' })
@@ -659,7 +659,7 @@ describe('fl.api_services module', function() {
     describe('FlAPIService subclass', function() {
 	context(':index', function() {
 	    it('should return objects', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
@@ -667,16 +667,16 @@ describe('fl.api_services module', function() {
 		    .then(function(data) {
 			expect(data).to.be.an('array');
 			expect(data.length).to.eq(2);
-			expect(data[0]).to.be.an.instanceof(MyModel);
+			expect(data[0]).to.be.an.instanceof(MyAPITestModel);
 			expect(data[0].value1).to.eq('model1 - value1');
-			expect(data[1]).to.be.an.instanceof(MyModel);
+			expect(data[1]).to.be.an.instanceof(MyAPITestModel);
 			expect(data[1].value1).to.eq('model2 - value1');
 			return Promise.resolve(true);
 		    });
 	    });
 
 	    it('should pick up the local configuration', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
@@ -691,7 +691,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the configuration argument', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
@@ -722,13 +722,13 @@ describe('fl.api_services module', function() {
 
 	context(':show', function() {
 	    it('should return a known object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
 		return srv.show(1)
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('model1 - value1');
 
 			return Promise.resolve(true);
@@ -736,14 +736,14 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should accept a model instance', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
-		let my1 = new MyModel(MODEL_1);
+		let my1 = new MyAPITestModel(MODEL_1);
 		
 		return srv.show(my1)
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('model1 - value1');
 
 			return Promise.resolve(true);
@@ -751,7 +751,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should error on an unknown object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
@@ -765,7 +765,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the local configuration', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
@@ -780,7 +780,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the configuration argument', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
@@ -825,13 +825,13 @@ describe('fl.api_services module', function() {
 
 	context(':create', function() {
 	    it('should return a new object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
 		return srv.create({ value1: 'new value1' })
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('new value1');
 
 			return Promise.resolve(true);
@@ -839,7 +839,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the local configuration', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
@@ -854,7 +854,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the configuration argument', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
@@ -869,7 +869,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should add the XSRF header', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfHeaderName: 'NEW-HEADER-NAME', xsrfToken: 'MY-TOKEN' });
 		
@@ -898,13 +898,13 @@ describe('fl.api_services module', function() {
 
 	context(':update', function() {
 	    it('should return the edited object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
 		return srv.update(1, { value1: 'new value1' })
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
 			expect(data.value1).to.eq('new value1');
 
@@ -913,14 +913,14 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should accept a model instance', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
-		let my1 = new MyModel(MODEL_1);
+		let my1 = new MyAPITestModel(MODEL_1);
 		
 		return srv.update(my1, { value1: 'new value1' })
 		    .then(function(data) {
-			expect(data).to.be.an.instanceof(MyModel);
+			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
 			expect(data.value1).to.eq('new value1');
 
@@ -929,7 +929,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should error on an unknown object', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
@@ -947,7 +947,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the local configuration', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
@@ -962,7 +962,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should pick up the configuration argument', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
@@ -977,7 +977,7 @@ describe('fl.api_services module', function() {
 	    });
 
 	    it('should add the XSRF header', function() {
-		let MyModel = FlClassManager.get_class('MyModel');
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfHeaderName: 'NEW-HEADER-NAME', xsrfToken: 'MY-TOKEN' });
 		
@@ -1076,14 +1076,14 @@ describe('fl.api_services module', function() {
 		expect(MyAPIService).to.not.be.undefined;
 		
 		FlGlobalAPIServiceRegistry.register('api_services_tester', {
-		    'MyAPIService': 'My::Model'
+		    'MyAPIService': 'My::API::Test::Model'
 		});
 
-		let srv = FlGlobalAPIServiceRegistry.create('My::Model', { prop1: 1 });
+		let srv = FlGlobalAPIServiceRegistry.create('My::API::Test::Model', { prop1: 1 });
 		expect(srv).to.be.an.instanceof(MyAPIService);
 		expect(srv._srv_cfg.prop1).to.eq(1);
 
-		srv = FlGlobalAPIServiceRegistry.create('My::Model', { prop1: 2 });
+		srv = FlGlobalAPIServiceRegistry.create('My::API::Test::Model', { prop1: 2 });
 		expect(srv).to.be.an.instanceof(MyAPIService);
 		expect(srv._srv_cfg.prop1).to.eq(2);
 	    });

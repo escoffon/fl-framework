@@ -420,6 +420,7 @@ let FlModelFactory = (function() {
     };
 
     FlModelFactory.prototype._create_internal = function(h) {
+
 	let o = this._model_cache.get(h);
 	if (o)
 	{
@@ -491,5 +492,21 @@ let FlModelFactory = (function() {
  */
 
 const FlGlobalModelFactory = new FlModelFactory();
+
+let _default_factory = FlGlobalModelFactory;
+
+/**
+ * @ngdoc method
+ * @name FlModelFactory#create
+ * @classmethod
+ * @description Return the default model factory instance.
+ *  The initial value is {@sref FlGlobalModelFactory}.
+ * 
+ * @return Returns the instance of {@sref FlModelFactory} to use for creating model instances.
+ */
+
+FlModelFactory.defaultFactory = function() {
+    return _default_factory;
+};
 
 module.exports = { FlModelBase, FlModelCache, FlModelFactory, FlGlobalModelFactory };
