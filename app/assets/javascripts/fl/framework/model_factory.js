@@ -46,7 +46,7 @@ const { FlExtensions, FlClassManager } = require('fl/framework/object_system');
  *      this.&#95;&#95;super_init('FlModelBase', data);
  *      this.refresh(data);
  *    },</pre>
- *  2. This is followed by new and overridden instance methods:
+ *  2. This is followed by new and overridden instance methods, for example:
  *     <pre ng-non-bindable>
  *    instance_methods: {
  *      refresh: function(data) {
@@ -106,11 +106,31 @@ let FlModelBase = FlClassManager.make_class({
 	 * @description Refresh the state of the instance based on the contents
 	 *  of the hash representation of an object.
 	 * 
+	 *  This method also validates that a refresh does not change the class type and object
+	 *  identifier, if they are already set. This check prevents clients for creating an instance
+	 *  of a given model class, and later change its "type" to another class.
+	 *  Note that subclasses that override this method **must** call the superclass implementation
+	 *  in order to trigger these checks (and the core loading functionality).
+	 *
 	 * @param {Object} data An object containing a representation of the 
 	 *  server object. This representation may be partial.
+	 *
+	 * @throws Throws an exception if the properties **type** and **fingerprint** already exist
+	 *  in `this`, and their value is different from those in *data*.
 	 */
 
 	refresh: function(data) {
+	    if (!_.isUndefined(this.type) && !_.isUndefined(data.type) && (this.type != data.type))
+	    {
+		throw new Error('type mismatch in model data refresh');
+	    }
+	    
+	    if (!_.isUndefined(this.fingerprint) && !_.isUndefined(data.fingerprint)
+		&& (this.fingerprint != data.fingerprint))
+	    {
+		throw new Error('fingerprint mismatch in model data refresh');
+	    }
+	    
 	    let self = this;
 	    _.forEach(data, function(v, k) {
 		self[k] = self._convert_value(v);
@@ -417,6 +437,19 @@ let FlModelFactory = (function() {
 
     FlModelFactory.prototype.services = function() {
 	return this._model_services;
+    };
+    
+    /**
+     * @ngdoc method
+     * @name FlModelFactory#cache
+     * @description Gets the model cache used by the factory.
+     * 
+     * @return {FlModelCache} Returns the instance of {@sref FlModelCache} used by the factory for
+     *  managing the model instances.
+     */
+
+    FlModelFactory.prototype.cache = function() {
+	return this._model_cache;
     };
 
     FlModelFactory.prototype._create_internal = function(h) {

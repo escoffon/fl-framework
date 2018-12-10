@@ -323,12 +323,17 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		let my1 = new MyAPITestModel(MODEL_1);
+
+		// this confirms that a new instance is not created
+		
+		my1.test_tag = 'TEST';
 		
 		return srv.show(my1)
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('model1 - value1');
-
+			expect(data.test_tag).to.eql('TEST');
+			
 			return Promise.resolve(true);
 		    });
 	    });
@@ -493,11 +498,16 @@ describe('fl.api_services module', function() {
 		let srv = new FlAPIService(API_CFG);
 		let my1 = new MyAPITestModel(MODEL_1);
 		
+		// this confirms that a new instance is not created
+		
+		my1.test_tag = 'TEST';
+		
 		return srv.update(my1, { value1: 'new value1' })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
 			expect(data.value1).to.eq('new value1');
+			expect(data.test_tag).to.eql('TEST');
 
 			return Promise.resolve(true);
 		    });
@@ -741,10 +751,15 @@ describe('fl.api_services module', function() {
 		let srv = new MyAPIService();
 		let my1 = new MyAPITestModel(MODEL_1);
 		
+		// this confirms that a new instance is not created
+		
+		my1.test_tag = 'TEST';
+		
 		return srv.show(my1)
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('model1 - value1');
+			expect(data.test_tag).to.eql('TEST');
 
 			return Promise.resolve(true);
 		    });
@@ -918,11 +933,16 @@ describe('fl.api_services module', function() {
 		let srv = new MyAPIService();
 		let my1 = new MyAPITestModel(MODEL_1);
 		
+		// this confirms that a new instance is not created
+		
+		my1.test_tag = 'TEST';
+		
 		return srv.update(my1, { value1: 'new value1' })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
 			expect(data.value1).to.eq('new value1');
+			expect(data.test_tag).to.eql('TEST');
 
 			return Promise.resolve(true);
 		    });
