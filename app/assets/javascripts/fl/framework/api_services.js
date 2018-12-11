@@ -643,7 +643,7 @@ let FlAPIService = FlClassManager.make_class({
 		    return Promise.reject(e.response);
 		});
 	},
-
+	
 	/**
 	 * @ngdoc method
 	 * @name FlAPIService#setShowDidSucceed
@@ -658,6 +658,43 @@ let FlAPIService = FlClassManager.make_class({
 
 	setShowDidSucceed: function(cb) {
 	    this._showDidSucceed = cb;
+	},
+
+	
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#_create_or_refresh_from_id
+	 * @description Refresh an existing model instance, or create a new one.
+	 *  This (internal) method is used in action implementation where the API returns object data,
+	 *  such as for the `show` and `update` actions.
+	 *  If those implementations are called with a model instance in the *id* parameter, then the
+	 *  client has provided the target instance explicitly, and the implementation should use it.
+	 *  Since model instances are cached, this only makes a difference if the target instance had
+	 *  been created explicitly, rather than via the {@FlModelFacory#create} method: in this case,
+	 *  the instance may not be cached, and using `create` would result in two copies of the
+	 *  object floating around in the system. Use of this method helps avoiding that kind of problem.
+	 *
+	 * @param {Integer|String|Object} id A string or integer containing the identifier, or a model
+	 *  instance from which the identifier is obtained.
+	 * @param {Object} data The model data to use for the refresh or create.
+	 *
+	 * @return Returns the object that was refreshed: if *id* is an identifier, it returns the
+	 *  object that was created by a call to {@FlModelFactory#create}; if it is a model instance,
+	 *  it returns *id*.
+	 */
+
+	_create_or_refresh_from_id: function(id, data) {
+	    if (!_.isNil(id.__class) && _.isFunction(id.refresh))
+	    {
+		// This looks like a model instance, so just refresh it.
+
+		id.refresh(data);
+		return id;
+	    }
+	    else
+	    {
+		return this.modelFactory.create(data);
+	    }
 	},
 
 	/**
@@ -682,12 +719,13 @@ let FlAPIService = FlClassManager.make_class({
 	    let self = this;
 	    return this.get(this.root_url + '/' + this._id(id) + '.json', this._make_config(config))
 		.then(function(r) {
-		    let model = self.modelFactory.create(self._response_data(r));
+		    let model = self._create_or_refresh_from_id(id, self._response_data(r));
+
 		    if (_.isFunction(self._showDidSucceed))
 		    {
 			self._showDidSucceed.call(self, model);
 		    }
-		    return model;
+		    return Promise.resolve(model);
 		})
 		.catch(function(e) {
 		    return Promise.reject(e.response);
@@ -806,18 +844,8 @@ let FlAPIService = FlClassManager.make_class({
 
 	create: function(data, config) {
 	    let self = this;
-	    let api_data = data;
-	    if (this.namespace)
-	    {
-		api_data = {};
-		api_data[this.namespace] = data;
-	    }
-	    else
-	    {
-		api_data = data;
-	    }
 	    
-	    return this.post(this.root_url + '.json', api_data, config)
+	    return this.post(this.root_url + '.json', this._wrap_data(data), config)
 		.then(function(r) {
 		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
@@ -849,20 +877,10 @@ let FlAPIService = FlClassManager.make_class({
 
 	update: function(id, data, config) {
 	    let self = this;
-	    let api_data = data;
-	    if (this.namespace)
-	    {
-		api_data = {};
-		api_data[this.namespace] = data;
-	    }
-	    else
-	    {
-		api_data = data;
-	    }
 
-	    return this.patch(this.root_url + '/' + this._id(id) + '.json', api_data, config)
+	    return this.patch(this.root_url + '/' + this._id(id) + '.json', this._wrap_data(data), config)
 		.then(function(r) {
-		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
+		    return Promise.resolve(self._create_or_refresh_from_id(id, self._response_data(r)));
 		})
 		.catch(function(e) {
 		    return Promise.reject(e.response);
@@ -1170,6 +1188,32 @@ let FlAPIService = FlClassManager.make_class({
 
 	_id: function(id) {
 	    return (_.isObject(id) && !_.isNil(id.id)) ? id.id : id;
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#_wrap_data
+	 * @description Wrap submission data within the namespace if one is defined.
+	 *
+	 * @param {Object} data The data to submit to the server.
+	 *
+	 * @return {Object} If the namespace is defined, the return value is an object with one
+	 *  property, the namespace, whose value is *data*. If no namespace is defined, then
+	 *  *data* is returned.
+	 */
+
+	_wrap_data: function(data) {
+	    let api_data = data;
+	    if (this.namespace)
+	    {
+		api_data = {};
+		api_data[this.namespace] = data;
+	    }
+	    else
+	    {
+		api_data = data;
+	    }
+	    return api_data;
 	}
     },
     class_properties: {
