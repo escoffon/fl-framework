@@ -365,6 +365,19 @@ let FlAPIService = FlClassManager.make_class({
 
 	/**
 	 * @ngdoc property
+	 * @name FlAPIService#error
+	 * @description Getter for the last error returned by the server.
+	 * @return {Object} Returns the last error returned by the server.
+	 */
+
+	error: {
+	    get: function() {
+		return this._error;
+	    }
+	},
+
+	/**
+	 * @ngdoc property
 	 * @name FlAPIService#pagination_controls
 	 * @description Accessors for pagination_controls.
 	 *  The getter returns a hash containing key/value pairs:
@@ -472,10 +485,12 @@ let FlAPIService = FlClassManager.make_class({
 	    
 	    return this._http_service.get(url, this._make_config(config))
 		.then(function(r) {
+		    self._error = null;
 		    self._response = r;
 		    return Promise.resolve(r);
 		})
 		.catch(function(e) {
+		    self._error = e;
 		    self._response = e.response;
 		    return Promise.reject(e);
 		});
@@ -503,8 +518,6 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	post: function(url, data, config) {
-	    let self = this;
-	    
 	    return this.process('post', url, data, config);
 	},
 
@@ -530,8 +543,6 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	put: function(url, data, config) {
-	    let self = this;
-	    
 	    return this.process('put', url, data, config);
 	},
 
@@ -557,8 +568,6 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	patch: function(url, data, config) {
-	    let self = this;
-	    
 	    return this.process('patch', url, data, config);
 	},
 
@@ -583,7 +592,6 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	delete: function(url, data, config) {
-	    let self = this;
 	    return this.process('delete', url, data, config);
 	},
 
@@ -607,10 +615,12 @@ let FlAPIService = FlClassManager.make_class({
 	    
 	    return this._http_service.head(url, this._make_config(config))
 		.then(function(r) {
+		    self._error = null;
 		    self._response = r;
 		    return Promise.resolve(r);
 		})
 		.catch(function(e) {
+		    self._error = e;
 		    self._response = e.response;
 		    return Promise.reject(e);
 		});
@@ -810,10 +820,12 @@ let FlAPIService = FlClassManager.make_class({
 	    {
 		return m.apply(this._http_service, args)
 		    .then(function(r) {
+			self._error = null;
 			self._response = r;
 			return Promise.resolve(r);
 		    })
 		    .catch(function(e) {
+			self._error = e;
 			self._response = e.response;
 			return Promise.reject(e);
 		    });
