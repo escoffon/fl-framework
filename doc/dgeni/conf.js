@@ -2,6 +2,8 @@
 var path = require('canonical-path');
 var Package = require('dgeni').Package;
 
+const JSDOCS = 'public/doc/fl/framework/js';
+
 const STATE_ROOT = 'docs';
 const URL_ROOT = '/docs';
 const ENABLE_HTML5_MODE = 'no';
@@ -48,7 +50,7 @@ module.exports = new Package('fl_framework_docs', [
 	      basePath: 'doc/dgeni/content', fileReader: 'ngdocFileReader' }
 	];
 
-	writeFilesProcessor.outputFolder  = 'public/doc/fl/framework/js';
+	writeFilesProcessor.outputFolder  = JSDOCS;
     })
 
 // index page configuration

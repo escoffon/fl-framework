@@ -2,6 +2,8 @@
 var path = require('canonical-path');
 var Package = require('dgeni').Package;
 
+const JSDOCS = 'public/doc/fl/framework/js-sample';
+
 const STATE_ROOT = 'docs';
 const URL_ROOT = '/docs';
 const ENABLE_HTML5_MODE = 'no';
@@ -9,8 +11,8 @@ const DEFAULT_PATH = '/overview/index';
 const BRAND = 'Brand';
 const TITLE = 'Title';
 
-module.exports = new Package('cf_ng_docs', [
-    require('./fl-dgeni/ngdoc')
+module.exports = new Package('fl_framework_docs', [
+    require('fl-dgeni/ngdoc')
 ])
 
 // control debug dumps
@@ -27,10 +29,9 @@ module.exports = new Package('cf_ng_docs', [
 // register external links (links to home pages for external packages)
     .config(function(externalLinks) {
 	const XLINKS = [
-//		    { name: '', xlink: '' },
+	    //		    { name: '', xlink: '' },
 
 	    { name: 'jQuery', xlink: 'http://jquery.com' },
-
 	    { name: 'ng', xlink: 'https://angularjs.org/' }
 	];
 
@@ -49,15 +50,15 @@ module.exports = new Package('cf_ng_docs', [
 	      basePath: 'src/doctest/content', fileReader: 'ngdocFileReader' }
 	];
 
-	writeFilesProcessor.outputFolder  = 'public/doc/out/dgeni';
+	writeFilesProcessor.outputFolder  = JSDOCS;
     })
 
 // index page configuration
     .config(function(indexPageProcessor) {
 	indexPageProcessor.brand = BRAND;
 	indexPageProcessor.navbar = [
-	    { id: 'content.guide.main', label: 'Guide' },
-	    { id: 'content.api.main', label: 'API Reference' }
+	    { id: 'content.api.main', label: 'API Reference' },
+	    { id: 'content.guide.main', label: 'Guide' }
 	];
     })
 
