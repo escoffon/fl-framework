@@ -487,6 +487,22 @@ module Fl::Framework::Core
         c_keys
       end
 
+      # Whitelist a list of keys.
+      # This method filters out *keys* so that only the keys in {#to_hash_id_keys} and *whitelist*
+      # are returned.
+      #
+      # @param keys [Array<Symbols>] The array of keys to whitelist.
+      # @param whitelist [Array<symbol>] The whilelist of keys to user; obly elements of this list
+      #  are returned.
+      #
+      # @return [Array<Symbol>] Returns an array containing the symbols returned by {#to_hash_id_keys}
+      #  and those in *keys* that also appear in *whitelist*.
+
+      def to_hash_whitelist_keys(keys, whitelist)
+        use = to_hash_id_keys() | whitelist
+        keys.select { |k| use.include?(k.to_sym) }
+      end
+
       # Extract to_hash options and use default values if not present.
       #
       # @param opts [Hash, nil] A hash of options to extract.
