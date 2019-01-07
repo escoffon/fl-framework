@@ -195,6 +195,16 @@ const MY_SERVICE_DESC = {
     }
 };
 
+const MY_OTHER_SERVICE_DESC = {
+    name: 'MyOtherAPIService',
+    superclass: 'FlAPIService',
+    initializer: function(base, other, srv_cfg) {
+	this.__super_init('FlAPIService', NESTED_API_CFG, srv_cfg);
+	this.base = base;
+	this.other = other;
+    }
+};
+
 const MY_NESTED_SERVICE_DESC = {
     name: 'MyNestedAPIService',
     superclass: 'FlNestedAPIService',
@@ -234,6 +244,7 @@ describe('fl.api_services module', function() {
 	]);
 
 	let MyAPIService = FlClassManager.make_class(MY_SERVICE_DESC);
+	let MyOtherAPIService = FlClassManager.make_class(MY_OTHER_SERVICE_DESC);
 	let MyNestedAPIService = FlClassManager.make_class(MY_NESTED_SERVICE_DESC);
 	let MyShallowNestedAPIService = FlClassManager.make_class(MY_SHALLOW_NESTED_SERVICE_DESC);
     });
@@ -387,12 +398,8 @@ describe('fl.api_services module', function() {
 		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
 		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
 
-		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
-		    let srv = new MyNestedAPIService(my_base, my_other);
-		    expect(srv.url_path_for('index')).to.eql('/my/bases/10/deps/20/more_models.json');
-
-		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
-		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
 		    expect(srv.url_path_for('index')).to.eql('/my/bases/10/deps/20/more_models.json');
 		});
 	    });
@@ -411,12 +418,8 @@ describe('fl.api_services module', function() {
 		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
 		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
 
-		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
-		    let srv = new MyNestedAPIService(my_base, my_other);
-		    expect(srv.url_path_for('create')).to.eql('/my/bases/10/deps/20/more_models.json');
-
-		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
-		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
 		    expect(srv.url_path_for('create')).to.eql('/my/bases/10/deps/20/more_models.json');
 		});
 	    });
@@ -440,15 +443,10 @@ describe('fl.api_services module', function() {
 		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
 		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
 		    
-		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
-		    let srv = new MyNestedAPIService(my_base, my_other);
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
 		    expect(srv.url_path_for('show', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
 		    expect(srv.url_path_for('show', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
-
-		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
-		    srv = new MyShallowNestedAPIService(my_base, my_other);
-		    expect(srv.url_path_for('show', my1)).to.eql('/my/more_models/100.json');
-		    expect(srv.url_path_for('show', 1234)).to.eql('/my/more_models/1234.json');
 		});
 	    });
 
@@ -471,15 +469,10 @@ describe('fl.api_services module', function() {
 		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
 		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
 
-		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
-		    let srv = new MyNestedAPIService(my_base, my_other);
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
 		    expect(srv.url_path_for('update', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
 		    expect(srv.url_path_for('update', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
-
-		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
-		    srv = new MyShallowNestedAPIService(my_base, my_other);
-		    expect(srv.url_path_for('update', my1)).to.eql('/my/more_models/100.json');
-		    expect(srv.url_path_for('update', 1234)).to.eql('/my/more_models/1234.json');
 		});
 	    });
 
@@ -502,15 +495,10 @@ describe('fl.api_services module', function() {
 		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
 		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
 		    
-		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
-		    let srv = new MyNestedAPIService(my_base, my_other);
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
 		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
 		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
-
-		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
-		    srv = new MyShallowNestedAPIService(my_base, my_other);
-		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/more_models/100.json');
-		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/more_models/1234.json');
 		});
 	    });
 
@@ -532,9 +520,9 @@ describe('fl.api_services module', function() {
 		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
 		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
 		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
-		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
-		    let srv = new MyNestedAPIService(my_base, my_other, NESTED_API_CFG);
 
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
 		    expect(srv.url_path_for('unknown', my1)).to.be.null;
 		    expect(srv.url_path_for('unknown', 1234)).to.be.null;
 		});
@@ -1398,6 +1386,129 @@ describe('fl.api_services module', function() {
 	});
     });
 
+    describe('FlNestedAPIService', function() {
+	context('.url_path_for', function() {
+	    context('for action :index', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('index')).to.eql('/my/bases/10/deps/20/more_models.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('index')).to.eql('/my/bases/10/deps/20/more_models.json');
+		});
+	    });
+
+	    context('for action :create', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('create')).to.eql('/my/bases/10/deps/20/more_models.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('create')).to.eql('/my/bases/10/deps/20/more_models.json');
+		});
+	    });
+
+	    context('for action :show', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+		    
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('show', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('show', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('show', my1)).to.eql('/my/more_models/100.json');
+		    expect(srv.url_path_for('show', 1234)).to.eql('/my/more_models/1234.json');
+		});
+	    });
+
+	    context('for action :update', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('update', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('update', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('update', my1)).to.eql('/my/more_models/100.json');
+		    expect(srv.url_path_for('update', 1234)).to.eql('/my/more_models/1234.json');
+		});
+	    });
+
+	    context('for action :destroy', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+		    
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/more_models/100.json');
+		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/more_models/1234.json');
+		});
+	    });
+
+	    context('for an unsupported action', function() {
+		it('should return null with replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other, NESTED_API_CFG);
+
+		    expect(srv.url_path_for('unknown', my1)).to.be.null;
+		    expect(srv.url_path_for('unknown', 1234)).to.be.null;
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('unknown', my1)).to.be.null;
+		    expect(srv.url_path_for('unknown', 1234)).to.be.null;
+		});
+	    });
+	});
+    });
+    
     describe('FlAPIServiceRegistry', function() {
 	afterEach(function() {
 	    th.clear_api_services();
