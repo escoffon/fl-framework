@@ -83,13 +83,16 @@ module Fl::Framework::Core
       #      to instruct the method to ignore the value of the verbosity when building the options
       #      hash and generating the key list.
       #  - *:only* An array containing the exact list of attributes to return.
+      #    A scalar value is converted to a one-element array.
       #  - *:include* An array containing a list of attributes to include in addition to those that the
       #    code returns by default (based on the verbosity level).
       #    If the *:only* list is defined, this value is ignored: callers
       #    that specify *:only* can just as easily place the contents of *:include* there.
+      #    A scalar value is converted to a one-element array.
       #  - *:except* An array containing a list of keys that will not be returned. This value
       #    is removed from the final list of keys after the *:only* and *:include* lists have been taken into
       #    consideration.
+      #    A scalar value is converted to a one-element array.
       #  - *:image_sizes* An array listing the image sizes whose URLs are returned for objects that
       #    contain images (pictures, group avatars, user avatars, and so on).
       #  - *:to_hash* A Hash containing options to pass to nested calls to this method for other
