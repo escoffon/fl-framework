@@ -196,6 +196,24 @@ module Fl::Framework
       h
     end
 
+    # Parse a timestamp parameter's value.
+    # The value *value* is either an integer containing a UNIX timestamp, a Time object, or a string
+    # containing a string representation of the time; the value is converted to a
+    # {Fl::Framework::Core::Icalendar::Datetime} and returned in that format.
+    #
+    # @param value [Integer, Time, String] The timestamp to parse.
+    #
+    # @return [Fl::Framework::Core::Icalendar::Datetime, String] On success, returns the parsed timestamp.
+    #  On failure, returns a string containing an error message from the parser.
+
+    def _parse_timestamp(value)
+      begin
+        return Fl::Framework::Core::Icalendar::Datetime.new(value)
+      rescue => exc
+        return exc.message
+      end
+    end
+
     # Sets up the parameters for time-related filters.
     # For each of the options listed below, the method places a corresponding entry in the return value
     # containing the timestamp generated from the entry.

@@ -343,12 +343,20 @@ module Fl::Framework::Service
       if class_allow_op?(op, ctx)
         rs = verify_captcha(opts[:captcha], p)
         if rs['success']
-          obj = self.model_class.new(p)
-          unless obj.save
+          begin
+            obj = self.model_class.new(p)
+            unless obj.save
+              self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                              I18n.tx(localization_key('creation_failure')),
+                              (obj) ? obj.errors.messages : nil)
+            end
+          rescue => exc
             self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
                             I18n.tx(localization_key('creation_failure')),
-                            (obj) ? obj.errors.messages : nil)
+                            { message: exc.message })
+            obj = nil
           end
+          
           obj
         else
           nil
@@ -405,10 +413,16 @@ module Fl::Framework::Service
       if obj && success?
         rs = verify_captcha(opts[:captcha], p)
         if rs['success']
-          unless obj.update_attributes(p)
+          begin
+            unless obj.update_attributes(p)
+              self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
+                              I18n.tx(localization_key('update_failure')),
+                              (obj) ? obj.errors.messages : nil)
+            end
+          rescue => exc
             self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
                             I18n.tx(localization_key('update_failure')),
-                            (obj) ? obj.errors.messages : nil)
+                            { details: { message: exc.message } })
           end
         else
           obj = nil
