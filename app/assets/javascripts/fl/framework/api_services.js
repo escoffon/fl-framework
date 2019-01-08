@@ -496,7 +496,7 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	url_path_for: function(action, target) {
-	    let root_path = this._expand_url_template(this._api_cfg.root_url_template);
+	    let root_path = this._expand_url_template(this.root_url_template);
 
 	    let tid = (_.isUndefined(target)) ? undefined : this._id(target);
 
