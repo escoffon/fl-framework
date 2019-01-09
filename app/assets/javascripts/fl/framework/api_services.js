@@ -82,7 +82,8 @@ const DEFAULT_SRV_CFG = {
  *  ```
  *  let id = getItemId();
  *  let srv = new MyDatumAPIService();
- *  srv.update(id, { prop1: 'prop1 value' })
+ *  srv.update(id, { wrapped: { prop1: 'prop1 value' },
+ *                   unwrapped: { to_hash: { verbosity: 'complete' } })
  *     .then(function(data) {
  *       // do something with the returned data
  *     })
@@ -90,8 +91,8 @@ const DEFAULT_SRV_CFG = {
  *       // report error
  *     });
  *  ```
- *  Note that the submission data should *not* be wrapped in the namespace, since this step is
- *  left to the service object.
+ *  Note that the submission data can be split into wrapped and unwrapped components; the service object
+ *  places the wrapped in the appropriate namespace, using the API configuration options.
  *
  *  #### Two types of API methods
  *
@@ -100,8 +101,8 @@ const DEFAULT_SRV_CFG = {
  *  **get**, **post**, **put**, **patch**, **delete**, **head**, respectively.
  *
  *  The second group implements a higher level API to standard Rails controller actions
- *  `index`, `show`, `create`, `update`, `destroy`, which are named
- *  **index**, **show**, **create**, **update**, **destroy**, respectively.
+ *  `index`, `show`, `create`, `update`, and `destroy`, which are named
+ *  **index**, **show**, **create**, **update**, and **destroy**, respectively.
  *  These methods call the appropriate lower level API described above; for example, **index** and
  *  **show** call **get**.
  *
@@ -1335,7 +1336,7 @@ let FlAPIService = FlClassManager.make_class({
 	 *  **wrapped** and **unwrapped**. The **wrapped** property is also an object that contains
 	 *  data to be placed inside the service's namespace, so that the actual data will be in a
 	 *  property named after the namespace. The **unwrapped** property is also an object, and is
-	 *  merged into the submission data as-is. See {@sref FlAPIservice#_wrap_data} for more.
+	 *  merged into the submission data as-is.
 	 *  For example, if the contents of *data* are
 	 *  ```
 	 *    {
@@ -1349,6 +1350,18 @@ let FlAPIService = FlClassManager.make_class({
 	 *      ns: { p1: 10 },
 	 *      other: 20
 	 *    }
+	 *  ```
+	 *
+	 *  A common unwrapped property is **to_hash**, whose value is an object of configuration
+	 *  options for the server method that generates a hash representation of a Ruby model; for
+	 *  example, to get the verbose representation of an object:
+	 *  ```
+	 *    let srv = new MyAPIService();
+	 *    srv
+	 *      .show(123456, { unwrapped: { to_hash: { verbosity: 'verbose' } } })
+	 *      .then(function(o) {
+	 *        // process the returned object
+	 *      });
 	 *  ```
 	 *
 	 * @param {Object} data The data to submit to the server. The object contains two properties,
