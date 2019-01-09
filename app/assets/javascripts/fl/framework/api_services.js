@@ -1053,14 +1053,18 @@ let FlAPIService = FlClassManager.make_class({
 
 	_make_index_config: function(params, config) {
 	    let cfg = this._make_get_config(params, config);
-	    
+
 	    if (this.pagination_controls)
 	    {
-		let k = this._pg_names[0];
-
 		if (!_.isObject(cfg.params)) cfg.params = { };
-
-		cfg.params[k] = this.pagination_controls;
+		
+		// The pagination controls are the starting set; if *params* contains :_pg, us that
+		// value to overrid defaults
+		
+		let k = this._pg_names[0];
+		let pg = (_.isObject(cfg.params._pg)) ? cfg.params._pg : { };
+		
+		cfg.params[k] = _.merge({}, this.pagination_controls, pg);
 	    }
 
 	    return cfg;
