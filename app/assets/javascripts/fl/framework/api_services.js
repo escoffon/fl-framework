@@ -680,6 +680,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @name FlAPIService#index
 	 * @description Make an :index call by calling `axios.get` against the root URL.
 	 *
+	 * @param {Object} [params] Parameters to pass in the request; the contents of this object are
+	 *  merged into *config.params*, and eventually make their way to the query string.
 	 * @param {Object} [config] Configuration object to pass to `axios.get`; this object is
 	 *  merged into the default HTTP configuration object.
 	 *
@@ -690,10 +692,10 @@ let FlAPIService = FlClassManager.make_class({
 	 *  property.
 	 */
 
-	index: function(config) {
+	index: function(params, config) {
 	    let self = this;
 
-	    return this.get(this.url_path_for('index'), this._make_index_config(config))
+	    return this.get(this.url_path_for('index'), this._make_index_config(params, config))
 		.then(function(r) {
 		    self._set_pagination_controls(r);
 		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
@@ -763,6 +765,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @param {Integer|String|Object} id A string or integer containing the identifier to append to
 	 *  the root URL. You can also pass an object with an `id` property, whose value will be used
 	 *  for the identifier; this makes it possible to pass model instances to the method.
+	 * @param {Object} [params] Parameters to pass in the request; the contents of this object are
+	 *  merged into *config.params*, and eventually make their way to the query string.
 	 * @param {Object} [config] Configuration object to pass to `axios.get`; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -773,9 +777,9 @@ let FlAPIService = FlClassManager.make_class({
 	 *  property.
 	 */
 
-	show: function(id, config) {
+	show: function(id, params, config) {
 	    let self = this;
-	    return this.get(this.url_path_for('show', id), this._make_config(config))
+	    return this.get(this.url_path_for('show', id), this._make_get_config(params, config))
 		.then(function(r) {
 		    let model = self._create_or_refresh_from_id(id, self._response_data(r));
 
@@ -890,9 +894,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Make a :create call by calling `axios.post` against the root URL.
 	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to `axios.post`.
 	 *
-	 * @param {Object} data The data to submit to the server; these data will be placed inside
-	 *  the service's namespace, so that the actual data will be in a
-	 *  property named after the namespace.
+	 * @param {Object} data The data to submit to the server. The object contains two properties,
+	 *  **wrapped** and **unwrapped**. See {@sref FlAPIservice#_wrap_data} for details.
 	 * @param {Object} [config] Configuration object to pass to axios.post; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -922,10 +925,8 @@ let FlAPIService = FlClassManager.make_class({
 	 *
 	 * @param {Integer|String|Object} id A string or integer containing the identifier to append to
 	 *  the root URL. You can also pass an object with an `id` property, whose value will be used
-	 *  for the identifier; this makes it possible to pass model instances to the method.
-	 * @param {Object} data The data to submit to the server; these data will be placed inside
-	 *  the service's namespace, so that the actual data will be in a
-	 *  property named after the namespace.
+	 * @param {Object} data The data to submit to the server. The object contains two properties,
+	 *  **wrapped** and **unwrapped**. See {@sref FlAPIservice#_wrap_data} for details.
 	 * @param {Object} [config] Configuration object to pass to axios.patch; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -998,13 +999,47 @@ let FlAPIService = FlClassManager.make_class({
 
 	/**
 	 * @ngdoc method
-	 * @name FlAPIService#_make_index_config
-	 * @description Build configuration parameters for an :index call to Axios.
-	 *  The method first calls *_make_config*, and then tags on the pagination
-	 *  controls if they are enabled.
+	 * @name FlAPIService#_make_get_config
+	 * @description Build configuration parameters for a `GET` method call to Axios.
+	 *  The method first calls *_make_config*, and then merges the contents of *params* into the
+	 *  configuration object.
+	 *  It is meant to be used when setting up call parameters for a `GET` method, since *params*
+	 *  are merged into *config.params*, and therefore will appear in the query string.
 	 *
 	 *  Subclasses likely won't need to override this method.
 	 *
+	 * @param {Object} [params] Parameters to pass in the request; the contents of this object are
+	 *  merged into *config.params*, and eventually make their way to the query string.
+	 * @param {Object} [config] Configuration object to pass to axios; this object is
+	 *  merged into the default HTTP configuration.
+	 *
+	 * @return {Object} Returns a configuration object where the values in _config_ have been
+	 *  merged into the default HTTP configuration.
+	 */
+
+	_make_get_config: function(params, config) {
+	    let cfg = this._make_config(config);
+	    if (_.isObject(params))
+	    {
+		let cfgp = (_.isObject(cfg.params)) ? cfg.params : {}; 
+		cfg.params = _.merge({}, cfgp, params);
+	    }
+
+	    return cfg;
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#_make_index_config
+	 * @description Build configuration parameters for an :index call to Axios.
+	 *  The method first calls *_make_get_config*, then tags on the pagination controls
+	 *  if they are enabled.
+	 *  It is a specialized method to be used with `GET` calls that map to an :index action.
+	 *
+	 *  Subclasses likely won't need to override this method.
+	 *
+	 * @param {Object} [params] Parameters to pass in the request; the contents of this object are
+	 *  merged into *config.params*, and eventually make their way to the query string.
 	 * @param {Object} [config] Configuration object to pass to axios; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -1015,8 +1050,9 @@ let FlAPIService = FlClassManager.make_class({
 	 *  array is used as the key.
 	 */
 
-	_make_index_config: function(config) {
-	    let cfg = this._make_config(config);
+	_make_index_config: function(params, config) {
+	    let cfg = this._make_get_config(params, config);
+	    
 	    if (this.pagination_controls)
 	    {
 		let k = this._pg_names[0];
@@ -1295,8 +1331,28 @@ let FlAPIService = FlClassManager.make_class({
 	 * @ngdoc method
 	 * @name FlAPIService#_wrap_data
 	 * @description Wrap submission data within the namespace if one is defined.
+	 *  The *data* object contains two optional properties,
+	 *  **wrapped** and **unwrapped**. The **wrapped** property is also an object that contains
+	 *  data to be placed inside the service's namespace, so that the actual data will be in a
+	 *  property named after the namespace. The **unwrapped** property is also an object, and is
+	 *  merged into the submission data as-is. See {@sref FlAPIservice#_wrap_data} for more.
+	 *  For example, if the contents of *data* are
+	 *  ```
+	 *    {
+	 *      wrapped: { p1: 10 },
+	 *      unwrapped: { other: 20 }
+	 *    }
+	 *  ```
+	 *  and the namespace is `ns`, then the return value is
+	 *  ```
+	 *    {
+	 *      ns: { p1: 10 },
+	 *      other: 20
+	 *    }
+	 *  ```
 	 *
-	 * @param {Object} data The data to submit to the server.
+	 * @param {Object} data The data to submit to the server. The object contains two properties,
+	 *  **wrapped** and **unwrapped**, which are processed as described above.
 	 *
 	 * @return {Object} If the namespace is defined, the return value is an object with one
 	 *  property, the namespace, whose value is *data*. If no namespace is defined, then
@@ -1304,16 +1360,25 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	_wrap_data: function(data) {
-	    let api_data = data;
-	    if (this.namespace)
+	    let api_data = { };
+
+	    if (_.isObject(data.unwrapped))
 	    {
-		api_data = {};
-		api_data[this.namespace] = data;
+		_.merge(api_data, data.unwrapped);
 	    }
-	    else
+
+	    if (_.isObject(data.wrapped))
 	    {
-		api_data = data;
+		if (this.namespace)
+		{
+		    api_data[this.namespace] = data.wrapped;
+		}
+		else
+		{
+		    _.merge(api_data, data.wrapped);
+		}
 	    }
+	    
 	    return api_data;
 	}
     },

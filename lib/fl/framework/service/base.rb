@@ -1,3 +1,5 @@
+require 'json'
+
 module Fl::Framework::Service
   # Base class for service object.
   # A service object implements the processing (business) logic of application components; it typically
@@ -435,13 +437,25 @@ module Fl::Framework::Service
     end
 
     # Convert parameters to `ActionController::Parameters`.
+    # This method expects *p* to contain a hash, or a JSON representation of a hash, of parameters,
+    # and converts it to `ActionController::Parameters`.
+    # Therefore, it performs these steps:
     #
-    # @param p [Hash,ActionController::Parameters,nil] The parameters to convert; if +nil+, use {#params}.
+    # 1. If *p* is `nil`, it uses the value of {#params}.
+    # 2. It then checks if it is a string value; in that case, it assumes that the client has generated
+    #    a JSON representation of the parameters, and parses it into a hash.
+    # 3. If the value is already a `ActionController::Parameters`, it returns it as is;
+    #    otherwise, it constaructs a new `ActionController::Parameters` instance from the hash value.
+    #
+    # @param p [Hash,ActionController::Parameters,String,nil] The parameters to convert.
+    #  If a string value, it is assumed to contain a JSON representation.
+    #  If +nil+, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the converted parameters.
 
     def strong_params(p = nil)
       sp = (p.nil?) ? self.params : p
+      sp = JSON.parse(sp) if sp.is_a?(String)
       (sp.is_a?(ActionController::Parameters)) ? sp : ActionController::Parameters.new(sp)
     end
 
@@ -505,10 +519,10 @@ module Fl::Framework::Service
     # @return [ActionController::Parameters] Returns the standard permitted `to_hash` parameters.
 
     def to_hash_params(p = nil)
-      strong_params(p).fetch(:to_hash, { }).permit(:as_visible_to, :verbosity,
-                                                   { only: [ ] }, { include: [ ] },
-                                                   { except: [ ] }, { image_sizes: [ ] },
-                                                   { to_hash: { } })
+      strong_params(strong_params(p).fetch(:to_hash, { })).permit(:as_visible_to, :verbosity,
+                                                                  { only: [ ] }, { include: [ ] },
+                                                                  { except: [ ] }, { image_sizes: [ ] },
+                                                                  { to_hash: { } })
     end
 
     protected
