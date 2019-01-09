@@ -151,7 +151,14 @@ axmock
 	_pg: { _c: 2, _s:20 , _p: 2}
     }))
 
-    .onGet('/my/models/1.json').reply(200, JSON.stringify({ model: MODEL_1 }))
+    .onGet('/my/models/1.json').reply(function(cfg) {
+	rv = [ 200, JSON.stringify({ model: MODEL_1 }) ];
+
+	// we do this to check that parameters are generated
+	if (_.isObject(cfg.params)) rv.push(cfg.params);
+	
+	return rv;
+    })
 
     .onGet('/my/models/10.json').reply(404, JSON.stringify({
 	_error: { status: "not_found", message: "No user with id 10", details:null }
@@ -383,11 +390,90 @@ describe('fl.api_services module', function() {
 	    });
 	});
 
+	context('._wrap_data', function() {
+	    it('should process :wrapped and :unwrapped', function() {
+		let FlAPIService = FlClassManager.get_class('FlAPIService');
+		let srv = new FlAPIService(API_CFG);
+
+		let wrapped = {
+		    w1: 10,
+		    w2: { a1: 110, a2: 120 }
+		};
+		let unwrapped = {
+		    u1: 20,
+		    u2: { a1: 210, a2: { a3: 230 } }
+		};
+		let data = srv._wrap_data({ wrapped: wrapped, unwrapped: unwrapped });
+		expect(data).to.have.keys('my_model', 'u1', 'u2');
+		expect(data.my_model).to.include(wrapped);
+		expect(data.u1).to.eql(20);
+		expect(data.u2).to.have.keys('a1', 'a2');
+		expect(data.u2.a1).to.eql(210);
+		expect(data.u2.a2).to.include(unwrapped.u2.a2);
+	    });
+
+	    it('should process :wrapped alone', function() {
+		let FlAPIService = FlClassManager.get_class('FlAPIService');
+		let srv = new FlAPIService(API_CFG);
+
+		let wrapped = {
+		    w1: 10,
+		    w2: { a1: 110, a2: 120 }
+		};
+		let data = srv._wrap_data({ wrapped: wrapped });
+		expect(data).to.have.keys('my_model');
+		expect(data.my_model).to.include(wrapped);
+	    });
+
+	    it('should process :unwrapped alone', function() {
+		let FlAPIService = FlClassManager.get_class('FlAPIService');
+		let srv = new FlAPIService(API_CFG);
+
+		let unwrapped = {
+		    u1: 20,
+		    u2: { a1: 210, a2: { a3: 230 } }
+		};
+		let data = srv._wrap_data({ unwrapped: unwrapped });
+		expect(data).to.have.keys('u1', 'u2');
+		expect(data.u1).to.eql(20);
+		expect(data.u2).to.have.keys('a1', 'a2');
+		expect(data.u2.a1).to.eql(210);
+		expect(data.u2.a2).to.include(unwrapped.u2.a2);
+	    });
+
+	    it('should not wrap :wrapped if namespace is undefined', function() {
+		let FlAPIService = FlClassManager.get_class('FlAPIService');
+		let srv = new FlAPIService({
+		    root_url_template: '/my/models',
+		    data_names: [ 'model', 'models' ]
+		});
+
+		let wrapped = {
+		    w1: 10,
+		    w2: { a1: 110, a2: 120 }
+		};
+		let unwrapped = {
+		    u1: 20,
+		    u2: { a1: 210, a2: { a3: 230 } }
+		};
+		let data = srv._wrap_data({ wrapped: wrapped, unwrapped: unwrapped });
+		expect(data).to.have.keys('w1', 'w2', 'u1', 'u2');
+		expect(data.w1).to.eql(10);
+		expect(data.w2).to.have.keys('a1', 'a2');
+		expect(data.w2.a1).to.eql(110);
+		expect(data.w2.a2).to.eql(120);
+		expect(data.u1).to.eql(20);
+		expect(data.u2).to.have.keys('a1', 'a2');
+		expect(data.u2.a1).to.eql(210);
+		expect(data.u2.a2).to.include(unwrapped.u2.a2);
+	    });
+	});
+	
 	context('.url_path_for', function() {
 	    context('for action :index', function() {
 		it('should be correct when no replacement instructions are present', function() {
 		    let MyAPIService = FlClassManager.get_class('MyAPIService');
-		    let srv = new MyAPIService(API_CFG);
+		    let srv = new MyAPIService();
 
 		    expect(srv.url_path_for('index')).to.eql('/my/models.json');
 		});
@@ -407,7 +493,7 @@ describe('fl.api_services module', function() {
 	    context('for action :create', function() {
 		it('should be correct when no replacement instructions are present', function() {
 		    let MyAPIService = FlClassManager.get_class('MyAPIService');
-		    let srv = new MyAPIService(API_CFG);
+		    let srv = new MyAPIService();
 
 		    expect(srv.url_path_for('create')).to.eql('/my/models.json');
 		});
@@ -429,7 +515,7 @@ describe('fl.api_services module', function() {
 		    let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		    let my1 = new MyAPITestModel(MODEL_1);
 		    let MyAPIService = FlClassManager.get_class('MyAPIService');
-		    let srv = new MyAPIService(API_CFG);
+		    let srv = new MyAPIService();
 
 		    expect(srv.url_path_for('show', my1)).to.eql('/my/models/1.json');
 		    expect(srv.url_path_for('show', 1234)).to.eql('/my/models/1234.json');
@@ -455,7 +541,7 @@ describe('fl.api_services module', function() {
 		    let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		    let my1 = new MyAPITestModel(MODEL_1);
 		    let MyAPIService = FlClassManager.get_class('MyAPIService');
-		    let srv = new MyAPIService(API_CFG);
+		    let srv = new MyAPIService();
 
 		    expect(srv.url_path_for('update', my1)).to.eql('/my/models/1.json');
 		    expect(srv.url_path_for('update', 1234)).to.eql('/my/models/1234.json');
@@ -481,7 +567,7 @@ describe('fl.api_services module', function() {
 		    let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		    let my1 = new MyAPITestModel(MODEL_1);
 		    let MyAPIService = FlClassManager.get_class('MyAPIService');
-		    let srv = new MyAPIService(API_CFG);
+		    let srv = new MyAPIService();
 
 		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/models/1.json');
 		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/models/1234.json');
@@ -507,7 +593,7 @@ describe('fl.api_services module', function() {
 		    let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		    let my1 = new MyAPITestModel(MODEL_1);
 		    let MyAPIService = FlClassManager.get_class('MyAPIService');
-		    let srv = new MyAPIService(API_CFG);
+		    let srv = new MyAPIService();
 
 		    expect(srv.url_path_for('unknown', my1)).to.be.null;
 		    expect(srv.url_path_for('unknown', 1234)).to.be.null;
@@ -564,7 +650,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.index({ xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.index(null, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -628,7 +714,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.index({ xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.index(null, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -719,8 +805,9 @@ describe('fl.api_services module', function() {
 	    it('should pick up the configuration argument', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+		let params = { param: 'value' };
 
-		return srv.show(1, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.show(1, params, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -762,7 +849,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('new value1');
@@ -775,7 +862,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -789,7 +876,8 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.create({ value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.create({ wrapped: { value1: 'new value1' } },
+				  { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -803,7 +891,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
@@ -816,7 +904,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -830,7 +918,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
@@ -849,7 +937,7 @@ describe('fl.api_services module', function() {
 		
 		my1.test_tag = 'TEST';
 		
-		return srv.update(my1, { value1: 'new value1' })
+		return srv.update(my1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
@@ -864,7 +952,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
-		return srv.update(10, { value1: 'new value1' })
+		return srv.update(10, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			return Promise.reject('should not have reached this');
 		    })
@@ -881,7 +969,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -895,7 +983,8 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.update(1, { value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } },
+				  { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -909,7 +998,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
@@ -922,7 +1011,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -935,7 +1024,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.update(10, { value1: 'new value1' })
+		return srv.update(10, { wrapped: { value1: 'new value1' } })
 		    .catch(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -1052,7 +1141,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.index({ xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.index(null, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -1145,12 +1234,14 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+		let params = { param: 'value' };
 
-		return srv.show(1, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.show(1, params, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			expect(r.headers).to.include(params);
 			
 			return Promise.resolve(true);
 		    });
@@ -1191,7 +1282,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('new value1');
@@ -1205,7 +1296,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -1220,7 +1311,8 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.create({ value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.create({ wrapped: { value1: 'new value1' } },
+				  { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -1235,7 +1327,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfHeaderName: 'NEW-HEADER-NAME', xsrfToken: 'MY-TOKEN' });
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
@@ -1249,7 +1341,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -1264,7 +1356,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
@@ -1284,7 +1376,7 @@ describe('fl.api_services module', function() {
 		
 		my1.test_tag = 'TEST';
 		
-		return srv.update(my1, { value1: 'new value1' })
+		return srv.update(my1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
@@ -1300,7 +1392,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
-		return srv.update(10, { value1: 'new value1' })
+		return srv.update(10, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			return Promise.reject('should not have reached this');
 		    })
@@ -1318,7 +1410,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -1333,7 +1425,8 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.update(1, { value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } },
+				  { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -1348,7 +1441,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfHeaderName: 'NEW-HEADER-NAME', xsrfToken: 'MY-TOKEN' });
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
@@ -1362,7 +1455,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -1376,7 +1469,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.update(10, { value1: 'new value1' })
+		return srv.update(10, { wrapped: { value1: 'new value1' } })
 		    .catch(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
