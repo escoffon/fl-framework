@@ -40,6 +40,10 @@ en:
           actions:
             destroy:
               deleted: "deleted attachment %{fingerprint}"
+        active_storage:
+          model:
+            validate:
+              forbiddent_content_type: "content type %{ctype} is not allowed"
 
       service:
         comment:
