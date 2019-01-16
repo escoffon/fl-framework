@@ -5,6 +5,8 @@ module Fl::Framework::Attachment
   end
 end
 
+require 'fl/framework/attachment/active_storage/base'
+require 'fl/framework/attachment/active_storage/helper'
 require 'fl/framework/attachment/active_storage/macros'
 require 'fl/framework/attachment/active_storage/validation'
 
@@ -16,6 +18,8 @@ module Fl::Framework::Attachment
     #   {Fl::Framework::Attachment::ActiveStorage::Validation}
 
     def self.included(base)
+      base.include Base
+      base.include Helper
       base.include Macros
       base.include Validation
     end

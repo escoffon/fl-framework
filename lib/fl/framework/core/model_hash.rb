@@ -251,7 +251,7 @@ module Fl::Framework::Core
       #
       # @return [Array<Symbol>] Returns an array of symbols listing the styles for which to generate URLs.
 
-      def to_hash_image_sizes(img, types = :all)
+      def deprecated_to_hash_image_sizes(img, types = :all)
         if types.nil? || (types.length < 1)
           types = [ :all ]
         end
@@ -301,7 +301,7 @@ module Fl::Framework::Core
       #    the image is still being processed.
       #  Not all of these keys may be present, but +:urls+ is always present.
 
-      def to_hash_image_attachment(img, types = :all)
+      def deprecated_to_hash_image_attachment(img, types = :all)
         if types.nil? || (types.length < 1)
           types = [ :all ]
         end
