@@ -34,7 +34,8 @@ module Fl::Framework::Attachment
 
     # Check if a content type can be added to the attributes.
     # The permission algorithm is:
-    # 1. See if _type_ is in the whitelist, including by globbed types. For example, if _type_
+    #
+    # 1. See if *type* is in the whitelist, including by globbed types. For example, if *type*
     #    is +image/png+, we look up +image/png+, +image/*+, and +*/*+.
     # 2. If not in the whitelist, it is not allowed.
     # 3. Check the blacklist now, using the same matching algorithm.
@@ -43,7 +44,7 @@ module Fl::Framework::Attachment
     #
     # @param [String] type A MIME type.
     #
-    # @return [Boolean] Returns +true+ if _type_ can be added, +false+ if not.
+    # @return [Boolean] Returns `true` if *type* can be added, `false` if not.
     
     def allow?(type)
       found = (@only.nil?) ? true : lookup(type, @only)
@@ -78,24 +79,30 @@ module Fl::Framework::Attachment
 
   # Extension module for use by objects that need to implement attachment management.
   # This module defines common functionality for all model classes that use attachments; these objects are
-  # accessed as the _attachable_ from the attachment objects.
+  # accessed as the *attachable* from the attachment objects.
   #
   # Note that inclusion of this module is not enough to turn on attachment management: the class method
   # {ClassMethods#has_attachments} must be called to indicate that this class
   # supports attachments; for example, for Neo4j:
-  #  class MyClass
-  #    include Neo4j::ActiveNode
-  #    include Fl::Framework::Attachment::Neo4j::Attachable
   #
-  #    has_attachments orm: :neo4j
-  #  end
+  # ```
+  # class MyClass
+  #   include Neo4j::ActiveNode
+  #   include Fl::Framework::Attachment::Neo4j::Attachable
+  #
+  #   has_attachments orm: :neo4j
+  # end
+  # ```
   # and for Active Record:
-  #  class MyClass < ApplicationRecord
-  #    include Fl::Framework::Attachment::ActiveRecord::Attachable
   #
-  #    has_attachments only: [ Fl::Framework::Attachment::ActiveRecord::Image, MyAttachment ]
-  #  end
-  # (+:activerecord+ is the default ORM.)
+  # ```
+  # class MyClass < ApplicationRecord
+  #   include Fl::Framework::Attachment::ActiveRecord::Attachable
+  #
+  #   has_attachments only: [ Fl::Framework::Attachment::ActiveRecord::Image, MyAttachment ]
+  # end
+  # ```
+  # (`:activerecord` is the default ORM.)
   # The reason we do this is that the {ClassMethods#has_attachments} method
   # is configurable, and different classes may want to customize attachment management.
   #
@@ -115,18 +122,21 @@ module Fl::Framework::Attachment
       # Extension methods for attachment associations.
       # The methods in this module are added to the association defined by {ClassMethods#has_attachments}.
       # For example, if we have a class like this:
-      #   class MyObject
-      #     include Fl::Framework::Attachment::Attachable
-      #     has_attachments :images
-      #   end
-      # then the +images+ association also responds to +allow?+.
+      #
+      # ```
+      # class MyObject
+      #   include Fl::Framework::Attachment::Attachable
+      #   has_attachments :images
+      # end
+      # ```
+      # then the **images** association also responds to `allow?`.
 
       module AssociationExtensions
         # Check if an attachment with given content type can be added to the association.
         #
         # @param [String] type A MIME type.
         #
-        # @return [Boolean] Returns +true+ if _type_ can be added, +false+ if not.
+        # @return [Boolean] Returns `true` if *type* can be added, `false` if not.
 
         def allow?(type)
           name = self.proxy_association.reflection.name
@@ -139,18 +149,19 @@ module Fl::Framework::Attachment
 
       # Add attachable behavior to a model.
       # This class method registers the APIs used to manage attachments:
+      #
       # - Ensures that the attachable has included the {Fl::Framework::Access::Access} module.
       # - Adds an association to track attachments; this association depends on the selected ORM.
       # - If the ORM is Neo4j, includes the module {Fl::Framework::Neo4j::AssociationProxyCache}.
       # - Stores the list of allowed attachment classes from the *:only* and *:except* options.
       # - For Active Record, adds the methods in {AssociationExtensions} to the association, and updates
-      #   +<<+, +push+, and +concat+ to check if the operation is allowed by the *:only* and *:except*
+      #   `<<`, `push`, and `concat` to check if the operation is allowed by the *:only* and *:except*
       #   options. If not allowed, the attachment objects are not added to the association.
-      # - Define the {#attachable?} method to return +true+ to indicate that the class supports attachments.
+      # - Define the {#attachable?} method to return `true` to indicate that the class supports attachments.
       # - Loads the instance methods from {Attachable::InstanceMethods}.
       #
       # @overload has_attachments(name, cfg)
-      #  Creates an association to manage attachments; the association name is _name_.
+      #  Creates an association to manage attachments; the association name is *name*.
       #  @param name [Symbol] The association name.
       #  @param cfg [Hash] A hash containing configuration parameters.
       #   Note that, if neither *:only* nor *:except* are defined, all classes are allowed.
@@ -161,7 +172,7 @@ module Fl::Framework::Attachment
       #   The default is {Fl::Framework::Attachment::ActiveRecord::Base}.
       #  @option cfg [Symbol, String] :rel_class If the ORM is +:neo4j+, this is the relationship class to use
       #   for the association.
-      #   The default is {Fl::Framework::Neo4j::Rel::Attachment::AttachedTo}, which uses the +ATTACHED_TO+
+      #   The default is {Fl::Framework::Neo4j::Rel::Attachment::AttachedTo}, which uses the `ATTACHED_TO`
       #   relationship.
       #  @option cfg [Symbol] :dependent How to dispose of dependent objects (the attachments). This is
       #   passed to the association. Defaults to +:destroy+.
@@ -174,13 +185,13 @@ module Fl::Framework::Attachment
       #  If a class is listed in both *:except* and *:only*, it is forbidden (*:except* has higher priority
       #  than *:only*). Globbed MIME types (+image/*+) are also allowed.
       # @overload has_attachments(name)
-      #  Creates an association whose name is _name_, using default configuration values.
+      #  Creates an association whose name is *name*, using default configuration values.
       #  @param name [Symbol] The association name.
       # @overload has_attachments(cfg)
-      #  Creates an association named +attachments+ with the given configuration.
+      #  Creates an association named `attachments` with the given configuration.
       #  @param cfg [Hash] A hash containing configuration parameters; see above for details.
       # @overload has_attachments()
-      #  When used with no arguments, the method creates an association called +attachments+ and with
+      #  When used with no arguments, the method creates an association called `attachments` and with
       #  default configuration values.
 
       def has_attachments(*args)
@@ -276,9 +287,9 @@ module Fl::Framework::Attachment
       end
 
       # Check if this object manages attachments.
-      # The default implementation returns +false+; {#has_attachments} overrides it to return +true+.
+      # The default implementation returns `false`; {#has_attachments} overrides it to return `true`.
       #
-      # @return [Boolean] Returns +true+ if the object manages attachments.
+      # @return [Boolean] Returns `true` if the object manages attachments.
         
       def attachable?
         false
@@ -290,7 +301,7 @@ module Fl::Framework::Attachment
       #
       # @param [Symbol, String] name The association name.
       #
-      # @return [TypeRegistry, nil] Returns the type registry associated with this association, or +nil+
+      # @return [TypeRegistry, nil] Returns the type registry associated with this association, or `nil`
       #  if none was found.
 
       def type_registry_for(name = :attachments)
@@ -303,9 +314,10 @@ module Fl::Framework::Attachment
 
     module InstanceMethods
       # Check if this object manages attachments.
-      # Forwards the call to the class method {Fl::Framework::Attachment::Attachable::ClassMethods#attachable?}.
+      # Forwards the call to the class method
+      # {Fl::Framework::Attachment::Attachable::ClassMethods#attachable?}.
       #
-      # @return [Boolean] Returns +true+ if the object manages attachments.
+      # @return [Boolean] Returns `true` if the object manages attachments.
         
       def attachable?
         self.class.attachable?
@@ -313,6 +325,7 @@ module Fl::Framework::Attachment
     end
 
     # Perform actions when the module is included.
+    #
     # - Injects the class methods. Instance methods will be injected if {ClassMethods#has_attachments}
     #   is called.
 

@@ -15,16 +15,16 @@ module Fl::Framework::Attachment
     end
 
     # Handler for missing methods.
-    # If _key_ ends with a +=+, this is a setter method and the value of _key_ (minus the +=+) is used
-    # to add an entry in the hash whose value is _args[0]_.
-    # Otherwise, this is a getter method and the value of _key_ in the hash is returned.
+    # If *key* ends with a `=`, this is a setter method and the value of *key* (minus the `=`) is used
+    # to add an entry in the hash whose value is *args[0]*.
+    # Otherwise, this is a getter method and the value of *key* in the hash is returned.
     #
     # @param key [String] The method name; this is converted to a key for lookup into the hash.
-    # @param args arguments to the method.
+    # @param args Arguments to the method.
     #
-    # @return Returns the value of _key_ in the hash, if one is present.
+    # @return Returns the value of *key* in the hash, if one is present.
     #
-    # @raise Raises an exception if this is a getter and _key_ is not in the hash.
+    # @raise Raises an exception if this is a getter and *key* is not in the hash.
 
     def method_missing(key, *args)
       text = key.to_s
@@ -43,47 +43,70 @@ module Fl::Framework::Attachment
   # for multiple attachment types and Rails environments.
   #
   # In general, an attachment type's configuration is assembled from three components:
+  #
   # 1. Global configuration options, shared by all types and environments. These are registered (and
-  #    accessed) via the {#defaults} method, using a +nil+ type name.
+  #    accessed) via the {#defaults} method, using a `nil` type name.
   # 2. Type specific defaults; these are configuration options shared by all Rails environments for a
   #    given type. They are registered (and accessed) via the {#defaults} method, using a non-nil type name.
   # 3. Type and environment specific options. These are registered via the {#merge!} method.
   #
   # The typical setup process, then, takes place in three steps. First, there is the setting of global
   # configuration options:
-  #   Fl::Framework::Attachment.config.defaults(nil, {
-  #     hash_secret: "TheHashSecret",
-  #     global_option: 'AGlobalOption'
-  #   })
+  #
+  # ```
+  # Fl::Framework::Attachment.config.defaults(nil, {
+  #   hash_secret: "TheHashSecret",
+  #   global_option: 'AGlobalOption'
+  # })
+  # ```
   # which are shared by all attachments.
   # Then, each type defines configuration options that are common to all Rails environments:
-  #   Fl::Framework::Attachment.config.defaults(:image, {
-  #                                              styles: { large: "600x600> },
-  #                                              convert_options: { all: "-auto-orient" }
-  #                                            })
+  #
+  # ```
+  # Fl::Framework::Attachment.config.defaults(:image, {
+  #                                           styles: { large: "600x600> },
+  #                                           convert_options: { all: "-auto-orient" }
+  #                                           })
+  # ```
   # And, finally, environment-specific options:
-  #   Fl::Framework::Attachment.config.merge!('production', :image, { storage: :s3 })
-  #   Fl::Framework::Attachment.config.merge!('development', :image, { storage: :s3 })
-  #   Fl::Framework::Attachment.config.merge!('test', :image, { storage: :filesystem })
+  #
+  # ```
+  # Fl::Framework::Attachment.config.merge!('production', :image, { storage: :s3 })
+  # Fl::Framework::Attachment.config.merge!('development', :image, { storage: :s3 })
+  # Fl::Framework::Attachment.config.merge!('test', :image, { storage: :filesystem })
+  # ```
   #
   # You can override one set of options with a more specific set, for example:
-  #   Fl::Framework::Attachment.config.defaults(:image, {
-  #                                              styles: { large: "600x600> },
-  #                                              convert_options: { all: "-auto-orient" },
-  #                                              storage: :s3
-  #                                            })
-  #   Fl::Framework::Attachment.config.merge!('test', :image, { storage: :filesystem })
-  # This sets up the value for the default +storage+ option to +s3+, and then overrides it for the
-  # +test+ Rails environment.
+  #
+  # ```
+  # Fl::Framework::Attachment.config.defaults(:image, {
+  #                                           styles: { large: "600x600> },
+  #                                           convert_options: { all: "-auto-orient" },
+  #                                           storage: :s3
+  #                                           })
+  # Fl::Framework::Attachment.config.merge!('test', :image, { storage: :filesystem })
+  #
+  # ```
+  # This sets up the value for the default `storage` option to `s3`, and then overrides it for the
+  # `test` Rails environment.
   #
   # You can clone configurations like this:
-  #   Fl::Framework::Attachment.config.clone('production', :image, 'staging')
+  #
+  # ```
+  # Fl::Framework::Attachment.config.clone('production', :image, 'staging')
+  # ```
   # And you can remove configuration options:
-  #   Fl::Framework::Attachment.config.clear!('test', :image, [ :global_option ])
+  #
+  # ```
+  # Fl::Framework::Attachment.config.clear!('test', :image, [ :global_option ])
+  # ```
   # This statement removes the *:global_option* key from the configuration options for the *:image*
-  # attribute in the +test+ Rails environment.
-  # To remove an option from the defaults, you can use the +delete+ method directly:
-  #   Fl::Framework::Attachment.config.defaults(:image).delete(:processors)
+  # attribute in the `test` Rails environment.
+  # To remove an option from the defaults, you can use the `delete` method directly:
+  #
+  # ```
+  # Fl::Framework::Attachment.config.defaults(:image).delete(:processors)
+  # ```
 
   class ConfigurationDispatcher
     # Initializer.
@@ -98,7 +121,7 @@ module Fl::Framework::Attachment
     #
     # @param type [Symbol] The attachment type whose configuration to look up.
     #
-    # @return [Configuration] The object holding the configuration for _type_; if no object exists yet,
+    # @return [Configuration] The object holding the configuration for *type*; if no object exists yet,
     #  an empty one is created.
 
     def [](type)
@@ -108,11 +131,11 @@ module Fl::Framework::Attachment
     # Get or set the default configuration value for an attachment type.
     # Default configuration values are shared by all environments for a given type.
     #
-    # @param type [Symbol] The attachment type; if +nil+, these are global defaults for all types.
-    # @param opts [Hash, nil] The default configuration; if +nil+, no value is set and this method
+    # @param type [Symbol] The attachment type; if `nil`, these are global defaults for all types.
+    # @param opts [Hash, nil] The default configuration; if `nil`, no value is set and this method
     #  is essentially an accessor.
     #
-    # @return The configuration defaults for _type_ (or the global defaults, if _type_ is +nil+).
+    # @return The configuration defaults for *type* (or the global defaults, if *type* is `nil`).
 
     def defaults(type = nil, opts = nil)
       if type.nil?
@@ -133,10 +156,10 @@ module Fl::Framework::Attachment
     end
 
     # Merge configuration options into the current configuration for a type and Rails environment.
-    # This method merges the configuration in _opts_ into the default configuration for _type_,
-    # and saves the resulting configuration under the Rails environment _env_.
+    # This method merges the configuration in *opts* into the default configuration for *type*,
+    # and saves the resulting configuration under the Rails environment *env*.
     #
-    # @param env [String] The name of the Rails environment; if +nil+, use the current environment.
+    # @param env [String] The name of the Rails environment; if `nil`, use the current environment.
     # @param type [Symbol] The attachment type.
     # @param opts [Hash] Configuration to merge.
 
@@ -146,11 +169,11 @@ module Fl::Framework::Attachment
     end
 
     # Clear configuration options from the current configuration for a type and Rails environment.
-    # This method removes keys in _keys_ from the configuration for type _type_ under the Rails
-    # environment _env_.
+    # This method removes keys in *keys* from the configuration for type *type* under the Rails
+    # environment *env*.
     #
-    # @param env [String, Symbol] The name of the Rails environment; if +nil+, use the current environment.
-    #  If _env_ is the symbol +:all+, the options are removed from all registered environments.
+    # @param env [String, Symbol] The name of the Rails environment; if `nil`, use the current environment.
+    #  If *env* is the symbol +:all+, the options are removed from all registered environments.
     # @param type [Symbol] The attachment type.
     # @param keys [Symbol, Array<Symbol>] The list of keys to remove; a single symbol is converted to a one
     #  element array.
@@ -178,7 +201,7 @@ module Fl::Framework::Attachment
     # @param env_in [String] The name of the Rails environment for the existing configuration.
     # @param type_in [Symbol] The attachment type for the existing configuration.
     # @param env_out [String] The name of the Rails environment for the new configuration.
-    # @param type_out [Symbol] The attachment type for the new configuration; if +nil+, use the input type.
+    # @param type_out [Symbol] The attachment type for the new configuration; if `nil`, use the input type.
 
     def clone(env_in, type_in, env_out, type_out = nil)
       cfg_in = _access(env_in, type_in)
@@ -192,7 +215,7 @@ module Fl::Framework::Attachment
     #
     # @param type [Symbol] The type to look up.
     #
-    # @return [Boolean] Returns +true+ if _type_ has a configuration, +false+ otherwise.
+    # @return [Boolean] Returns `true` if *type* has a configuration, `false` otherwise.
 
     def has_type?(type)
       (_access(::Rails.env, type.to_sym, true).nil?) ? false : true
@@ -201,13 +224,13 @@ module Fl::Framework::Attachment
     # @overload config(type)
     #  Get a configuration for a given type in the current Rails environment.
     #  @param type [Symbol] The attachment type.
-    #  @return Returns the configuration for _type_, if one is present; an initial value is created 
+    #  @return Returns the configuration for *type*, if one is present; an initial value is created 
     #   if necessary.
     # @overload config(type, env)
     #  Get a configuration for a given type and Rails environment.
     #  @param type [Symbol] The attachment type.
     #  @param env [String] The name of the Rails environment to use.
-    #  @return Returns the configuration for _type_, if one is present; an initial value is created 
+    #  @return Returns the configuration for *type*, if one is present; an initial value is created 
     #   if necessary.
 
     def config(*args)
@@ -219,7 +242,7 @@ module Fl::Framework::Attachment
     # @overload environment(env)
     #  Get the configuration entries for a given Rails environment.
     #  @param env [String] The name of the Rails environment to use.
-    #  @return Returns the available configuration entries for _env_.
+    #  @return Returns the available configuration entries for *env*.
     # @overload environment()
     #  Get the configuration entries for the current Rails environment.
     #  @return Returns the available configuration entries for for the current Rails environment.
@@ -230,15 +253,15 @@ module Fl::Framework::Attachment
     end
 
     # Handler for missing methods.
-    # If _type_ ends with a +=+, this is a setter method and the value of _type_ (minus the +=+) is used
+    # If *type* ends with a `=`, this is a setter method and the value of *type* (minus the `=`) is used
     # to set the configuration options for the type with _args[0]_.
-    # Otherwise, this is a getter method and the [Configuration] for _type_ is returned; an initial value
-    # is created if necessary; this is equivalent to calling the {#config} method with argument _type_.
+    # Otherwise, this is a getter method and the [Configuration] for *type* is returned; an initial value
+    # is created if necessary; this is equivalent to calling the {#config} method with argument *type*.
     #
     # @param type [String] The method name; this is a type name for lookup into the attachment configurations.
     # @param args arguments to the method.
     #
-    # @return Returns the configuration for _type_, if one is present.
+    # @return Returns the configuration for *type*, if one is present.
 
     def method_missing(type, *args)
       text = type.to_s
