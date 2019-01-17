@@ -51,51 +51,108 @@ module Fl::Framework::Attachment::ActiveStorage
 
     module InstanceMethods
       # Get the variant for an attachment based on a style name.
+      # This method handles both `has_one_attachment` and `has_many_attachments` relationships.
+      # If *aname* resolves to a `ActiveStorage::Attached::Many`, the *idx* parameter indicates
+      # which attachment to target.
+      #
       # If *sname* is a string or a symbol, the method looks it up in the styles that were registered for
       # attachment *aname*, and generates a variant based on those processing parameters.
       # Otherwise, it generates the variant using *sname* as the processing parameters.
       #
-      # @param aname [String,Symbol,ActiveStorage::Attached::One] The name of the attachment, or the
-      #  attachment proxy.
+      # @param aname [String,Symbol,ActiveStorage::Attached::One,ActiveStorage::Attached::Many] The name
+      #  of the attachment, or the attachment proxy.
       # @param sname [String,Symbol,Hash] The name of the style to look up, or a hash of processing
       #  parameters.
+      # @param rest [Array] An array containing additional arguments to the method.
+      #  Currently the array is expected to be empty, or to contain a single integer value,
+      #  the index of the attachment if *aname* is a `has_many_attachments` relationship.
       #
-      # @return [Hash] Returns a hash containing the variant attributes for the given style;
-      #  if *sname* is not a registered name, returns an empty hash.
+      # @return [ActiveStorage::Variant,nil] Returns the variant that was requested.
       
-      def attachment_variant(aname, sname)
-        a = (aname.is_a?(ActiveStorage::Attached::One)) ? aname : send(aname)
+      def attachment_variant(aname, sname, *rest)
         pp = (sname.is_a?(Symbol) || sname.is_a?(String)) ? self.class.attachment_style(aname, sname) : sname
-        a.variant(pp)
+        a = (aname.is_a?(String) || aname.is_a?(Symbol)) ? send(aname) : aname
+        if a.is_a?(ActiveStorage::Attached::One)
+          a.variant(pp)
+        elsif a.is_a?(ActiveStorage::Attached::Many)
+          if rest.count > 0
+            idx = rest[0].to_i
+            a[idx].variant(pp)
+          else
+            nil
+          end
+        else
+          nil
+        end
       end
 
       # Get the URL path component for the blob (the original file).
+      # This method handles both `has_one_attachment` and `has_many_attachments` relationships.
+      # If *aname* resolves to a `ActiveStorage::Attached::Many`, the *idx* parameter indicates
+      # which attachment to target.
       #
       # @param aname [String,Symbol,ActiveStorage::Attached::One] The name of the attachment, or the
       #  attachment proxy.
+      # @param rest [Array] An array containing additional arguments to the method.
+      #  Currently the array is expected to be empty, or to contain a single integer value,
+      #  the index of the attachment if *aname* is a `has_many_attachments` relationship.
       #
-      # @return [String] Returns a string containing the path component of the URL to the blob.
+      # @return [String,nil] Returns a string containing the path component of the URL to the blob.
 
-      def attachment_blob_path(aname)
-        a = (aname.is_a?(ActiveStorage::Attached::One)) ? aname : send(aname)
-        Rails.application.routes.url_helpers.rails_blob_path(a, only_path: true)
+      def attachment_blob_path(aname, *rest)
+        a = (aname.is_a?(String) || aname.is_a?(Symbol)) ? send(aname) : aname
+        if a.is_a?(ActiveStorage::Attached::One)
+          Rails.application.routes.url_helpers.rails_blob_path(a, only_path: true)
+        elsif a.is_a?(ActiveStorage::Attached::Many)
+          if rest.count > 0
+            idx = rest[0].to_i
+            Rails.application.routes.url_helpers.rails_blob_path(a[idx], only_path: true)
+          else
+            nil
+          end
+        else
+          nil
+        end
       end
 
       # Get the URL for the blob (the original file).
+      # This method handles both `has_one_attachment` and `has_many_attachments` relationships.
+      # If *aname* resolves to a `ActiveStorage::Attached::Many`, the *idx* parameter indicates
+      # which attachment to target.
       #
       # @param aname [String,Symbol,ActiveStorage::Attached::One] The name of the attachment, or the
       #  attachment proxy.
-      # @param opts [Hash] Options for the method; a common option is **:host**, to specify the host
+      # @param rest [Array] An array containing additional arguments to the method.
+      #  Currently the array is expected to contain up to two elements. If *aname* is a
+      #  `has_many_attachments` relationship, the first is an integer value containing
+      #  the index of the attachment, and the second is an optional parmeter containing options for
+      #  the URL method.
+      #  Is *aname* is a `has_one_attachment`, only the options parameter is present.
+      #  A common option is **:host**, to specify the host
       #  name (which may include the scheme component `http` or `https`).
       #
-      # @return [String] Returns a string containing the URL to the blob.
+      # @return [String,nil] Returns a string containing the URL to the blob.
 
-      def attachment_blob_url(aname, *opts)
-        a = (aname.is_a?(ActiveStorage::Attached::One)) ? aname : send(aname)
-        Rails.application.routes.url_helpers.rails_blob_url(a, *opts)
+      def attachment_blob_url(aname, *rest)
+        a = (aname.is_a?(String) || aname.is_a?(Symbol)) ? send(aname) : aname
+        if a.is_a?(ActiveStorage::Attached::One)
+          Rails.application.routes.url_helpers.rails_blob_url(a, rest[0])
+        elsif a.is_a?(ActiveStorage::Attached::Many)
+          if rest.count > 0
+            idx = rest[0].to_i
+            Rails.application.routes.url_helpers.rails_blob_url(a[idx], rest[1])
+          else
+            nil
+          end
+        else
+          nil
+        end
       end
 
       # Get the URL path component for a given variant, by style.
+      # This method handles both `has_one_attachment` and `has_many_attachments` relationships.
+      # If *aname* resolves to a `ActiveStorage::Attached::Many`, the *idx* parameter indicates
+      # which attachment to target.
       # If *sname* is a string or a symbol, the method looks it up in the styles that were registered for
       # attachment *aname*, and generates the variant path based on those processing parameters.
       # Otherwise, it generates the variant path using *sname* as the processing parameters.
@@ -103,18 +160,26 @@ module Fl::Framework::Attachment::ActiveStorage
       # @param aname [String,Symbol] The name of the attachment.
       # @param sname [String,Symbol,Hash,ActiveStorage::Variant] The name of the style to look up, a hash
       #  of variant parameters, or a variant.
+      # @param rest [Array] An array containing additional arguments to the method.
+      #  Currently the array is expected to contain up to one element. If *aname* is a
+      #  `has_many_attachments` relationship, the first is an integer value containing
+      #  the index of the attachment.
+      #  Is *aname* is a `has_one_attachment`, no additional parameters are required..
       #
-      # @return [String] Returns a string containing the path component of the variant corresponding
+      # @return [String,nil] Returns a string containing the path component of the variant corresponding
       #  to style *sname*.
 
-      def attachment_variant_path(aname, sname)
-        v = (sname.is_a?(ActiveStorage::Variant)) ? sname : attachment_variant(aname, sname)
+      def attachment_variant_path(aname, sname, *rest)
+        v = (sname.is_a?(ActiveStorage::Variant)) ? sname : attachment_variant(aname, sname, *rest)
         Rails.application.routes.url_helpers.rails_blob_representation_path(v.blob.signed_id,
                                                                             v.variation.key,
                                                                             v.blob.filename)
       end
 
       # Get the URL to a given variant, by style.
+      # This method handles both `has_one_attachment` and `has_many_attachments` relationships.
+      # If *aname* resolves to a `ActiveStorage::Attached::Many`, the *idx* parameter indicates
+      # which attachment to target.
       # If *sname* is a string or a symbol, the method looks it up in the styles that were registered for
       # attachment *aname*, and generates the variant URL based on those processing parameters.
       # Otherwise, it generates the variant URL using *sname* as the processing parameters.
@@ -122,18 +187,36 @@ module Fl::Framework::Attachment::ActiveStorage
       # @param aname [String,Symbol] The name of the attachment.
       # @param sname [String,Symbol,Hash,ActiveStorage::Variant] The name of the style to look up, a hash
       #  of variant parameters, or a variant.
-      # @param opts [Hash] Options for the method; a common option is **:host**, to specify the host
+      # @param rest [Array] An array containing additional arguments to the method.
+      #  Currently the array is expected to contain up to two elements. If *aname* is a
+      #  `has_many_attachments` relationship, the first is an integer value containing
+      #  the index of the attachment, and the second is an optional parmeter containing options for
+      #  the URL method.
+      #  Is *aname* is a `has_one_attachment`, only the options parameter is present.
+      #  A common option is **:host**, to specify the host
       #  name (which may include the scheme component `http` or `https`).
       #
-      # @return [String] Returns a string containing the URL of the variant corresponding
+      # @return [String,nil] Returns a string containing the URL of the variant corresponding
       #  to style *sname*.
           
-      def attachment_variant_url(aname, sname, *opts)
-        v = (sname.is_a?(ActiveStorage::Variant)) ? sname : attachment_variant(aname, sname)
+      def attachment_variant_url(aname, sname, *rest)
+        a = (aname.is_a?(String) || aname.is_a?(Symbol)) ? send(aname) : aname
+        opts = if a.is_a?(ActiveStorage::Attached::One)
+                 rest[0]
+               elsif a.is_a?(ActiveStorage::Attached::Many)
+                 rest[1]
+               else
+                 { }
+               end
+        print("++++++++++ aname: #{aname}\n")
+        print("++++++++++ sname: #{sname}\n")
+        print("++++++++++ rest: #{rest}\n")
+        print("++++++++++ opts: #{opts}\n")
+        v = (sname.is_a?(ActiveStorage::Variant)) ? sname : attachment_variant(a, sname, *rest)
         Rails.application.routes.url_helpers.rails_blob_representation_url(v.blob.signed_id,
                                                                            v.variation.key,
                                                                            v.blob.filename,
-                                                                           *opts)
+                                                                           opts)
       end
     end
 
