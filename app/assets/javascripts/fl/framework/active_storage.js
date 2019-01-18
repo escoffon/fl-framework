@@ -149,6 +149,19 @@ let ActiveStorageAttachedOne = FlClassManager.make_class({
 	this.__super_init('FlModelBase', data);
     },
     instance_properties: {
+	/**
+	 * @ngdoc property
+	 * @name ActiveStorageAttachedOne#attachment
+	 * @description Accessor for the one attachment in the relationship.
+	 *  This property returns the value of *this.attachments[0]*.
+	 *
+	 * @return {ActiveStorageAttachment} The attachment object.
+	 */
+
+	attachment: {
+	    get: function() { return this.attachments[0]; },
+	    set: function(attachment) { }
+	}
     },
     instance_methods: {
 	/**
