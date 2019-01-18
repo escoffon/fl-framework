@@ -62,6 +62,10 @@ DESC
       {
         from: File.join(APP_ROOT, 'api_services.js'),
         to: File.join(VENDOR_ROOT, 'api_services.js'),
+      },
+      {
+        from: File.join(APP_ROOT, 'active_storage.js'),
+        to: File.join(VENDOR_ROOT, 'active_storage.js'),
       }
     ]
 
