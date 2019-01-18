@@ -50,6 +50,53 @@ module Fl::Framework::Attachment::ActiveStorage
     # The methods in this module are installed as instance method of the including class.
 
     module InstanceMethods
+      # Get the attachment style options registered with an attachment.
+      # If *aname* is `nil`, the method returns the attachment options from all attachments.
+      # Otherwise, it returns the options for the requested attachment.
+      #
+      # @param aname [String,Symbol,ActiveStorage::Attached::One,nil] The name of the attachment,
+      #  or all attachments if `nil`. If the value is a `ActiveStorage::Attached::One`, the attachment
+      #  name is derived from its `name` property.
+      #
+      # @return [Hash] Returns a hash as described above.
+      #  If *aname* is `nil`, keys are attachment names and values are hashes containing the options
+      #  that were passed to `has_one_attached` for that attachment.
+      #  If *aname* is not `nil`, the hash contains the options that were passed to `has_one_attached`.
+        
+      def attachment_options(aname = nil)
+        self.class.attachment_options(aname)
+      end
+
+      # Get the attachment styles registered with the class.
+      # If *aname* is `nil`, the method returns the variant styles from all attachments.
+      # Otherwise, it returns the variant styles for the requested attachment.
+      #
+      # @param aname [String,Symbol,ActiveStorage::Attached::One,nil] The name of the attachment,
+      #  or all attachments if `nil`. If the value is a `ActiveStorage::Attached::One`, the attachment
+      #  name is derived from its `name` property.
+      #
+      # @return [Hash] Returns a hash as described above.
+      #  If *aname* is `nil`, keys are attachment names and values are hashes containing the styles
+      #  associated with that attachment.
+      #  If *aname* is not `nil`, keys are style names and values are hashes containing the variant
+      #  options; if *aname* is not a registered attachment, an empty hash is returned.
+        
+      def attachment_styles(aname = nil)
+        self.class.attachment_styles(aname)
+      end
+
+      # Get a style for an attachment.
+      #
+      # @param aname [String,Symbol] The name of the attachment.
+      # @param sname [String,Symbol] The name of the style to look up.
+      #
+      # @return [Hash] Returns a hash containing the requested style; if no such style is present,
+      #  returns an empty hash.
+        
+      def attachment_style(aname, sname)
+        self.class.attachment_style(aname, sname)
+      end
+
       # Get the variant for an attachment based on a style name.
       # This method handles both `has_one_attachment` and `has_many_attachments` relationships.
       # If *aname* resolves to a `ActiveStorage::Attached::Many`, the *idx* parameter indicates
@@ -208,10 +255,6 @@ module Fl::Framework::Attachment::ActiveStorage
                else
                  { }
                end
-        print("++++++++++ aname: #{aname}\n")
-        print("++++++++++ sname: #{sname}\n")
-        print("++++++++++ rest: #{rest}\n")
-        print("++++++++++ opts: #{opts}\n")
         v = (sname.is_a?(ActiveStorage::Variant)) ? sname : attachment_variant(a, sname, *rest)
         Rails.application.routes.url_helpers.rails_blob_representation_url(v.blob.signed_id,
                                                                            v.variation.key,
@@ -289,6 +332,7 @@ module Fl::Framework::Attachment::ActiveStorage
         end
 
         def self.attachment_style(aname, sname)
+          return sname if sname.is_a?(Hash)
           attachment_styles(aname)[sname.to_sym] || { }
         end
         
