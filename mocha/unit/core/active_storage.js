@@ -415,6 +415,18 @@ describe('fl.active_storage module', function() {
 		expect(mm.attachments[0]).to.be.an.instanceof(ActiveStorageAttachment);
 	    });
 	});
+	
+	context('#attachment', function() {
+	    it('should return the attachment', function() {
+		let mm = new ActiveStorageAttachedOne(CONTAINER_1.avatar);
+
+		let a = mm.attachment;
+		let aa = mm.attachments[0];
+		
+		expect(a).to.be.an.instanceof(ActiveStorageAttachment);
+		expect(a).to.eql(aa);
+	    });
+	});
     });
 
     describe('ActiveStorageAttachedMany', function() {
