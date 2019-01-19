@@ -222,6 +222,7 @@ module Fl::Framework::Attachment::ActiveStorage
         content_type: attachment.content_type,
         original_filename: attachment.filename.sanitized,
         original_byte_size: attachment.byte_size,
+        metadata: attachment.metadata,
         variants: variants
       }
       
