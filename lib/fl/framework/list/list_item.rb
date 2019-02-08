@@ -25,10 +25,15 @@ module Fl::Framework::List
 
     self.table_name = 'fl_framework_list_items'
 
+    # @!visibility private
     StateByValue = {}
+    # @!visibility private
     StateByName = {}
 
+    # The name of the deselected state.
     STATE_SELECTED = :selected
+
+    # The name of the selected state.
     STATE_DESELECTED = :deselected
 
     # @!attribute [r] list
@@ -361,7 +366,7 @@ module Fl::Framework::List
     # list identifiers are in the option.
     #
     # @param opts [Hash] A Hash containing configuration options for the query.
-    #  See the documentation for {#build_query}.
+    #  See the documentation for {.build_query}.
     #
     # @return [Integer] Returns the number of list items that would be returned by the query.
 
@@ -371,14 +376,14 @@ module Fl::Framework::List
     end
     
     # Generate a query for list items in a single list.
-    # This can be accomplished via {#build_query} by passing an appropriate value for
+    # This can be accomplished via {.build_query} by passing an appropriate value for
     # the **:only_lists** option, and it is implemented as such, but is provided as a separate
     # method for convenience.
     #
     # @param list [Fl::Framework::List::List, String] The list for which to get list items; the value
     #  is either an onject, or a string containing the listable's fingerprint.
     # @param opts [Hash] Additional options for the query; these are merged with **:only_lists**
-    #  and passed to {#build_query}.
+    #  and passed to {.build_query}.
     #
     # @return [ActiveRecord::Relation] Returns a relation.
 
@@ -387,7 +392,7 @@ module Fl::Framework::List
     end
     
     # Generate a query for list items that contain a given listable.
-    # This can be accomplished via {#build_query} by passing an appropriate value for
+    # This can be accomplished via {.build_query} by passing an appropriate value for
     # the **:only_listables** option, and it is implemented as such, but is provided as a separate
     # method for convenience.
     #
@@ -401,7 +406,7 @@ module Fl::Framework::List
     # @param listable [Object, String] The listable object for which to get list items; the value is either
     #  an onject, or a string containing the listable's fingerprint.
     # @param opts [Hash] Additional options for the query; these are merged with **:only_listables**
-    #  and passed to {#build_query}.
+    #  and passed to {.build_query}.
     #
     # @return [ActiveRecord::Relation] Returns a relation.
 
@@ -427,7 +432,7 @@ module Fl::Framework::List
     end
           
     # Find a listable in a list.
-    # This method wraps around {#query_for_listable_in_list}, calling `first` on its return value,
+    # This method wraps around {.query_for_listable_in_list}, calling `first` on its return value,
     # and then getting the **:listed_object** attribute.
     #
     # @param listable [Object, String] The listable object to look up; a string value is assumed to be
@@ -494,7 +499,7 @@ module Fl::Framework::List
     #
     # @return [Symbol,nil] Returns the symbolic value of the state, or `nil` if *value* is `nil`.
     #
-    # @throws Throws an exception if *value* is not in the database table.
+    # @raise Throws an exception if *value* is not in the database table.
       
     def self.state_from_db(state)
       return nil if state.nil?
@@ -592,10 +597,10 @@ module Fl::Framework::List
     end
 
     # Normalizes an array containing a list of objects in a list.
-    # This method enumerates the contents of *objects*, calling {#resolve_object}
+    # This method enumerates the contents of *objects*, calling {.resolve_object}
     # for each element and adding it to the normalized array.
     # Various types of elements are acceptable in *objects*, as described in the
-    # documentation for {#resolve_object}.
+    # documentation for {.resolve_object}.
     #
     # If an element is a string and the object resolution triggers an error, the error string is placed
     # in the normalized array at that position. Additionally, if the resolved object is not listable, an
@@ -604,8 +609,8 @@ module Fl::Framework::List
     # @param [Array] objects The input array (or a single object, which will be converted to an
     #input array).
     # @param list [Fl::Framework::List::List] The list for which to perform the normalization; this value
-    #  is passed to {#resolve_object}.
-    # @param owner The owner for any newly created list objects; this value is passed to {#resolve_object}.
+    #  is passed to {.resolve_object}.
+    # @param owner The owner for any newly created list objects; this value is passed to {.resolve_object}.
     #
     # @return Returns a two-element array:
     #  - The count of objects whose conversion failed; this is the count of elements in the normalized
@@ -650,6 +655,8 @@ module Fl::Framework::List
         end
       end
     end
+
+    # @!visibility private
 
     def validate_state()
       if Fl::Framework::List::ListItem.state_to_db(read_attribute(:state)).nil?

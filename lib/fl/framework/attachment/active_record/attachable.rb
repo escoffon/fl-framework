@@ -22,7 +22,7 @@ module Fl::Framework::Attachment::ActiveRecord
       # @param opts [Hash] A Hash containing configuration options for the query.
       # @option opts [String, Symbol] :name The name of the association for which we are building the query;
       #  the default value is +:attachments+. If you call
-      #  {Fl::Framework::Attachment::Attachable::ClassMethods#has_attchments} with a nonstandard association
+      #  {Fl::Framework::Attachment::Attachable::ClassMethods#has_attachments} with a nonstandard association
       #  name, you will have to provide this option.
       # @option opts [Array<String>, String] :only_types A list of MIME types for attachments that should be
       #  returned by the query. This list can include "globbed" MIME types like +image/*+ to cover classes

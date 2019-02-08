@@ -93,7 +93,8 @@ module Fl::Framework::List
 
     serialize :list_display_preferences, JSON
 
-    TITLE_LENGTH = 40
+    # The cutoff value for the title length when extracted from the caption.
+    TITLE_LENGTH = 60
 
     validates :title, :length => { :minimum => 1, :maximum => 200 }
     # validates :list_access_level, :presence => true
