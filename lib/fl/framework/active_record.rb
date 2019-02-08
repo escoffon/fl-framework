@@ -1,7 +1,7 @@
 # The base class for Active Record objects.
 
 class ActiveRecord::Base
-  # Split a fingerpring into class name and identifier, and optionally check the class name.
+  # Split a fingerprint into class name and identifier, and optionally check the class name.
   #
   # @param f [String] The fingerprint.
   # @param cn [String,Class,Boolean,nil] A class name or a class object to check; if `nil`, this check is not
@@ -41,7 +41,7 @@ class ActiveRecord::Base
     "#{obj.class.name}/#{obj.id}"
   end
 
-  # Generate a "fingerprint" for the `self`.
+  # Generate a "fingerprint" for `self`.
   # This method wraps a call to {.fingerprint}.
   #
   # @return [String] Returns a string containing the class name and object identifier.

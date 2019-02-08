@@ -166,9 +166,6 @@ module Fl::Framework::Attachment::ActiveStorage
     # This method is typically **not** called standalone, but rather from inside
     # {.to_hash_active_storage_attachment}.
     #
-    # @param proxy [ActiveStorage::Attached::One,ActiveStorage::Attached::Many] The attachment proxy;
-    #  this is the value of the attachment attribute registered with `has_one_attached`
-    #  or `has_many_attached`.
     # @param attachment [Attachment] The attachment.
     # @param styles [Array] The list of styles to return.
     #  The `:original` style contains the URL to the original file, but processed according to the

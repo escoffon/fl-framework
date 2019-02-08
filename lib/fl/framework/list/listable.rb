@@ -2,6 +2,9 @@ module Fl::Framework::List
   # Extension module for use by objects that can be placed in lists.
 
   module Listable
+    # Class methods for listable objects.
+    # {ClassMethods#is_listable} is used to indicate that instances of the class can be placed in lists.
+    
     module ClassMethods
       # Add listable behavior to a model.
       # A listable model can be added to one or more lists, which it tracks through a `has_many`
@@ -24,17 +27,18 @@ module Fl::Framework::List
       #  The following key/value pairs are supported:
       #
       #  - **:summary** The summary method to use. This is a symbol or string containing the name
-      #    of the method called by the {#list_item_summary} method to get the summary for the object.
+      #    of the method called by the {Fl::Framework::List::Listable::InstanceMethods#list_item_summary}
+      #    method to get the summary for the object.
       #    It can also be a Proc that takes no arguments and returns a string.
       #    Defaults to **:title**.
 
-      def is_listable(attrs = {})
-        if attrs.has_key?(:summary)
-          case attrs[:summary]
+      def is_listable(cfg = {})
+        if cfg.has_key?(:summary)
+          case cfg[:summary]
           when Symbol, Proc
-            self.class_variable_set(:@@summary_method, attrs[:summary])
+            self.class_variable_set(:@@summary_method, cfg[:summary])
           when String
-            self.class_variable_set(:@@summary_method, attrs[:summary].to_sym)
+            self.class_variable_set(:@@summary_method, cfg[:summary].to_sym)
           else
             self.class_variable_set(:@@summary_method, :title)
           end
@@ -59,6 +63,10 @@ module Fl::Framework::List
       end
     end
 
+    # Instance methods for listable objects.
+    # These methods are injected into the class by {ClassMethods#is_listable} and implement functionality
+    # to manage list behavior.
+    
     module InstanceMethods
       # Check if this model is listable.
       #
@@ -69,7 +77,8 @@ module Fl::Framework::List
       end
 
       # Get the object's summary.
-      # This method calls the value of the configuration option **:summary** to {#is_listable} to get the
+      # This method calls the value of the configuration option **:summary** to
+      # {Fl::Framework::List::Listable::InstanceMethods#is_listable} to get the
       # object summary.
       #
       # @return [String] Returns the object summary.
@@ -180,9 +189,23 @@ module Fl::Framework::List
 end
 
 class ActiveRecord::Base
+  # Backstop listable checker.
+  # This is the default implementation, which returns `false`, for those models that have not
+  # registered as listables.
+  #
+  # @return [Boolean] Returns `false`; {Fl::Framework::List::Listable::ClassMethods#is_listable} overrides
+  #  the implementation to return `true`.
+  
   def listable?
     false
   end
+
+  # Backstop list item summary extractor.
+  # This is the default implementation, which returns an empty string, for those models that have not
+  # registered as listables.
+  #
+  # @return [String] Returns an empty string; {Fl::Framework::List::Listable::ClassMethods#is_listable}
+  #  overrides the implementation to return an appropriate value for the item summary.
 
   def list_item_summary
     ''
