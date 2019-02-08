@@ -46,6 +46,8 @@ module Fl
         require 'fl/framework/active_record'
         require 'fl/framework/application_record'
 
+        require 'fl/framework/list'
+        
         require 'fl/google'
 
         require 'fl/framework/generator_helper'

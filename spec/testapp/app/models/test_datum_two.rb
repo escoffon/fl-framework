@@ -1,4 +1,4 @@
-class TestDatumOne < ApplicationRecord
+class TestDatumTwo < ApplicationRecord
   include Fl::Framework::Core::ModelHash
   
   # START added by fl:framework:comments generator
@@ -13,12 +13,12 @@ class TestDatumOne < ApplicationRecord
   has_comments
   # END added by fl:framework:comments generator
 
-  belongs_to :owner, class_name: 'TestActor'
-
   # this model is listable
 
-  is_listable
-  
+  is_listable summary: :my_title
+
+  belongs_to :owner, class_name: 'TestActor'
+
   validates :owner, :title, :value, presence: true
 
   protected
@@ -34,7 +34,9 @@ class TestDatumOne < ApplicationRecord
     end
   end
 
-  protected
+  def my_title()
+    "my title: #{self.title}"
+  end
   
   def to_hash_options_for_verbosity(actor, verbosity, opts)
     if (verbosity != :id) && (verbosity != :ignore)
