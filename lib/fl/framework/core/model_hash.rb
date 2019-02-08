@@ -83,13 +83,16 @@ module Fl::Framework::Core
       #      to instruct the method to ignore the value of the verbosity when building the options
       #      hash and generating the key list.
       #  - *:only* An array containing the exact list of attributes to return.
+      #    A scalar value is converted to a one-element array.
       #  - *:include* An array containing a list of attributes to include in addition to those that the
       #    code returns by default (based on the verbosity level).
       #    If the *:only* list is defined, this value is ignored: callers
       #    that specify *:only* can just as easily place the contents of *:include* there.
+      #    A scalar value is converted to a one-element array.
       #  - *:except* An array containing a list of keys that will not be returned. This value
       #    is removed from the final list of keys after the *:only* and *:include* lists have been taken into
       #    consideration.
+      #    A scalar value is converted to a one-element array.
       #  - *:image_sizes* An array listing the image sizes whose URLs are returned for objects that
       #    contain images (pictures, group avatars, user avatars, and so on).
       #  - *:to_hash* A Hash containing options to pass to nested calls to this method for other
@@ -248,7 +251,7 @@ module Fl::Framework::Core
       #
       # @return [Array<Symbol>] Returns an array of symbols listing the styles for which to generate URLs.
 
-      def to_hash_image_sizes(img, types = :all)
+      def deprecated_to_hash_image_sizes(img, types = :all)
         if types.nil? || (types.length < 1)
           types = [ :all ]
         end
@@ -298,7 +301,7 @@ module Fl::Framework::Core
       #    the image is still being processed.
       #  Not all of these keys may be present, but +:urls+ is always present.
 
-      def to_hash_image_attachment(img, types = :all)
+      def deprecated_to_hash_image_attachment(img, types = :all)
         if types.nil? || (types.length < 1)
           types = [ :all ]
         end
@@ -485,6 +488,22 @@ module Fl::Framework::Core
         c_keys = [ :type, :api_root, :url_path, :fingerprint ]
         c_keys << :id if self.respond_to?(:id)
         c_keys
+      end
+
+      # Whitelist a list of keys.
+      # This method filters out *keys* so that only the keys in {#to_hash_id_keys} and *whitelist*
+      # are returned.
+      #
+      # @param keys [Array<Symbols>] The array of keys to whitelist.
+      # @param whitelist [Array<symbol>] The whilelist of keys to user; obly elements of this list
+      #  are returned.
+      #
+      # @return [Array<Symbol>] Returns an array containing the symbols returned by {#to_hash_id_keys}
+      #  and those in *keys* that also appear in *whitelist*.
+
+      def to_hash_whitelist_keys(keys, whitelist)
+        use = to_hash_id_keys() | whitelist
+        keys.select { |k| use.include?(k.to_sym) }
       end
 
       # Extract to_hash options and use default values if not present.

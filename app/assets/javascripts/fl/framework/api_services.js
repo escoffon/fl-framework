@@ -43,7 +43,7 @@ const DEFAULT_SRV_CFG = {
  *  `my_datum` key. You can create a service to communicate with this API like this:
  *  ```
  *  let srv = new FlAPIService({
- *    root_url: '/my/data',
+ *    root_url_template: '/my/data',
  *    namespace: 'my_datum',
  *    data_names: [ 'data', 'datum' ]
  *  });
@@ -55,7 +55,7 @@ const DEFAULT_SRV_CFG = {
  *    superclass: 'FlAPIService',
  *    initializer: function(srv_cfg) {
  *      this.__super_init('FlAPIService', {
- *        root_url: '/my/data',
+ *        root_url_template: '/my/data',
  *        namespace: 'my_datum',
  *        data_names: [ 'data', 'datum' ]
  *      }, srv_cfg);
@@ -82,7 +82,8 @@ const DEFAULT_SRV_CFG = {
  *  ```
  *  let id = getItemId();
  *  let srv = new MyDatumAPIService();
- *  srv.update(id, { prop1: 'prop1 value' })
+ *  srv.update(id, { wrapped: { prop1: 'prop1 value' },
+ *                   unwrapped: { to_hash: { verbosity: 'complete' } })
  *     .then(function(data) {
  *       // do something with the returned data
  *     })
@@ -90,8 +91,8 @@ const DEFAULT_SRV_CFG = {
  *       // report error
  *     });
  *  ```
- *  Note that the submission data should *not* be wrapped in the namespace, since this step is
- *  left to the service object.
+ *  Note that the submission data can be split into wrapped and unwrapped components; the service object
+ *  places the wrapped in the appropriate namespace, using the API configuration options.
  *
  *  #### Two types of API methods
  *
@@ -100,8 +101,8 @@ const DEFAULT_SRV_CFG = {
  *  **get**, **post**, **put**, **patch**, **delete**, **head**, respectively.
  *
  *  The second group implements a higher level API to standard Rails controller actions
- *  `index`, `show`, `create`, `update`, `destroy`, which are named
- *  **index**, **show**, **create**, **update**, **destroy**, respectively.
+ *  `index`, `show`, `create`, `update`, and `destroy`, which are named
+ *  **index**, **show**, **create**, **update**, and **destroy**, respectively.
  *  These methods call the appropriate lower level API described above; for example, **index** and
  *  **show** call **get**.
  *
@@ -167,6 +168,13 @@ const DEFAULT_SRV_CFG = {
  * - **_c** How many results were returned by the last query. Note that, if `_c < _s`, then
  *   no more results are available.
  *
+ * ##### Rails nested resources
+ *
+ * The base service API class {@sref FlAPIService} can handle interactions with
+ * {@sref Rails-nested-resources Rails nested resources} out of the box; however, we define a
+ * specialized {@sref FlNestedAPIService} class that overrides the URL generation functionality to
+ * support shallow routing as well as standard nested routing.
+ *
  * #### Webpack
  *
  * API service code relies on registered data model classes to generate model instances of the
@@ -203,7 +211,12 @@ let FlAPIService = FlClassManager.make_class({
      * @description The constructor; called during `new` creation.
      *
      * @param {Object} api_cfg Configuration for the API object.
-     * @property {String} api_cfg.root_url The root URL; see the properties section for details.
+     * @property {String} api_cfg.root_url_template The template used to generate the root URL.
+     *  The value may contain replacement directives of the form `${expr}`, similar to the syntax
+     *  used for ES6 template literals. For example, the template `/my/${parent.id}/dependents` will
+     *  generate a root URL `/my/1234/dependents`, where `1234` is the result of the expression
+     *  `parent.id` (looked up in **this**). Templates with replacement directives are
+     *  typically used with nested resource APIs.
      * @property {String} api_cfg.namespace The parameter namespace for create/update calls.
      *  Parameters will be wrapped inside this namespace; for example, if the namespace is `ns`,
      *  then the submission parameters `{ p1: 1, p2: 2 }` are actually sent to the server as
@@ -313,14 +326,14 @@ let FlAPIService = FlClassManager.make_class({
 
 	/**
 	 * @ngdoc property
-	 * @name FlAPIService#root_url
-	 * @description Getter for **root_url** configuration property.
-	 * @return {String} Returns the value of the **root_url** property in the API config object.
+	 * @name FlAPIService#root_url_template
+	 * @description Getter for **root_url_template** configuration property.
+	 * @return {String} Returns the value of the **root_url_template** property in the API config object.
 	 */
 
-	root_url: {
+	root_url_template: {
 	    get: function() {
-		return this._api_cfg.root_url;
+		return this._api_cfg.root_url_template;
 	    }
 	},
 
@@ -463,6 +476,43 @@ let FlAPIService = FlClassManager.make_class({
 
 	getConfig: function() {
 	    return _.merge({ }, this._srv_cfg);
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#url_path_for
+	 * @description Generates the path component of the URL for the given action.
+	 *  This includes processing the root URL template, interpolating the replacement directives, and
+	 *  adding action-specific components to the path.
+	 *
+	 * @param {String} action The name of the action. The base implementation supports the standard
+	 *  Rails actions `index`, `create`, `show`, `update`, and `destroy`; subclasses can augment this set
+	 *  as needed.
+	 * @param {Object|Integer} [target] Some actions need a target object whose identifier to place
+	 *  in the path. The value is either an object that contains a **id** property, or the
+	 *  identifier itself.
+	 * 
+	 * @return {String|null} Returns the URL path for the action; if *action* is not supported,
+	 *  returns `null`.
+	 */
+
+	url_path_for: function(action, target) {
+	    let root_path = this._expand_url_template(this.root_url_template);
+
+	    let tid = (_.isUndefined(target)) ? undefined : this._id(target);
+
+	    if ((action == 'index') || (action == 'create'))
+	    {
+		return root_path + '.json';
+	    }
+	    else if ((action == 'show') || (action == 'update') || (action == 'destroy'))
+	    {
+		return root_path + '/' + tid + '.json';
+	    }
+	    else
+	    {
+		return null;
+	    }
 	},
 
 	/**
@@ -631,6 +681,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @name FlAPIService#index
 	 * @description Make an :index call by calling `axios.get` against the root URL.
 	 *
+	 * @param {Object} [params] Parameters to pass in the request; the contents of this object are
+	 *  merged into *config.params*, and eventually make their way to the query string.
 	 * @param {Object} [config] Configuration object to pass to `axios.get`; this object is
 	 *  merged into the default HTTP configuration object.
 	 *
@@ -641,10 +693,10 @@ let FlAPIService = FlClassManager.make_class({
 	 *  property.
 	 */
 
-	index: function(config) {
+	index: function(params, config) {
 	    let self = this;
 
-	    return this.get(this.root_url + '.json', this._make_index_config(config))
+	    return this.get(this.url_path_for('index'), this._make_index_config(params, config))
 		.then(function(r) {
 		    self._set_pagination_controls(r);
 		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
@@ -670,7 +722,6 @@ let FlAPIService = FlClassManager.make_class({
 	    this._showDidSucceed = cb;
 	},
 
-	
 	/**
 	 * @ngdoc method
 	 * @name FlAPIService#_create_or_refresh_from_id
@@ -680,7 +731,7 @@ let FlAPIService = FlClassManager.make_class({
 	 *  If those implementations are called with a model instance in the *id* parameter, then the
 	 *  client has provided the target instance explicitly, and the implementation should use it.
 	 *  Since model instances are cached, this only makes a difference if the target instance had
-	 *  been created explicitly, rather than via the {@FlModelFacory#create} method: in this case,
+	 *  been created explicitly, rather than via the {@sref FlModelFactory#create} method: in this case,
 	 *  the instance may not be cached, and using `create` would result in two copies of the
 	 *  object floating around in the system. Use of this method helps avoiding that kind of problem.
 	 *
@@ -689,7 +740,7 @@ let FlAPIService = FlClassManager.make_class({
 	 * @param {Object} data The model data to use for the refresh or create.
 	 *
 	 * @return Returns the object that was refreshed: if *id* is an identifier, it returns the
-	 *  object that was created by a call to {@FlModelFactory#create}; if it is a model instance,
+	 *  object that was created by a call to {@sref FlModelFactory#create}; if it is a model instance,
 	 *  it returns *id*.
 	 */
 
@@ -715,6 +766,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @param {Integer|String|Object} id A string or integer containing the identifier to append to
 	 *  the root URL. You can also pass an object with an `id` property, whose value will be used
 	 *  for the identifier; this makes it possible to pass model instances to the method.
+	 * @param {Object} [params] Parameters to pass in the request; the contents of this object are
+	 *  merged into *config.params*, and eventually make their way to the query string.
 	 * @param {Object} [config] Configuration object to pass to `axios.get`; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -725,9 +778,9 @@ let FlAPIService = FlClassManager.make_class({
 	 *  property.
 	 */
 
-	show: function(id, config) {
+	show: function(id, params, config) {
 	    let self = this;
-	    return this.get(this.root_url + '/' + this._id(id) + '.json', this._make_config(config))
+	    return this.get(this.url_path_for('show', id), this._make_get_config(params, config))
 		.then(function(r) {
 		    let model = self._create_or_refresh_from_id(id, self._response_data(r));
 
@@ -842,9 +895,8 @@ let FlAPIService = FlClassManager.make_class({
 	 * @description Make a :create call by calling `axios.post` against the root URL.
 	 *  The actual call is to {@sref FlAPIService#process}, which then dispatches to `axios.post`.
 	 *
-	 * @param {Object} data The data to submit to the server; these data will be placed inside
-	 *  the service's namespace, so that the actual data will be in a
-	 *  property named after the namespace.
+	 * @param {Object} data The data to submit to the server. The object contains two properties,
+	 *  **wrapped** and **unwrapped**. See {@sref FlAPIservice#_wrap_data} for details.
 	 * @param {Object} [config] Configuration object to pass to axios.post; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -857,7 +909,7 @@ let FlAPIService = FlClassManager.make_class({
 	create: function(data, config) {
 	    let self = this;
 	    
-	    return this.post(this.root_url + '.json', this._wrap_data(data), config)
+	    return this.post(this.url_path_for('create'), this._wrap_data(data), config)
 		.then(function(r) {
 		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
 		})
@@ -874,10 +926,8 @@ let FlAPIService = FlClassManager.make_class({
 	 *
 	 * @param {Integer|String|Object} id A string or integer containing the identifier to append to
 	 *  the root URL. You can also pass an object with an `id` property, whose value will be used
-	 *  for the identifier; this makes it possible to pass model instances to the method.
-	 * @param {Object} data The data to submit to the server; these data will be placed inside
-	 *  the service's namespace, so that the actual data will be in a
-	 *  property named after the namespace.
+	 * @param {Object} data The data to submit to the server. The object contains two properties,
+	 *  **wrapped** and **unwrapped**. See {@sref FlAPIservice#_wrap_data} for details.
 	 * @param {Object} [config] Configuration object to pass to axios.patch; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -890,7 +940,7 @@ let FlAPIService = FlClassManager.make_class({
 	update: function(id, data, config) {
 	    let self = this;
 
-	    return this.patch(this.root_url + '/' + this._id(id) + '.json', this._wrap_data(data), config)
+	    return this.patch(this.url_path_for('update', id), this._wrap_data(data), config)
 		.then(function(r) {
 		    return Promise.resolve(self._create_or_refresh_from_id(id, self._response_data(r)));
 		})
@@ -919,7 +969,7 @@ let FlAPIService = FlClassManager.make_class({
 
 	destroy: function(id, config) {
 	    let self = this;
-	    return this.delete(this.root_url + '/' + this._id(id) + '.json', { }, config)
+	    return this.delete(this.url_path_for('destroy', id), { }, config)
 		.then(function(r) {
 		    return Promise.resolve(self.response_status(r));
 		})
@@ -950,13 +1000,47 @@ let FlAPIService = FlClassManager.make_class({
 
 	/**
 	 * @ngdoc method
-	 * @name FlAPIService#_make_index_config
-	 * @description Build configuration parameters for an :index call to Axios.
-	 *  The method first calls *_make_config*, and then tags on the pagination
-	 *  controls if they are enabled.
+	 * @name FlAPIService#_make_get_config
+	 * @description Build configuration parameters for a `GET` method call to Axios.
+	 *  The method first calls *_make_config*, and then merges the contents of *params* into the
+	 *  configuration object.
+	 *  It is meant to be used when setting up call parameters for a `GET` method, since *params*
+	 *  are merged into *config.params*, and therefore will appear in the query string.
 	 *
 	 *  Subclasses likely won't need to override this method.
 	 *
+	 * @param {Object} [params] Parameters to pass in the request; the contents of this object are
+	 *  merged into *config.params*, and eventually make their way to the query string.
+	 * @param {Object} [config] Configuration object to pass to axios; this object is
+	 *  merged into the default HTTP configuration.
+	 *
+	 * @return {Object} Returns a configuration object where the values in _config_ have been
+	 *  merged into the default HTTP configuration.
+	 */
+
+	_make_get_config: function(params, config) {
+	    let cfg = this._make_config(config);
+	    if (_.isObject(params))
+	    {
+		let cfgp = (_.isObject(cfg.params)) ? cfg.params : {}; 
+		cfg.params = _.merge({}, cfgp, params);
+	    }
+
+	    return cfg;
+	},
+
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#_make_index_config
+	 * @description Build configuration parameters for an :index call to Axios.
+	 *  The method first calls *_make_get_config*, then tags on the pagination controls
+	 *  if they are enabled.
+	 *  It is a specialized method to be used with `GET` calls that map to an :index action.
+	 *
+	 *  Subclasses likely won't need to override this method.
+	 *
+	 * @param {Object} [params] Parameters to pass in the request; the contents of this object are
+	 *  merged into *config.params*, and eventually make their way to the query string.
 	 * @param {Object} [config] Configuration object to pass to axios; this object is
 	 *  merged into the default HTTP configuration.
 	 *
@@ -967,15 +1051,20 @@ let FlAPIService = FlClassManager.make_class({
 	 *  array is used as the key.
 	 */
 
-	_make_index_config: function(config) {
-	    let cfg = this._make_config(config);
+	_make_index_config: function(params, config) {
+	    let cfg = this._make_get_config(params, config);
+
 	    if (this.pagination_controls)
 	    {
-		let k = this._pg_names[0];
-
 		if (!_.isObject(cfg.params)) cfg.params = { };
-
-		cfg.params[k] = this.pagination_controls;
+		
+		// The pagination controls are the starting set; if *params* contains :_pg, us that
+		// value to overrid defaults
+		
+		let k = this._pg_names[0];
+		let pg = (_.isObject(cfg.params._pg)) ? cfg.params._pg : { };
+		
+		cfg.params[k] = _.merge({}, this.pagination_controls, pg);
 	    }
 
 	    return cfg;
@@ -1108,6 +1197,47 @@ let FlAPIService = FlClassManager.make_class({
 	    return null;
 	},
 
+	/**
+	 * @ngdoc method
+	 * @name FlAPIService#_expand_url_template
+	 * @description Process a URL template, interpolate the replacement directives, and return
+	 *  the expanded URL.
+	 * @param {String} tpl The template to process.
+	 * @return {String} Returns the URL generated from the template and the state of the service
+	 *  object.
+	 */
+
+	_expand_url_template: function(tpl) {
+	    let self = this;
+	    let pre;
+	    let rest = tpl;
+	    let fragments = new Array();
+	    let idx = 0;
+	    let fdx;
+	    let expr;
+	    
+	    while (idx >= 0)
+	    {
+		idx = rest.indexOf('${');
+		if (idx < 0)
+		{
+		    // no more replacement directives: we are done
+
+		    fragments.push(rest);
+		}
+		else
+		{
+		    fragments.push(rest.substring(0, idx));
+		    fdx = rest.indexOf('}', idx);
+		    if (fdx < 0) fdx = rest.length;
+		    fragments.push(_.get(self, rest.substring(idx+2, fdx)));
+		    rest = rest.substring(fdx+1);
+		}
+	    }
+
+	    return fragments.join('');
+	},
+
 	_has_file_item: function(data) {
 	    let k;
 	    let v;
@@ -1199,15 +1329,47 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	_id: function(id) {
-	    return (_.isObject(id) && !_.isNil(id.id)) ? id.id : id;
+	    return (_.isObject(id) && _.has(id, 'id') && !_.isNil(id.id)) ? id.id : id;
 	},
 
 	/**
 	 * @ngdoc method
 	 * @name FlAPIService#_wrap_data
 	 * @description Wrap submission data within the namespace if one is defined.
+	 *  The *data* object contains two optional properties,
+	 *  **wrapped** and **unwrapped**. The **wrapped** property is also an object that contains
+	 *  data to be placed inside the service's namespace, so that the actual data will be in a
+	 *  property named after the namespace. The **unwrapped** property is also an object, and is
+	 *  merged into the submission data as-is.
+	 *  For example, if the contents of *data* are
+	 *  ```
+	 *    {
+	 *      wrapped: { p1: 10 },
+	 *      unwrapped: { other: 20 }
+	 *    }
+	 *  ```
+	 *  and the namespace is `ns`, then the return value is
+	 *  ```
+	 *    {
+	 *      ns: { p1: 10 },
+	 *      other: 20
+	 *    }
+	 *  ```
 	 *
-	 * @param {Object} data The data to submit to the server.
+	 *  A common unwrapped property is **to_hash**, whose value is an object of configuration
+	 *  options for the server method that generates a hash representation of a Ruby model; for
+	 *  example, to get the verbose representation of an object:
+	 *  ```
+	 *    let srv = new MyAPIService();
+	 *    srv
+	 *      .show(123456, { unwrapped: { to_hash: { verbosity: 'verbose' } } })
+	 *      .then(function(o) {
+	 *        // process the returned object
+	 *      });
+	 *  ```
+	 *
+	 * @param {Object} data The data to submit to the server. The object contains two properties,
+	 *  **wrapped** and **unwrapped**, which are processed as described above.
 	 *
 	 * @return {Object} If the namespace is defined, the return value is an object with one
 	 *  property, the namespace, whose value is *data*. If no namespace is defined, then
@@ -1215,16 +1377,25 @@ let FlAPIService = FlClassManager.make_class({
 	 */
 
 	_wrap_data: function(data) {
-	    let api_data = data;
-	    if (this.namespace)
+	    let api_data = { };
+
+	    if (_.isObject(data.unwrapped))
 	    {
-		api_data = {};
-		api_data[this.namespace] = data;
+		_.merge(api_data, data.unwrapped);
 	    }
-	    else
+
+	    if (_.isObject(data.wrapped))
 	    {
-		api_data = data;
+		if (this.namespace)
+		{
+		    api_data[this.namespace] = data.wrapped;
+		}
+		else
+		{
+		    _.merge(api_data, data.wrapped);
+		}
 	    }
+	    
 	    return api_data;
 	}
     },
@@ -1340,6 +1511,112 @@ let FlAPIService = FlClassManager.make_class({
 });
 
 FlAPIService._srv_cfg = _.merge({ }, DEFAULT_SRV_CFG);
+
+/**
+ * @ngdoc type
+ * @name FlNestedAPIService
+ * @extends FlAPIService
+ * @module fl.api_services
+ * @description FlNestedAPIService is the base class for API services that communicates with a
+ *  {@sref Rails-nested-resources Rails nested resource}.
+ *  This class modifies {@sref FlAPIService} to support the structure of nested resource APIs.
+ *  It manages both standard and shallow nested resources, based on the value of the configuration
+ *  variable **shallow_root_url_template**.
+ *
+ *  Like for {@sref FlAPIService}, there are two ways to use this service:
+ *  1. Create an instance of FlAPIService with appropriate configuration.
+ *  2. Define a subclass that encapsulates the configuration and optionally also adds API-specific
+ *     entry points.
+ *
+ *  See the documentation for {@sref FlAPIService} for a discussion of these two approaches; we recommend
+ *  creating subclasses.
+ */
+
+let FlNestedAPIService = FlClassManager.make_class({
+    name: 'FlNestedAPIService',
+    superclass: 'FlAPIService',
+    /**
+     * @ngdoc method
+     * @name FlNestedAPIService#constructor
+     * @description The constructor; called during `new` creation.
+     *  Note that subclasses are expected to pass the parent resource's object or identifier as
+     *  additional arguments.
+     *
+     * @param {Object} api_cfg Configuration for the API object; the following documentation lists
+     *  options that are specific to this class; for the common ones, see {@sref FlAPIService#constructor}.
+     * @property {String} api_cfg.shallow_root_url_template The template used to generate the shallow
+     *  root URL. If this option is present, the instance expects that the Rails API uses a shallow
+     *  setup, where the `index` and `create` actions are nested within a parent resource, and
+     *  `show`, `update`, and `destroy` are scoped outside the parent.
+     * @param {Object} srv_cfg Configuration for the service. See {@sref FlAPIService#constructor}
+     *  for details.
+     */
+    initializer: function(api_cfg, srv_cfg) {
+	this.__super_init('FlAPIService', api_cfg, srv_cfg);
+    },
+    instance_properties: {
+	/**
+	 * @ngdoc property
+	 * @name FlAPIService#shallow_root_url_template
+	 * @description Getter for **shallow_root_url_template** configuration property.
+	 * @return {String} Returns the value of the **shallow_root_url_template** property in the API
+	 *  config object. Note that a `null` or `undefined` return value implies that the API is not
+	 *  shallow.
+	 */
+
+	shallow_root_url_template: {
+	    get: function() {
+		return this._api_cfg.shallow_root_url_template;
+	    }
+	}
+    },
+    instance_methods: {
+	/**
+	 * @ngdoc method
+	 * @name FlNestedAPIService#url_path_for
+	 * @description Overrides the base implementation to add support for shallow APIs.
+	 *
+	 * @param {String} action The name of the action. The implementation supports the standard
+	 *  Rails actions `index`, `create`, `show`, `update`, and `destroy`; subclasses can augment this set
+	 *  as needed.
+	 * @param {Object|Integer} [target] Some actions need a target object whose identifier to place
+	 *  in the path. The value is either an object that contains a **id** property, or the
+	 *  identifier itself.
+	 * 
+	 * @return {String|null} Returns the URL path for the action; if *action* is not supported,
+	 *  returns `null`.
+	 */
+
+	url_path_for: function(action, target) {
+	    let tpl = this.shallow_root_url_template;
+	    
+	    // :index and :create are always nested
+	    
+	    if (_.isNil(tpl)
+		|| (action == 'index') || (action == 'create'))
+	    {
+		return this.__super('FlAPIService', 'url_path_for', action, target);
+	    }
+	    
+	    let root_path = this._expand_url_template(tpl);
+	    let tid = (_.isUndefined(target)) ? undefined : this._id(target);
+
+	    if ((action == 'show') || (action == 'update') || (action == 'destroy'))
+	    {
+		return root_path + '/' + tid + '.json';
+	    }
+	    else
+	    {
+		return null;
+	    }
+	}
+    },
+    class_properties: {
+    },
+    class_methods: {
+    },
+    extensions: [ ]
+});
 
 /**
  * @ngdoc service
@@ -1505,4 +1782,4 @@ let FlAPIServiceRegistry = FlClassManager.make_class({
 
 const FlGlobalAPIServiceRegistry = new FlAPIServiceRegistry();
 
-module.exports = { FlAPIService, FlAPIServiceRegistry, FlGlobalAPIServiceRegistry };
+module.exports = { FlAPIService, FlNestedAPIService, FlAPIServiceRegistry, FlGlobalAPIServiceRegistry };

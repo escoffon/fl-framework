@@ -2,6 +2,8 @@
 var path = require('canonical-path');
 var Package = require('dgeni').Package;
 
+const JSDOCS = 'public/doc/fl/framework/js';
+
 const STATE_ROOT = 'docs';
 const URL_ROOT = '/docs';
 const ENABLE_HTML5_MODE = 'no';
@@ -30,6 +32,8 @@ module.exports = new Package('fl_framework_docs', [
 	    //		    { name: '', xlink: '' },
 
 	    { name: 'Axios', xlink: 'https://github.com/axios/axios' },
+	    { name: 'Rails-nested-resources',
+	      xlink: 'https://guides.rubyonrails.org/routing.html#nested-resources' },
 	    { name: 'Webpack', xlink: 'https://webpack.js.org' }
 	];
 
@@ -48,7 +52,7 @@ module.exports = new Package('fl_framework_docs', [
 	      basePath: 'doc/dgeni/content', fileReader: 'ngdocFileReader' }
 	];
 
-	writeFilesProcessor.outputFolder  = 'public/doc/fl/framework/js';
+	writeFilesProcessor.outputFolder  = JSDOCS;
     })
 
 // index page configuration

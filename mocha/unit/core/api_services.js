@@ -5,7 +5,7 @@ const {
     FlModelBase, FlModelCache, FlModelFactory, FlGlobalModelFactory
 } = require('fl/framework/model_factory');
 const {
-    FlAPIService, FlAPIServiceRegistry, FlGlobalAPIServiceRegistry
+    FlAPIService, FlNestedAPIService, FlAPIServiceRegistry, FlGlobalAPIServiceRegistry
 } = require('fl/framework/api_services');
 const th = require('test_helpers');
 const axios = require('axios');
@@ -15,6 +15,45 @@ const expect = chai.expect;
 
 const MY_MODEL_DESC = {
     name: 'MyAPITestModel',
+    superclass: 'FlModelBase',
+    initializer: function(data) {
+	this.__super_init('FlModelBase', data);
+    },
+    instance_methods: {
+	refresh: function(data) {
+	    this.__super('FlModelBase', 'refresh', data);
+	}
+    }
+};
+
+const MY_BASE_MODEL_DESC = {
+    name: 'MyAPITestBaseModel',
+    superclass: 'FlModelBase',
+    initializer: function(data) {
+	this.__super_init('FlModelBase', data);
+    },
+    instance_methods: {
+	refresh: function(data) {
+	    this.__super('FlModelBase', 'refresh', data);
+	}
+    }
+};
+
+const MY_OTHER_MODEL_DESC = {
+    name: 'MyAPITestOtherModel',
+    superclass: 'FlModelBase',
+    initializer: function(data) {
+	this.__super_init('FlModelBase', data);
+    },
+    instance_methods: {
+	refresh: function(data) {
+	    this.__super('FlModelBase', 'refresh', data);
+	}
+    }
+};
+
+const MY_MORE_MODEL_DESC = {
+    name: 'MyAPITestMoreModel',
     superclass: 'FlModelBase',
     initializer: function(data) {
 	this.__super_init('FlModelBase', data);
@@ -48,10 +87,60 @@ const MODEL_2 = {
     value1: 'model2 - value1'
 };
 
+const BASE_MODEL_10 = {
+    type: "My::API::Test::BaseModel",
+    api_root: "/my/base_models",
+    url_path: "my/base_models/1",
+    fingerprint: "My::API::Test::BaseModel/1",
+    id: 10,
+    created_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    updated_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    value1: 'model1 - value1'
+};
+
+const OTHER_MODEL_20 = {
+    type: "My::API::Test::OtherModel",
+    api_root: "/my/other_models",
+    url_path: "my/other_models/1",
+    fingerprint: "My::API::Test::OtherModel/1",
+    id: 20,
+    created_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    updated_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    value1: 'model1 - value1'
+};
+
+const MORE_MODEL_100 = {
+    type: "My::API::Test::MoreModel",
+    api_root: "/my/more_models",
+    url_path: "my/More_models/100",
+    fingerprint: "My::API::Test::MoreModel/100",
+    id: 100,
+    created_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    updated_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    value1: 'more model100 - value1'
+};
+
+const MORE_MODEL_200 = {
+    type: "My::API::Test::MoreModel",
+    api_root: "/my/more_models",
+    url_path: "my/More_models/100",
+    fingerprint: "My::API::Test::MoreModel/200",
+    id: 200,
+    created_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    updated_at: 'Thu, 13 Sep 2018 21:57:27 UTC +00:00',
+    value1: 'more model200 - value1'
+};
+
 const API_CFG = {
-    root_url: '/my/models',
+    root_url_template: '/my/models',
     namespace: 'my_model',
     data_names: [ 'model', 'models' ]
+};
+
+const NESTED_API_CFG = {
+    root_url_template: '/my/bases/${base.id}/deps/${other.id}/more_models',
+    namespace: 'more_model',
+    data_names: [ 'more_model', 'more_models' ]
 };
 
 const axmock = new AxiosMockAdapter(axios);
@@ -62,7 +151,14 @@ axmock
 	_pg: { _c: 2, _s:20 , _p: 2}
     }))
 
-    .onGet('/my/models/1.json').reply(200, JSON.stringify({ model: MODEL_1 }))
+    .onGet('/my/models/1.json').reply(function(cfg) {
+	rv = [ 200, JSON.stringify({ model: MODEL_1 }) ];
+
+	// we do this to check that parameters are generated
+	if (_.isObject(cfg.params)) rv.push(cfg.params);
+	
+	return rv;
+    })
 
     .onGet('/my/models/10.json').reply(404, JSON.stringify({
 	_error: { status: "not_found", message: "No user with id 10", details:null }
@@ -90,6 +186,12 @@ axmock
 	    _error: { status: "not_found", message: "No user with id 10", details:null }
 	}) ];
     })
+
+    .onGet('/my/bases/10/deps/20/more_models.json').reply(200, JSON.stringify({
+	more_models: [ MORE_MODEL_100, MORE_MODEL_200 ],
+	_pg: { _c: 2, _s:20 , _p: 2}
+    }))
+
 ;
 
 const MY_SERVICE_DESC = {
@@ -100,15 +202,58 @@ const MY_SERVICE_DESC = {
     }
 };
 
+const MY_OTHER_SERVICE_DESC = {
+    name: 'MyOtherAPIService',
+    superclass: 'FlAPIService',
+    initializer: function(base, other, srv_cfg) {
+	this.__super_init('FlAPIService', NESTED_API_CFG, srv_cfg);
+	this.base = base;
+	this.other = other;
+    }
+};
+
+const MY_NESTED_SERVICE_DESC = {
+    name: 'MyNestedAPIService',
+    superclass: 'FlNestedAPIService',
+    initializer: function(base, other, srv_cfg) {
+	this.__super_init('FlNestedAPIService', NESTED_API_CFG, srv_cfg);
+	this.base = base;
+	this.other = other;
+    }
+};
+
+const MY_SHALLOW_NESTED_SERVICE_DESC = {
+    name: 'MyShallowNestedAPIService',
+    superclass: 'FlNestedAPIService',
+    initializer: function(base, other, srv_cfg) {
+	let cfg = _.merge({}, NESTED_API_CFG, {
+	    shallow_root_url_template: '/my/more_models'
+	});
+
+	this.__super_init('FlNestedAPIService', cfg, srv_cfg);
+	this.base = base;
+	this.other = other;
+    }
+};
+
 describe('fl.api_services module', function() {
     before(function() {
 	let MyAPITestModel = FlClassManager.make_class(MY_MODEL_DESC);
+	let MyAPITestBaseModel = FlClassManager.make_class(MY_BASE_MODEL_DESC);
+	let MyAPITestOtherModel = FlClassManager.make_class(MY_OTHER_MODEL_DESC);
+	let MyAPITestMoreModel = FlClassManager.make_class(MY_MORE_MODEL_DESC);
 
 	FlGlobalModelFactory.register('api_services_tester', [
-	    { service: MyAPITestModel, class_name: 'My::API::Test::Model' }
+	    { service: MyAPITestModel, class_name: 'My::API::Test::Model' },
+	    { service: MyAPITestBaseModel, class_name: 'My::API::Test::BaseModel' },
+	    { service: MyAPITestOtherModel, class_name: 'My::API::Test::OtherModel' },
+	    { service: MyAPITestMoreModel, class_name: 'My::API::Test::MoreModel' }
 	]);
 
 	let MyAPIService = FlClassManager.make_class(MY_SERVICE_DESC);
+	let MyOtherAPIService = FlClassManager.make_class(MY_OTHER_SERVICE_DESC);
+	let MyNestedAPIService = FlClassManager.make_class(MY_NESTED_SERVICE_DESC);
+	let MyShallowNestedAPIService = FlClassManager.make_class(MY_SHALLOW_NESTED_SERVICE_DESC);
     });
     
     after(function() {
@@ -170,7 +315,6 @@ describe('fl.api_services module', function() {
 	
 	context('service (local) configuration', function() {
 	    it('should inherit from global defaults', function() {
-		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 
 		expect(srv.getConfig()).to.include(FlAPIService.getServiceConfig());
@@ -245,8 +389,233 @@ describe('fl.api_services module', function() {
 		expect(srv.xsrfToken).to.eq('MY-TOKEN');
 	    });
 	});
+
+	context('._wrap_data', function() {
+	    it('should process :wrapped and :unwrapped', function() {
+		let FlAPIService = FlClassManager.get_class('FlAPIService');
+		let srv = new FlAPIService(API_CFG);
+
+		let wrapped = {
+		    w1: 10,
+		    w2: { a1: 110, a2: 120 }
+		};
+		let unwrapped = {
+		    u1: 20,
+		    u2: { a1: 210, a2: { a3: 230 } }
+		};
+		let data = srv._wrap_data({ wrapped: wrapped, unwrapped: unwrapped });
+		expect(data).to.have.keys('my_model', 'u1', 'u2');
+		expect(data.my_model).to.include(wrapped);
+		expect(data.u1).to.eql(20);
+		expect(data.u2).to.have.keys('a1', 'a2');
+		expect(data.u2.a1).to.eql(210);
+		expect(data.u2.a2).to.include(unwrapped.u2.a2);
+	    });
+
+	    it('should process :wrapped alone', function() {
+		let FlAPIService = FlClassManager.get_class('FlAPIService');
+		let srv = new FlAPIService(API_CFG);
+
+		let wrapped = {
+		    w1: 10,
+		    w2: { a1: 110, a2: 120 }
+		};
+		let data = srv._wrap_data({ wrapped: wrapped });
+		expect(data).to.have.keys('my_model');
+		expect(data.my_model).to.include(wrapped);
+	    });
+
+	    it('should process :unwrapped alone', function() {
+		let FlAPIService = FlClassManager.get_class('FlAPIService');
+		let srv = new FlAPIService(API_CFG);
+
+		let unwrapped = {
+		    u1: 20,
+		    u2: { a1: 210, a2: { a3: 230 } }
+		};
+		let data = srv._wrap_data({ unwrapped: unwrapped });
+		expect(data).to.have.keys('u1', 'u2');
+		expect(data.u1).to.eql(20);
+		expect(data.u2).to.have.keys('a1', 'a2');
+		expect(data.u2.a1).to.eql(210);
+		expect(data.u2.a2).to.include(unwrapped.u2.a2);
+	    });
+
+	    it('should not wrap :wrapped if namespace is undefined', function() {
+		let FlAPIService = FlClassManager.get_class('FlAPIService');
+		let srv = new FlAPIService({
+		    root_url_template: '/my/models',
+		    data_names: [ 'model', 'models' ]
+		});
+
+		let wrapped = {
+		    w1: 10,
+		    w2: { a1: 110, a2: 120 }
+		};
+		let unwrapped = {
+		    u1: 20,
+		    u2: { a1: 210, a2: { a3: 230 } }
+		};
+		let data = srv._wrap_data({ wrapped: wrapped, unwrapped: unwrapped });
+		expect(data).to.have.keys('w1', 'w2', 'u1', 'u2');
+		expect(data.w1).to.eql(10);
+		expect(data.w2).to.have.keys('a1', 'a2');
+		expect(data.w2.a1).to.eql(110);
+		expect(data.w2.a2).to.eql(120);
+		expect(data.u1).to.eql(20);
+		expect(data.u2).to.have.keys('a1', 'a2');
+		expect(data.u2.a1).to.eql(210);
+		expect(data.u2.a2).to.include(unwrapped.u2.a2);
+	    });
+	});
 	
-	context(':index', function() {
+	context('.url_path_for', function() {
+	    context('for action :index', function() {
+		it('should be correct when no replacement instructions are present', function() {
+		    let MyAPIService = FlClassManager.get_class('MyAPIService');
+		    let srv = new MyAPIService();
+
+		    expect(srv.url_path_for('index')).to.eql('/my/models.json');
+		});
+
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
+		    expect(srv.url_path_for('index')).to.eql('/my/bases/10/deps/20/more_models.json');
+		});
+	    });
+
+	    context('for action :create', function() {
+		it('should be correct when no replacement instructions are present', function() {
+		    let MyAPIService = FlClassManager.get_class('MyAPIService');
+		    let srv = new MyAPIService();
+
+		    expect(srv.url_path_for('create')).to.eql('/my/models.json');
+		});
+
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
+		    expect(srv.url_path_for('create')).to.eql('/my/bases/10/deps/20/more_models.json');
+		});
+	    });
+
+	    context('for action :show', function() {
+		it('should be correct when no replacement instructions are present', function() {
+		    let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		    let my1 = new MyAPITestModel(MODEL_1);
+		    let MyAPIService = FlClassManager.get_class('MyAPIService');
+		    let srv = new MyAPIService();
+
+		    expect(srv.url_path_for('show', my1)).to.eql('/my/models/1.json');
+		    expect(srv.url_path_for('show', 1234)).to.eql('/my/models/1234.json');
+		});
+
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+		    
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
+		    expect(srv.url_path_for('show', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('show', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+		});
+	    });
+
+	    context('for action :update', function() {
+		it('should be correct when no replacement instructions are present', function() {
+		    let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		    let my1 = new MyAPITestModel(MODEL_1);
+		    let MyAPIService = FlClassManager.get_class('MyAPIService');
+		    let srv = new MyAPIService();
+
+		    expect(srv.url_path_for('update', my1)).to.eql('/my/models/1.json');
+		    expect(srv.url_path_for('update', 1234)).to.eql('/my/models/1234.json');
+		});
+
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
+		    expect(srv.url_path_for('update', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('update', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+		});
+	    });
+
+	    context('for action :destroy', function() {
+		it('should be correct when no replacement instructions are present', function() {
+		    let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		    let my1 = new MyAPITestModel(MODEL_1);
+		    let MyAPIService = FlClassManager.get_class('MyAPIService');
+		    let srv = new MyAPIService();
+
+		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/models/1.json');
+		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/models/1234.json');
+		});
+
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+		    
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
+		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+		});
+	    });
+
+	    context('for an unsupported action', function() {
+		it('should return null when no replacement instructions are present', function() {
+		    let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		    let my1 = new MyAPITestModel(MODEL_1);
+		    let MyAPIService = FlClassManager.get_class('MyAPIService');
+		    let srv = new MyAPIService();
+
+		    expect(srv.url_path_for('unknown', my1)).to.be.null;
+		    expect(srv.url_path_for('unknown', 1234)).to.be.null;
+		});
+
+		it('should return null with replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+
+		    let MyOtherAPIService = FlClassManager.get_class('MyOtherAPIService');
+		    let srv = new MyOtherAPIService(my_base, my_other);
+		    expect(srv.url_path_for('unknown', my1)).to.be.null;
+		    expect(srv.url_path_for('unknown', 1234)).to.be.null;
+		});
+	    });
+	});
+	
+	context(':index (simple resource)', function() {
 	    it('should return objects', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
@@ -281,7 +650,71 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.index({ xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.index(null, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should set response on success', function() {
+		let srv = new FlAPIService(API_CFG);
+
+		expect(srv.response).to.be.undefined;
+		
+		return srv.index()
+		    .then(function(data) {
+			expect(srv.response).to.be.an.instanceof(Object);
+			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
+			return Promise.resolve(true);
+		    });
+	    });
+	});
+	
+	context(':index (nested resource)', function() {
+	    it('should return objects', function() {
+		let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		let srv = new MyNestedAPIService(my_base, my_other, NESTED_API_CFG);
+
+		return srv.index()
+		    .then(function(data) {
+			expect(data).to.be.an('array');
+			expect(data.length).to.eq(2);
+			expect(data[0]).to.be.an.instanceof(MyAPITestMoreModel);
+			expect(data[0].value1).to.eq('more model100 - value1');
+			expect(data[1]).to.be.an.instanceof(MyAPITestMoreModel);
+			expect(data[1].value1).to.eq('more model200 - value1');
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the local configuration', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.index()
+		    .then(function(data) {
+			let r = srv.response;
+
+			expect(r.config.xsrfCookieName).to.eq('NEW-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should pick up the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+
+		return srv.index(null, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -372,8 +805,9 @@ describe('fl.api_services module', function() {
 	    it('should pick up the configuration argument', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
+		let params = { param: 'value' };
 
-		return srv.show(1, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.show(1, params, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -415,7 +849,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('new value1');
@@ -428,7 +862,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -442,7 +876,8 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.create({ value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.create({ wrapped: { value1: 'new value1' } },
+				  { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -456,7 +891,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
@@ -469,7 +904,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -483,7 +918,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
@@ -502,7 +937,7 @@ describe('fl.api_services module', function() {
 		
 		my1.test_tag = 'TEST';
 		
-		return srv.update(my1, { value1: 'new value1' })
+		return srv.update(my1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
@@ -517,7 +952,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG);
 		
-		return srv.update(10, { value1: 'new value1' })
+		return srv.update(10, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			return Promise.reject('should not have reached this');
 		    })
@@ -534,7 +969,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -548,7 +983,8 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.update(1, { value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } },
+				  { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -562,7 +998,7 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let srv = new FlAPIService(API_CFG, { xsrfToken: 'MY-TOKEN' });
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
@@ -575,7 +1011,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -588,7 +1024,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.update(10, { value1: 'new value1' })
+		return srv.update(10, { wrapped: { value1: 'new value1' } })
 		    .catch(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -705,7 +1141,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.index({ xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.index(null, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -798,12 +1234,14 @@ describe('fl.api_services module', function() {
 		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+		let params = { param: 'value' };
 
-		return srv.show(1, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.show(1, params, { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			expect(r.headers).to.include(params);
 			
 			return Promise.resolve(true);
 		    });
@@ -844,7 +1282,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.value1).to.eq('new value1');
@@ -858,7 +1296,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -873,7 +1311,8 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.create({ value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.create({ wrapped: { value1: 'new value1' } },
+				  { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -888,7 +1327,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfHeaderName: 'NEW-HEADER-NAME', xsrfToken: 'MY-TOKEN' });
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
@@ -902,7 +1341,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.create({ value1: 'new value1' })
+		return srv.create({ wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -917,7 +1356,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
@@ -937,7 +1376,7 @@ describe('fl.api_services module', function() {
 		
 		my1.test_tag = 'TEST';
 		
-		return srv.update(my1, { value1: 'new value1' })
+		return srv.update(my1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(data).to.be.an.instanceof(MyAPITestModel);
 			expect(data.id).to.eq(1);
@@ -953,7 +1392,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
 		
-		return srv.update(10, { value1: 'new value1' })
+		return srv.update(10, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			return Promise.reject('should not have reached this');
 		    })
@@ -971,7 +1410,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -986,7 +1425,8 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
 
-		return srv.update(1, { value1: 'new value1' }, { xsrfCookieName: 'YET-COOKIE-NAME' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } },
+				  { xsrfCookieName: 'YET-COOKIE-NAME' })
 		    .then(function(data) {
 			let r = srv.response;
 
@@ -1001,7 +1441,7 @@ describe('fl.api_services module', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService({ xsrfHeaderName: 'NEW-HEADER-NAME', xsrfToken: 'MY-TOKEN' });
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			let r = srv.response;
 			expect(r.config.headers).to.include({ [srv.xsrfHeaderName]: 'MY-TOKEN' });
@@ -1015,7 +1455,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.update(1, { value1: 'new value1' })
+		return srv.update(1, { wrapped: { value1: 'new value1' } })
 		    .then(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -1029,7 +1469,7 @@ describe('fl.api_services module', function() {
 
 		expect(srv.response).to.be.undefined;
 		
-		return srv.update(10, { value1: 'new value1' })
+		return srv.update(10, { wrapped: { value1: 'new value1' } })
 		    .catch(function(data) {
 			expect(srv.response).to.be.an.instanceof(Object);
 			expect(srv.response).to.have.keys('status', 'data', 'headers', 'config');
@@ -1039,6 +1479,129 @@ describe('fl.api_services module', function() {
 	});
     });
 
+    describe('FlNestedAPIService', function() {
+	context('.url_path_for', function() {
+	    context('for action :index', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('index')).to.eql('/my/bases/10/deps/20/more_models.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('index')).to.eql('/my/bases/10/deps/20/more_models.json');
+		});
+	    });
+
+	    context('for action :create', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('create')).to.eql('/my/bases/10/deps/20/more_models.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('create')).to.eql('/my/bases/10/deps/20/more_models.json');
+		});
+	    });
+
+	    context('for action :show', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+		    
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('show', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('show', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('show', my1)).to.eql('/my/more_models/100.json');
+		    expect(srv.url_path_for('show', 1234)).to.eql('/my/more_models/1234.json');
+		});
+	    });
+
+	    context('for action :update', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('update', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('update', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('update', my1)).to.eql('/my/more_models/100.json');
+		    expect(srv.url_path_for('update', 1234)).to.eql('/my/more_models/1234.json');
+		});
+	    });
+
+	    context('for action :destroy', function() {
+		it('should expand replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+		    
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/bases/10/deps/20/more_models/100.json');
+		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/bases/10/deps/20/more_models/1234.json');
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('destroy', my1)).to.eql('/my/more_models/100.json');
+		    expect(srv.url_path_for('destroy', 1234)).to.eql('/my/more_models/1234.json');
+		});
+	    });
+
+	    context('for an unsupported action', function() {
+		it('should return null with replacement instructions', function() {
+		    let MyAPITestBaseModel = FlClassManager.get_class('MyAPITestBaseModel');
+		    let MyAPITestOtherModel = FlClassManager.get_class('MyAPITestOtherModel');
+		    let my_base = new MyAPITestBaseModel(BASE_MODEL_10);
+		    let my_other = new MyAPITestOtherModel(OTHER_MODEL_20);
+		    let MyAPITestMoreModel = FlClassManager.get_class('MyAPITestMoreModel');
+		    let my1 = new MyAPITestMoreModel(MORE_MODEL_100);
+
+		    let MyNestedAPIService = FlClassManager.get_class('MyNestedAPIService');
+		    let srv = new MyNestedAPIService(my_base, my_other, NESTED_API_CFG);
+
+		    expect(srv.url_path_for('unknown', my1)).to.be.null;
+		    expect(srv.url_path_for('unknown', 1234)).to.be.null;
+
+		    let MyShallowNestedAPIService = FlClassManager.get_class('MyShallowNestedAPIService');
+		    srv = new MyShallowNestedAPIService(my_base, my_other);
+		    expect(srv.url_path_for('unknown', my1)).to.be.null;
+		    expect(srv.url_path_for('unknown', 1234)).to.be.null;
+		});
+	    });
+	});
+    });
+    
     describe('FlAPIServiceRegistry', function() {
 	afterEach(function() {
 	    th.clear_api_services();

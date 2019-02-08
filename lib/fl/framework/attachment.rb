@@ -66,3 +66,6 @@ end
 if defined?(Neo4j)
   require 'fl/framework/attachment/neo4j'
 end
+if defined?(ActiveStorage)
+  require 'fl/framework/attachment/active_storage'
+end
