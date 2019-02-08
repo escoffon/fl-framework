@@ -1,4 +1,4 @@
-class TestDatumOne < ApplicationRecord
+class TestDatumThree < ApplicationRecord
   include Fl::Framework::Core::ModelHash
   
   # START added by fl:framework:comments generator
@@ -15,10 +15,6 @@ class TestDatumOne < ApplicationRecord
 
   belongs_to :owner, class_name: 'TestActor'
 
-  # this model is listable
-
-  is_listable
-  
   validates :owner, :title, :value, presence: true
 
   protected

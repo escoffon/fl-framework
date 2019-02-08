@@ -1,6 +1,10 @@
 # -*-YAML-*- English locale file for components in the Fl::Framework namespace
 
 en:
+  date:
+    formats:
+      list_title: 'Created %m/%d/%Y'
+  
   fl:
     framework:
       controller:
@@ -40,6 +44,10 @@ en:
           actions:
             destroy:
               deleted: "deleted attachment %{fingerprint}"
+        active_storage:
+          model:
+            validate:
+              forbiddent_content_type: "content type %{ctype} in file %{filename} is not allowed"
 
       service:
         comment:
@@ -57,3 +65,18 @@ en:
       captcha:
         no-captcha: 'The request does not contain the CAPTCHA key %{key}'
         verification-failure: 'CAPTCHA verification failure: %{messages}'
+
+      list:
+        model:
+          normalization_failure: "Some objects could not be loaded into list items"
+          validate:
+            inconsistent_list: "List item '%{list_item}' is not associated with list '%{list}'"
+
+      list_item:
+        model:
+          not_listable: "The object '%{listed_object}' is not a listable"
+          bad_listed_object: "Cannot convert '%{listed_object}' to an object"
+          different_list: "List item %{item} cannot be reassigned to list {list}"
+          already_in_list: "The object '%{listed_object}' is already in list '%{list}'"
+          validate:
+            invalid_state: "Invalid list item state: %{value}"

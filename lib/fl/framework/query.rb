@@ -196,6 +196,24 @@ module Fl::Framework
       h
     end
 
+    # Parse a timestamp parameter's value.
+    # The value *value* is either an integer containing a UNIX timestamp, a Time object, or a string
+    # containing a string representation of the time; the value is converted to a
+    # {Fl::Framework::Core::Icalendar::Datetime} and returned in that format.
+    #
+    # @param value [Integer, Time, String] The timestamp to parse.
+    #
+    # @return [Fl::Framework::Core::Icalendar::Datetime, String] On success, returns the parsed timestamp.
+    #  On failure, returns a string containing an error message from the parser.
+
+    def _parse_timestamp(value)
+      begin
+        return Fl::Framework::Core::Icalendar::Datetime.new(value)
+      rescue => exc
+        return exc.message
+      end
+    end
+
     # Sets up the parameters for time-related filters.
     # For each of the options listed below, the method places a corresponding entry in the return value
     # containing the timestamp generated from the entry.
@@ -259,15 +277,16 @@ module Fl::Framework
     # array of converted order clauses.
     # 
     # @param opts [Hash] A hash of query options.
+    # @param df [String, Array] The default value for the order option if **:order** is not present
+    #  in *opts*. A `nil` value maps to `updated_at DESC'.
+    #
     # @option opts [String, Array] :order A string or array containing the <tt>ORDER BY</tt> clauses
     #  to process. The string value is converted to an array by splitting it at commas.
-    #  A +false+ value or an empty string or array causes the option to be ignored.
-    #  Defaults to <tt>updated_at DESC</tt>, so that the results are ordered by modification time, 
-    #  with the most recent one listed first.
+    #  A `false` value or an empty string or array causes the option to be ignored.
     #
     # @return [Array] Returns an array of converted order clauses.
 
-    def _parse_order_option(opts)
+    def _parse_order_option(opts, df = nil)
       ord = case opts[:order]
             when String
               opts[:order].split(/,\s*/)
@@ -276,7 +295,13 @@ module Fl::Framework
             when FalseClass
               nil
             else
-              [ 'updated_at DESC' ]
+              if df.is_a?(Array)
+                df
+              elsif df.is_a?(String)
+                df.split(/,\s*/)
+              else
+                [ 'updated_at DESC' ]
+              end
             end
       return nil if ord.nil? or (ord.count < 1)
 
