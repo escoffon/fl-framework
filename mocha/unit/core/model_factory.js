@@ -85,7 +85,7 @@ describe('fl.model_factory module', function() {
     afterEach(function() {
 	th.clear_model_services();
 	th.clear_ext();
-	th.clear_class();
+	th.clear_class([ 'MyFactoryTestModel', 'MyOtherClass' ]);
     });
 
     context('loading', function() {

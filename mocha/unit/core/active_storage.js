@@ -205,7 +205,7 @@ describe('fl.active_storage module', function() {
     after(function() {
 	th.clear_model_services();
 	th.clear_ext();
-	th.clear_class();
+	th.clear_class('ContainerTestModel');
     });
 
     context('loading', function() {

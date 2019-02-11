@@ -26,6 +26,12 @@ function _clear_class(name) {
     {
 	if ((name != 'FlRoot') && (name != 'FlModelBase')) delete FlClassManager._class_registry[name];
     }
+    else if (_.isArray(name))
+    {
+	_.forEach(name, function(n, idx) {
+	    _clear_class(n);
+	});
+    }
     else
     {
 	let r = FlClassManager.get_class('FlRoot');
