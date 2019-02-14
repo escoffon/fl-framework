@@ -6,7 +6,7 @@ module Fl::Framework::Access
   # 1. Class methods to register new access checkers, or to override existing ones.
   #    See {Fl::Framework::Access::Access::ClassMethods#access_op}.
   # 2. Instance (and class) methods to check if an actor has access to an object.
-  #    See {Fl::Framework::Access::Access::InstanceMethods#permission?} and
+  #    See {Fl::Framework::Access::Access::OldInstanceMethods#permission?} and
   #    {Fl::Framework::Access::Access::ClassMethods#default_access_checker}.
   # The methods in this module define and implement a framework for standardizing access control
   # management, but don't provide a specific access control algorithm.
@@ -26,7 +26,7 @@ module Fl::Framework::Access
   # The module's {.included} method registers a number of standard operation types, using
   # +:default_access_checker+.
   # Since initially +:default_access_checker+ maps to either {ClassMethods#default_access_checker}
-  # or {InstanceMethods#default_access_checker}, by default no permissions are granted: this forces classes
+  # or {OldInstanceMethods#default_access_checker}, by default no permissions are granted: this forces classes
   # that include {Fl::Framework::Access::Access} to override the access policies as needed.
   # This can be done in one of two ways (or with a combination of these two ways):
   # 1. Override the class +:default_access_checker+ to implement the desired access policies.
@@ -45,7 +45,7 @@ module Fl::Framework::Access
   #       end
   #     end
   #
-  #     module InstanceMethods
+  #     module OldInstanceMethods
   #     end
   #
   #     def self.included(base)
@@ -53,7 +53,7 @@ module Fl::Framework::Access
   #       base.instance_eval do
   #       end
   #       base.class_eval do
-  #         include InstanceMethods
+  #         include OldInstanceMethods
   #       end
   #     end
   #   end
@@ -109,7 +109,7 @@ module Fl::Framework::Access
   #       end
   #     end
   #   
-  #     module InstanceMethods
+  #     module OldInstanceMethods
   #     end
   #   
   #     def self.included(base)
@@ -119,7 +119,7 @@ module Fl::Framework::Access
   #       end
   #   
   #       base.class_eval do
-  #         include InstanceMethods
+  #         include OldInstanceMethods
   #   
   #         access_op(ExtendAccess::CLASS_OP, :default_access_checker, { context: :class })
   #         access_op(ExtendAccess::INSTANCE_OP, :default_access_checker, { context: :instance })
@@ -138,6 +138,116 @@ module Fl::Framework::Access
   #   end
 
   module Access
+    # The methods in this module will be installed as class methods of the including class.
+    # Of particular importance is {#has_access_control}, which is used to turn on access control for
+    # the class.
+
+    module ClassMacros
+      # Turn on access control for a class.
+      # This method registers the given access checker with the class.
+      # It then injects the methods in {InstanceMethods} as instance methods.
+      #
+      # @param checker [Fl::Framework::Access::Checker] The checker to use for access control.
+      # @param cfg [Hash] A hash containing configuration parameters.
+      #
+      # @raise [RuntimeError] Raises an exception if *checker* is not an instance of
+      #  {Fl::Framework::Access::Checker}.
+      
+      def has_access_control(checker, *opts)
+        unless checker.is_a?(Fl::Framework::Access::Checker)
+          raise "access checker is a #{checker.class.name}, should be a Access::Checker"
+        end
+        
+        self.class_variable_set(:@@_access_checker, checker)
+
+        self.send(:extend, Fl::Framework::Access::Access::ClassMethods)
+        self.send(:include, Fl::Framework::Access::Access::InstanceMethods)
+      end
+
+      # Get the access checker.
+      #
+      # @return [Fl::Framework::Access::Checker] Returns the value that was passed to {#has_access_control}.
+
+      def access_checker()
+        self.class_variable_get(:@@_access_checker)
+      end
+    end
+
+    # The methods in this module are installed as class method of the including class.
+    # Note that these methods are installed by {ClassMacros#has_access_control}, so that only classes
+    # that use access control implement these methods.
+
+    module ClassMethods
+      # Check if an actor has permission to perform an operation on an asset.
+      # The *actor* requests permission *permission* on `self`.
+      #
+      # There is a permission request method for class objects, because some operations are performed
+      # at the class level; the typical example is running a query as part of the implementation of
+      # and `index` action.
+      #
+      # Because this method is a wrapper around {Fl::Framework::Access::Checker#access_check}, it has
+      # essentially the same behavior.
+      #
+      # @param permission [Symbol,String] The name of the requested permission.
+      # @param actor [Object] The actor requesting permissions.
+      # @param context An arbitrary value containing the context in which to do the check.
+      #
+      # @return [Symbol,nil,Boolean] If *actor* is granted permission, the permission name is returned
+      #  as a symbol (this is typically the value of *permission*).
+      #  Note that the returned value may be different from *permission* if the permission is granted through
+      #  forwarding (for example, if the request was for **:write** and it was granted because of a
+      #  **:edit** permission).
+      #  If access grants were not granted, the return value is `nil`.
+      #  A `false` return value indicates that an error occurred while performing the access check, and
+      #  should be interpreted as a denial.
+
+      def permission?(permission, actor, context = nil)
+        self.access_checker.access_check(permission, actor, self, context)
+      end
+    end
+    
+    # The methods in this module are installed as instance method of the including class.
+    # Note that these methods are installed by {ClassMacros#has_access_control}, so that only classes
+    # that use access control implement these methods.
+
+    module InstanceMethods
+      # Get the access checker.
+      # Forwards the call to the class method by the same name
+      # ({Fl::Framework::Access::Access::ClassMethods#access_checker}).
+      #
+      # @return [Fl::Framework::Access::Checker] Returns the value that was passed to {#has_access_control}.
+
+      def access_checker()
+        self.class.access_checker()
+      end
+
+      # Check if an actor has permission to perform an operation on an asset.
+      # The *actor* requests permission *permission* on `self`.
+      #
+      # Because this method is a wrapper around {Fl::Framework::Access::Checker#access_check}, it has
+      # essentially the same behavior.
+      #
+      # @param permission [Symbol,String] The name of the requested permission.
+      # @param actor [Object] The actor requesting permissions.
+      # @param context An arbitrary value containing the context in which to do the check.
+      #
+      # @return [Symbol,nil,Boolean] If *actor* is granted permission, the permission name is returned
+      #  as a symbol (this is typically the value of *permission*).
+      #  Note that the returned value may be different from *permission* if the permission is granted through
+      #  forwarding (for example, if the request was for **:write** and it was granted because of a
+      #  **:edit** permission).
+      #  If access grants were not granted, the return value is `nil`.
+      #  A `false` return value indicates that an error occurred while performing the access check, and
+      #  should be interpreted as a denial.
+
+      def permission?(permission, actor, context = nil)
+        self.class.access_checker.access_check(permission, actor, self, context)
+      end
+    end
+
+
+
+    
     # A class to store access check information.
     # Instances of this class contain information about an operation.
     # See the documentation for {Fl::Framework::Access::Access::ClassMethods#access_op} for details.
@@ -152,7 +262,7 @@ module Fl::Framework::Access
     # - +grants+ is the +:grants+ value in +config+.
     # - +public+ is the +public+ value in +config+.
 
-    class Checker
+    class OldChecker
       # @!attribute [r]
       # @return [Symbol] the operation associated with this check.
 
@@ -256,10 +366,10 @@ module Fl::Framework::Access
     #     access_op :write, :my_write_check
     #   end
 
-    module ClassMethods
+    module OldClassMethods
       # Register or override the access checker for an operation.
       #
-      # If no operation is registered under +op+, the method creates an {Fl::Framework::Access::Access::Checker}
+      # If no operation is registered under +op+, the method creates an {Fl::Framework::Access::Access::OldChecker}
       # instance, passing the value of +op+ as the +op+ attribute, +checker+ or +cproc+ as the +checker+
       # attribute, and +opts+ as the +config+ attribute. If neither +checker+ nor +cproc+ are defined,
       # the default standard access check method is installed.
@@ -285,18 +395,18 @@ module Fl::Framework::Access
       #   value is +true+, access is granted to objects with +:public+ visibility.
       #
       # The access check method or Proc are expected to take four arguments:
-      # - *op* A {Checker} instance containing the operation descriptor.
+      # - *op* A {OldChecker} instance containing the operation descriptor.
       #   This is the instance that contains the operation's
       #   registration info, which includes the symbolized name of the operation and the configuration.
       # - *obj* The object granting permission.
       # - *actor* The actor requesting permission.
       # - *ctx* The context that was passed to the permission call.
-      # If we compare these to the arguments to the {Fl::Framework::Access::InstanceMethods#permission?}
+      # If we compare these to the arguments to the {Fl::Framework::Access::OldInstanceMethods#permission?}
       # method, then:
-      # - *op* is derived from the _op_ parameter of {Fl::Framework::Access::InstanceMethods#permission?}.
-      # - *obj* is +self+ in {Fl::Framework::Access::InstanceMethods#permission?}.
-      # - *actor* is _actor_ in {Fl::Framework::Access::InstanceMethods#permission?}.
-      # - *ctx* is _context_ in {Fl::Framework::Access::InstanceMethods#permission?}.
+      # - *op* is derived from the _op_ parameter of {Fl::Framework::Access::OldInstanceMethods#permission?}.
+      # - *obj* is +self+ in {Fl::Framework::Access::OldInstanceMethods#permission?}.
+      # - *actor* is _actor_ in {Fl::Framework::Access::OldInstanceMethods#permission?}.
+      # - *ctx* is _context_ in {Fl::Framework::Access::OldInstanceMethods#permission?}.
       #
       # For example, here is a class that registers two additional access operations, one that uses a method,
       # and one that uses a block. It also registers a new access checker for the +:read+ operation.
@@ -323,7 +433,7 @@ module Fl::Framework::Access
       # If access rights are not granted, the return value is +nil+.
       # Under some circumstances, the checker may elect to return +false+ to indicate that access was not
       # granted because of an error.
-      # This return value is returned by {Fl::Framework::Access::InstanceMethods#permission?}.
+      # This return value is returned by {Fl::Framework::Access::OldInstanceMethods#permission?}.
       #
       # @overload access_op(op, checker, opts)
       #  Registers a new access control operation where the check implementation is provided as an
@@ -386,7 +496,7 @@ module Fl::Framework::Access
             proc = (checker.nil?) ? cproc : checker
           end
           config = ({ context: :instance }).merge(opts)
-          a_c_ops[sop] = Checker.new(sop, proc, config)
+          a_c_ops[sop] = OldChecker.new(sop, proc, config)
           _update_access_forward_grants(a_c_ops[sop])
         end
       end
@@ -395,7 +505,7 @@ module Fl::Framework::Access
       #
       # @param op [Symbol, String] The name of the operation for which to get the checker configuration.
       #
-      # @return Returns an [Fl::Framework::Access::Checker] instance containing the configuration for +op+,
+      # @return Returns an [Fl::Framework::Access::OldChecker] instance containing the configuration for +op+,
       #  +nil+ if not found.
 
       def config_for_op(op)
@@ -433,7 +543,7 @@ module Fl::Framework::Access
         if p
           p.run_check(self, actor, context)
         else
-          default_access_checker(Checker.new(op.to_sym, :default_access_checker, {}), self, actor, context)
+          default_access_checker(OldChecker.new(op.to_sym, :default_access_checker, {}), self, actor, context)
         end
       end
 
@@ -473,7 +583,7 @@ module Fl::Framework::Access
       # to {Fl::Framework::Access::Grants::READ}, _obj_ set to <tt>myobj</tt>,
       # _actor_ set to <tt>myactor</tt>, and _context_ set to <tt>{ key: 'value' }</tt>.
       #
-      # @param op [Fl::Framework::Access::Access::Checker] The requested operation.
+      # @param op [Fl::Framework::Access::Access::OldChecker] The requested operation.
       # @param obj [Object] The target of the request.
       # @param actor [Object] The actor requesting permission.
       # @param context The context in which to do the check.
@@ -509,10 +619,10 @@ module Fl::Framework::Access
 
     # The methods in this module are installed as instance method of the including class.
 
-    module InstanceMethods
+    module OldInstanceMethods
       # The default access checker, as an instance method.
       # This implementation simply calls the class method by the same name.
-      # See the documentation for {Fl::Framework::Access::Access::ClassMethods#default_access_checker}.
+      # See the documentation for {Fl::Framework::Access::Access::OldClassMethods#default_access_checker}.
       #
       # Note that this is typically *not* the access checker method you want to override; instead, you
       # should override the class method, where all access checks can be centralized.
@@ -543,7 +653,7 @@ module Fl::Framework::Access
       # - *:destroy* Destroy the object. Uses the same permission algorithm as *:write*.
       # - *:index* List objects. Note that *:index* does not request access for a specific instance,
       #   but rather for a class of objects. Therefore, one uses the class object in the call.
-      # Clients of this module can use the {Fl::Framework::Access::Access::ClassMethods#access_op}
+      # Clients of this module can use the {Fl::Framework::Access::Access::OldClassMethods#access_op}
       # class method to register new operations (or to overwrite the default access check for the standard
       # operations).
       #
@@ -565,7 +675,7 @@ module Fl::Framework::Access
         if p
           p.run_check(self, actor, context)
         else
-          default_access_checker(Checker.new(op.to_sym, :default_access_checker, {}), self, actor, context)
+          default_access_checker(OldChecker.new(op.to_sym, :default_access_checker, {}), self, actor, context)
         end
       end
 
@@ -573,6 +683,8 @@ module Fl::Framework::Access
     end
 
     # Perform actions when the module is included.
+    # - Injects the class macros, to make {ClassMacros#has_access_control} available. Additional class
+    #   and instance methods are injected by {ClassMacros#has_access_control}.
     # - Injects the class and instance methods.
     # - Defines and registers the following default operations and access checkers:
     #   - +:index+ with checker +:default_access_checker+ and context +:class+.
@@ -584,17 +696,18 @@ module Fl::Framework::Access
     #   - +:destroy+ with checker +:default_access_checker+ and context +:instance+.
     #   - +:admin+ with checker +:default_access_checker+ and context +:instance+.
     #     This operation also grants +:read+ and +:write+ access.
-    # Since initially +:default_access_checker+ maps to either {ClassMethods#default_access_checker}
-    # or {InstanceMethods#default_access_checker}, by default no permissions are granted: this forces classes
+    # Since initially +:default_access_checker+ maps to either {OldClassMethods#default_access_checker}
+    # or {OldInstanceMethods#default_access_checker}, by default no permissions are granted: this forces classes
     # that include {Fl::Framework::Access::Access} to override the access policies as needed.
 
     def self.included(base)
-      base.extend ClassMethods
+      base.extend ClassMacros
+      base.extend OldClassMethods
 
       base.instance_eval do
         # Get the registered operations.
         # Returns a Hash where the keys are operation nmes (as Symbol), and the values the corresponding
-        # Fl::Framework::Access::Checker instance.
+        # Fl::Framework::Access::OldChecker instance.
 
         def access_control_ops()
           s = self
@@ -605,7 +718,7 @@ module Fl::Framework::Access
         end
       end
 
-      base.send(:include, InstanceMethods)
+      base.send(:include, OldInstanceMethods)
 
       base.class_eval do
         @access_control_ops = {}

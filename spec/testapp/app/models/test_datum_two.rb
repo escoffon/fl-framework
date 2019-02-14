@@ -1,5 +1,6 @@
 class TestDatumTwo < ApplicationRecord
   include Fl::Framework::Core::ModelHash
+#  include Fl::Framework::Access::Access
   
   # START added by fl:framework:comments generator
   include Fl::Framework::Access::Access unless include?(Fl::Framework::Access::Access)
@@ -17,6 +18,10 @@ class TestDatumTwo < ApplicationRecord
 
   is_listable summary: :my_title
 
+  # this model has access control
+
+#  has_access_control TestAccessChecker.new()
+  
   belongs_to :owner, class_name: 'TestActor'
 
   validates :owner, :title, :value, presence: true
