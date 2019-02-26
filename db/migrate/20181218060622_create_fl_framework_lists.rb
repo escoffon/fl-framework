@@ -37,23 +37,28 @@ class CreateFlFrameworkLists < ActiveRecord::Migration[5.2]
     
     create_table :fl_framework_list_items do |t|
       # The list
-      t.references	:list
+      t.references	:list, index: { name: :fl_fmwk_l_i_list_idx }
 
       # The listed object; polymorphic since lists can hold heterogeneous collections
       # The fingerprint is a query optimizer
-      t.references	:listed_object, polymorphic: true, index: { name: :fl_frmk_l_i_lo_idx }
-      t.string		:listed_object_fingerprint, index: { name: :fl_frmk_l_i_lo_fp_idx }
+      t.references	:listed_object, polymorphic: true, index: { name: :fl_fmwk_l_i_lo_idx }
+      t.string		:listed_object_fingerprint, index: { name: :fl_fmwk_l_i_lo_fp_idx }
 
       # We may need an additional class name field in situations when the listed object is an instance of
       # a subclass in a hierarchy of listable objects. (For example, a reminder is a subclass of a calendar
       # item, and the listable extensions are in the latter rather than the former.)
-      t.string		:listed_object_class_name, index: { name: :fl_frmk_l_i_lo_cn_idx }
+      t.string		:listed_object_class_name, index: { name: :fl_fmwk_l_i_lo_cn_idx }
 
       # The entity that owns the item; typically this is a user, but we define a polymorphic association
       # for flexibility
       # The fingerprint is a query optimizer
-      t.references	:owner, polymorphic: true, index: { name: :fl_frmk_l_i_own_idx }
-      t.string		:owner_fingerprint, index: { name: :fl_frmk_l_i_own_fp_idx }
+      t.references	:owner, polymorphic: true, index: { name: :fl_fmwk_l_i_own_idx }
+      t.string		:owner_fingerprint, index: { name: :fl_fmwk_l_i_own_fp_idx }
+
+      # The name of the list item.
+      # Used to identify list items by path; must also be unique for a given list (currently enforced
+      # at the ActiveRecord model level)
+      t.string	:name
 
       # Set to `true` if the object's state cannot be modified, `false` if it can
       t.boolean		:readonly_state
@@ -65,14 +70,14 @@ class CreateFlFrameworkLists < ActiveRecord::Migration[5.2]
       t.integer		:state
       t.text		:state_note
       t.datetime	:state_updated_at
-      t.references	:state_updated_by, polymorphic: true, index: { name: :fl_frmk_l_i_state_uby_idx }
+      t.references	:state_updated_by, polymorphic: true, index: { name: :fl_fmwk_l_i_state_uby_idx }
 
       # Sort order
       t.integer		:sort_order
 
       # This is a denormalization done so that queries can sort by the list item's summary without
       # creating a join
-      t.string		:item_summary, index: { name: :fl_frmk_l_i_summary_idx }
+      t.string		:item_summary, index: { name: :fl_fmwk_l_i_summary_idx }
 
       t.timestamps
     end
@@ -94,12 +99,12 @@ class CreateFlFrameworkLists < ActiveRecord::Migration[5.2]
 
         execute <<-SQL
           ALTER TABLE fl_framework_list_items
-          ADD CONSTRAINT fl_frmk_list_items_list_fk FOREIGN KEY (list_id) REFERENCES fl_framework_lists(id)
+          ADD CONSTRAINT fl_fmwk_list_items_list_fk FOREIGN KEY (list_id) REFERENCES fl_framework_lists(id)
         SQL
 
         execute <<-SQL
           ALTER TABLE fl_framework_list_items
-            ADD CONSTRAINT fl_frmk_list_items_sta_fk FOREIGN KEY (state) REFERENCES fl_framework_list_item_state_t(id)
+            ADD CONSTRAINT fl_fmwk_list_items_sta_fk FOREIGN KEY (state) REFERENCES fl_framework_list_item_state_t(id)
         SQL
       end
 

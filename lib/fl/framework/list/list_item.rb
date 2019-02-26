@@ -1,6 +1,16 @@
 module Fl::Framework::List
   # An item in a list.
   # Instances of this class manage the relationship between an object and its container list.
+  # This creates a layer of indirection between a list and its contents that adds these properties
+  # to the relationship:
+  #
+  # - An object can be placed in multiple lists.
+  # - The relationship has an "owner" that may be different from the owner of the listed object.
+  # - It is possible to associate a name with the listed object, and then use
+  #   {Fl::Framework::List::List#resolve_path} to find objects by name in a containment hierarchy.
+  # - The relationship has a status, so that for example an item can be marked "selected."
+  #   Note that, because an object can belong to multiple lists, its status may be different in two
+  #   different lists.
   #
   # #### Associations
   #
@@ -18,7 +28,7 @@ module Fl::Framework::List
   # - {#state_updated_by} is a polymorphic `belongs_to` association linking to the entity that last
   #   modified the state of the item.
   
-  class ListItem < ActiveRecord::Base
+  class ListItem < Fl::Framework::ApplicationRecord
     include Fl::Framework::Core::ModelHash
     include Fl::Framework::Core::AttributeFilters
     extend Fl::Framework::Query
@@ -60,6 +70,13 @@ module Fl::Framework::List
     
     belongs_to :owner, polymorphic: true, optional: true
 
+    # @!attribute [rw] name
+    # The name of the item. This name can be used to identify items within a list, in particular
+    # when resolving paths (see {List#resolve_path}).
+    # It is case sensitive, must not contain `/` (forward slash) or `\` (backslash), must be at most
+    # 200 characters long, and must be unique within the context of a list.
+    # @return [String] the item's name (path component)
+
     # @!attribute [rw] readonly_state
     # This attribute controls if the list item can be modified (by changing its state).
     # @return [Boolean] the readonly state of the list item.
@@ -73,6 +90,8 @@ module Fl::Framework::List
     validate :object_must_be_listable
     validate :check_duplicate_entries, :on => :create
     validate :validate_state
+    validates :name, :length => { :maximum => 200 }
+    validate :validate_name
 
     before_create :object_state_defaults_for_create, :set_class_name_field, :set_fingerprints
     after_create :update_list_timestamps
@@ -106,9 +125,9 @@ module Fl::Framework::List
     # The method removes **:list**, **:listed_object**, **:owner** from *attrs* before calling the
     # superclass implementation.
     #
-    # @param attrs The attributes.
+    # @param attrs [Hash] The attributes.
     #
-    # @return @returns the return value from the @c super call.
+    # @return @returns the return value from the `super` call.
 
     def update_attributes(attrs)
       nattrs = attrs.reduce({}) do |acc, a|
@@ -251,8 +270,8 @@ module Fl::Framework::List
     # @option opts [String, Array] :order A string or array containing the <tt>ORDER BY</tt> clauses
     #  for the records. The string value is converted to an array by splitting it at commas.
     #  A `false` value or an empty string or array causes the option to be ignored.
-    #  Defaults to <tt>updated_at DESC</tt>, so that the records are ordered by modification time, 
-    #  with the most recent one listed first.
+    #  Defaults to <tt>list_id ASC, sort_order ASC</tt>, so that the records are ordered by sort order
+    #  and grouped by list.
     # @option opts [Symbol, Array<Symbol>, Hash] :includes An array of symbols (or a single symbol),
     #  or a hash, to pass to the +includes+ method
     #  of the relation; see the guide on the ActiveRecord query interface about this method.
@@ -531,26 +550,32 @@ module Fl::Framework::List
     #
     # 1. Instances of {Fl::Framework::List::ListItem], which are kept as-is.
     #    However, the method enforces that *o* is in list *list*.
-    # 2. Objects that respond to the `listable?` method and return `true` (and are, therefore, listable).
+    # 2. Subclasses of {ActiveRecord::Base} that respond to the `listable?` method and return `true`
+    #    (and are, therefore, listable).
+    #    If *owner* is `nil`, and the object responds to `owner`, and `owner` returns a non-nil value,
+    #    use that value; otherwise, use `list.owner`.
     # 3. Strings containing an object fingerprint, which is used to find the object in storage.
     #    The resulting objects should be listable as described in the previous item.
     # 4. Hashes that contain attributes for the instance of {Fl::Framework::List::ListItem} to create.
-    #    These hashes contain at least the **:listed_object** attribute; if **:owner** is not present, the
-    #    value of *owner* is used. The value of **:list** is overridden by *list*.
-    #    The value of **listed_object** can be an ActiveRecord model instance or a string containing
+    #    These hashes contain at least the **:listed_object** attribute.
+    #    The value of **:list** is ignored: it is overridden by *list*.
+    #    The value of **:listed_object** can be an ActiveRecord model instance or a string containing
     #    the object's fingerprint.
+    #    If *owner* is `nil`, and the hash contains a non-nil **:owner**, use that value; otherwise,
+    #    use `list.owner`.
+    #    All other key/vaue pairs in the hash are passed down to the constructor: it is the caller's
+    #    responsibility to ensure that the list item (sub)class supports them.
     #  
     # @param o The object to resolve. See above for details.
     # @param list [Fl::Framework::List::List] The list where the object should be placed.
-    # @param owner The owner for the resolved object; if `nil`, then if *o* responds to **:owner** and
-    #  `o.owner` is non-nill, use `o.owner`; finally, use `list.owner` is used.
+    # @param owner The owner for the resolved object. See above for a discussion on how this value is used.
     #
     # @return [Fl::Framework::List::ListItem,String] Returns either an instance
     #  of {Fl::Framework::List::ListItem}, or a string containing an error message.
 
     def self.resolve_object(o, list, owner = nil)
       c_o = _convert_object(o)
-
+      
       if c_o.is_a?(Fl::Framework::List::ListItem)
         if c_o.list.id != list.id
           resolved = I18n.tx('fl.framework.list_item.model.different_list', item: c_o.fingerprint,
@@ -566,11 +591,11 @@ module Fl::Framework::List
                   else
                     list.owner
                   end
-        resolved = Fl::Framework::List::ListItem.new({
-                                                       list: list,
-                                                       listed_object: c_o,
-                                                       owner: c_owner
-                                                     })
+        resolved = self.new({
+                              list: list,
+                              listed_object: c_o,
+                              owner: c_owner
+                            })
       elsif c_o.is_a?(Hash)
         n_o = (c_o.has_key?(:listed_object)) ? _convert_object(c_o[:listed_object]) : nil
         if n_o.is_a?(String)
@@ -578,16 +603,25 @@ module Fl::Framework::List
         else
           c_owner = if owner
                       owner
-                    elsif (c_o.respond_to?(:owner) && c_o.owner)
-                      c_o.owner
+                    elsif !c_o[:owner].nil?
+                      c_o[:owner]
+                    elsif (n_o.respond_to?(:owner) && n_o.owner)
+                      n_o.owner
                     else
                       list.owner
                     end
-          resolved = Fl::Framework::List::ListItem.new({
-                                                         list: list,
-                                                         listed_object: n_o,
-                                                         owner: c_owner
-                                                       })
+          nh = c_o.reduce({
+                            list: list,
+                            listed_object: n_o,
+                            owner: c_owner,
+                            name: c_o[:name]
+                          }) do |acc, kvp|
+            hk, hv = kvp
+            acc[hk] = hv unless acc.has_key?(hk)
+            acc
+          end
+
+          resolved = self.new(nh)
         end
       else
         resolved = c_o
@@ -602,12 +636,12 @@ module Fl::Framework::List
     # Various types of elements are acceptable in *objects*, as described in the
     # documentation for {.resolve_object}.
     #
-    # If an element is a string and the object resolution triggers an error, the error string is placed
-    # in the normalized array at that position. Additionally, if the resolved object is not listable, an
-    # error string is also placed in the normalized array at that position.
+    # If an element is a string or hash and the object resolution triggers an error, the error string
+    # is placed in the normalized array at that position. Additionally, if the resolved object is not
+    # listable, an error string is also placed in the normalized array at that position.
     #
     # @param [Array] objects The input array (or a single object, which will be converted to an
-    #input array).
+    #  input array).
     # @param list [Fl::Framework::List::List] The list for which to perform the normalization; this value
     #  is passed to {.resolve_object}.
     # @param owner The owner for any newly created list objects; this value is passed to {.resolve_object}.
@@ -665,6 +699,28 @@ module Fl::Framework::List
       end
     end
 
+    # @!visibility private
+    INVALID_NAME_REGEXP = Regexp.new("[\/\\\\]")
+
+    # @!visibility private
+
+    def validate_name()
+      unless self.name.blank?
+        name = self.name
+        
+        if name =~ INVALID_NAME_REGEXP
+          self.errors[:name] << I18n.tx('fl.framework.list_item.model.validate.invalid_name', :name => name)
+        end
+
+        q = Fl::Framework::List::ListItem.where('(name = :name)', name: name)
+        q = q.where('(id != :lid)', lid: self.id) if self.persisted?
+        qc = q.count
+        if qc > 0
+          self.errors[:name] << I18n.tx('fl.framework.list_item.model.validate.duplicate_name', :name => name)
+        end
+      end
+    end
+    
     # @!visibility private
     MINIMAL_HASH_KEYS = [ :owner, :list, :listed_object, :readonly_state, :state, :sort_order, :item_summary ]
     # @!visibility private

@@ -69,6 +69,8 @@ en:
       list:
         model:
           normalization_failure: "Some objects could not be loaded into list items"
+          bad_list_item_class: "To register a list item class, provide a class or a class name"
+          invalid_list_item_class: "Registered list item classes must be a subclasses of Fl::Framework::List::ListItem"
           validate:
             inconsistent_list: "List item '%{list_item}' is not associated with list '%{list}'"
 
@@ -80,3 +82,5 @@ en:
           already_in_list: "The object '%{listed_object}' is already in list '%{list}'"
           validate:
             invalid_state: "Invalid list item state: %{value}"
+            invalid_name: "Invalid list item name: '%{name}' (make sure the name does not contain / or \\)"
+            duplicate_name: "Duplicate list item name: '%{name}'"

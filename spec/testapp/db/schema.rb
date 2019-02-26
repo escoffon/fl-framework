@@ -83,6 +83,7 @@ ActiveRecord::Schema.define(version: 2019_02_02_222507) do
     t.string "owner_type"
     t.bigint "owner_id"
     t.string "owner_fingerprint"
+    t.string "name"
     t.boolean "readonly_state"
     t.integer "state"
     t.text "state_note"
@@ -93,14 +94,14 @@ ActiveRecord::Schema.define(version: 2019_02_02_222507) do
     t.string "item_summary"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["item_summary"], name: "fl_frmk_l_i_summary_idx"
-    t.index ["list_id"], name: "index_fl_framework_list_items_on_list_id"
-    t.index ["listed_object_class_name"], name: "fl_frmk_l_i_lo_cn_idx"
-    t.index ["listed_object_fingerprint"], name: "fl_frmk_l_i_lo_fp_idx"
-    t.index ["listed_object_type", "listed_object_id"], name: "fl_frmk_l_i_lo_idx"
-    t.index ["owner_fingerprint"], name: "fl_frmk_l_i_own_fp_idx"
-    t.index ["owner_type", "owner_id"], name: "fl_frmk_l_i_own_idx"
-    t.index ["state_updated_by_type", "state_updated_by_id"], name: "fl_frmk_l_i_state_uby_idx"
+    t.index ["item_summary"], name: "fl_fmwk_l_i_summary_idx"
+    t.index ["list_id"], name: "fl_fmwk_l_i_list_idx"
+    t.index ["listed_object_class_name"], name: "fl_fmwk_l_i_lo_cn_idx"
+    t.index ["listed_object_fingerprint"], name: "fl_fmwk_l_i_lo_fp_idx"
+    t.index ["listed_object_type", "listed_object_id"], name: "fl_fmwk_l_i_lo_idx"
+    t.index ["owner_fingerprint"], name: "fl_fmwk_l_i_own_fp_idx"
+    t.index ["owner_type", "owner_id"], name: "fl_fmwk_l_i_own_idx"
+    t.index ["state_updated_by_type", "state_updated_by_id"], name: "fl_fmwk_l_i_state_uby_idx"
   end
 
   create_table "fl_framework_lists", force: :cascade do |t|
@@ -148,6 +149,6 @@ ActiveRecord::Schema.define(version: 2019_02_02_222507) do
     t.index ["owner_id"], name: "index_test_datum_twos_on_owner_id"
   end
 
-  add_foreign_key "fl_framework_list_items", "fl_framework_list_item_state_t", column: "state", name: "fl_frmk_list_items_sta_fk"
-  add_foreign_key "fl_framework_list_items", "fl_framework_lists", column: "list_id", name: "fl_frmk_list_items_list_fk"
+  add_foreign_key "fl_framework_list_items", "fl_framework_list_item_state_t", column: "state", name: "fl_fmwk_list_items_sta_fk"
+  add_foreign_key "fl_framework_list_items", "fl_framework_lists", column: "list_id", name: "fl_fmwk_list_items_list_fk"
 end

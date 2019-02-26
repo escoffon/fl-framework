@@ -1,5 +1,30 @@
 module Fl::Framework::List
   # Model class for lists.
+  # A list manages a collection of listable objects by managing a collection of list item objects.
+  # Any subclass of {ActiveRecord::Base} that wants to be placed in lists must call the
+  # {Fl::Framework::List::Listable::ClassMethods#is_listable} macro:
+  #
+  # ```
+  # class MyModel < ActiveRecord::Base
+  #  is_listable
+  # end
+  # ```
+  # (Note that only subclasses of {ActiveRecord::Base} can be listable.)
+  #
+  # Instances of {List} manage collections of {Fl::Framework::List::ListItem} objects, which adds
+  # a few properties to the relationship, as described in the documentation for
+  # {Fl::Framework::List::ListItem}. This is essentially a `has_many_through` association, where the
+  # "through" class contains additional information for the relationship.
+  #
+  # #### List item factories
+  #
+  # There are circumstances where it is necessary to add behavior to the relationship: for example,
+  # adding access control checks to the list item objects to prevent unauthorized access.
+  # Since this is done by subclassing {Fl::Framework::List::ListItem}, {List} defines a
+  # class API to override the class of its list items. This is done on a class basis, so that one has
+  # the option of overriding the list item class for all {List} instances, or for selected subclasses.
+  # For example, to override the list item class globally:
+  #
   #
   # #### Associations
   #
@@ -10,7 +35,7 @@ module Fl::Framework::List
   # - {#containers} is a `has_many` association that lists all the containers (lists) to which the
   #   list belongs.
 
-  class List < ActiveRecord::Base
+  class List < Fl::Framework::ApplicationRecord
     # Exception raised by lists when listed object normalization fails.
     
     class NormalizationError < RuntimeError
@@ -47,7 +72,7 @@ module Fl::Framework::List
     include Fl::Framework::Core::TitleManagement
     
     self.table_name = 'fl_framework_lists'
-
+    
     # @!attribute [r] containers
     # Since a list can be placed in other lists, it automatically creates an association named `containers`
     # that lists all the lists to which it belongs.
@@ -74,7 +99,7 @@ module Fl::Framework::List
     # A `has_many` association containing the list items; this association is a collection of
     # {Fl::Framework::List::ListItem} instances.
     # @return [Association] the list items.
-    
+
     has_many :list_items, -> { order("sort_order ASC") }, autosave: true,
              class_name: 'Fl::Framework::List::ListItem', dependent: :destroy
 
@@ -115,6 +140,51 @@ module Fl::Framework::List
     # The list caption.
     # @return [String] the list caption.
 
+    @@_list_item_class = { }
+    
+    # Gets the class used to store list items.
+    #
+    # @return [Class] Returns the class that was registered for this list class.
+    #  Note that the registered class is a subclass of {Fl::Framework::List::ListItem}.
+
+    def self.list_item_class()
+      (@@_list_item_class.has_key?(self.name)) ? @@_list_item_class[self.name] : Fl::Framework::List::ListItem
+    end
+
+    # Sets the class used to store list items.
+    #
+    # @param liclass [Class,String] The subclass of {Fl::Framework::List::ListItem} to use, or
+    #  the name of the subclass.
+    #
+    # @raise [RuntimeError] Raises an exception if *liclass* resolves to a class that does not
+    #  derive from {Fl::Framework::List::ListItem}.
+
+    def self.list_item_class=(liclass)
+      k = if liclass.is_a?(Class)
+            liclass
+          elsif liclass.is_a?(String)
+            liclass.constantize
+          else
+            raise I18n.tx('fl.framework.list.model.bad_list_item_class')
+          end
+
+      if !k.ancestors.include?(Fl::Framework::List::ListItem)
+        raise I18n.tx('fl.framework.list.model.invalid_list_item_class')
+      end
+      
+      @@_list_item_class[self.name] = k
+    end
+    
+    # Gets the class used to store list items.
+    # This is a wrapper around {.list_item_class}.
+    #
+    # @return [Class] Returns the class that was registered for this list class.
+    #  Note that the registered class is a subclass of {Fl::Framework::List::ListItem}.
+
+    def list_item_class()
+      self.class.list_item_class()
+    end
+    
     # Constructor.
     #
     # @param attrs [Hash] A hash of initialization parameters.
@@ -225,18 +295,21 @@ module Fl::Framework::List
     # @param obj [ActiveRecord::Base] The object to add; if already in the list, the request is ignored.
     # @param owner The owner for the list object that stores the association between `self` and *obj*.
     #  If `nil`, the list's owner is used.
+    # @param name [String] The name to give to the list item; this is used by {#resolve_path} to find
+    #  list items in a hierarchy.
     #
     # @return Returns the instance of {Fl::Framework::List::ListItem} that stores the association between
     #  `self` and *obj*. If *obj* is already in the list, the existing list item is returned.
 
-    def add_object(obj, owner = nil)
+    def add_object(obj, owner = nil, name = nil)
       li = find_list_item(obj)
       unless li
-        li = Fl::Framework::List::ListItem.new({
-                                                 :list => self,
-                                                 :listed_object => obj,
-                                                 :owner => (owner) ? owner : self.owner
-                                               })
+        li = self.list_item_class.new({
+                                        list: self,
+                                        listed_object: obj,
+                                        owner: (owner) ? owner : self.owner,
+                                        name: (name.is_a?(String)) ? name : nil
+                                      })
         self.list_items << li
       end
 
@@ -283,6 +356,37 @@ module Fl::Framework::List
       Fl::Framework::List::ListItem.build_query(opts.merge({ only_lists: [ self ], except_lists: nil}))
     end
 
+    # Resolve a path to a list item.
+    # This method splits the components of *path* and looks up the first one in the list; if it finds
+    # a list item, and the item is a list, it calls itself recursively to resolve the rest of the path.
+    # (Actually the algorithm is not recursive, but the end effect is the same.)
+    #
+    # Note tat the method executes a query for each component in the path, and therefore it does not have
+    # the best performance.
+    #
+    # @param path [String] A path to the list item to look up; path components are separated by `/`
+    #  (forward slash) characters.
+    #
+    # @return [Fl::Framework::List::LIstItem,nil] Returns a list item if one is found; otherwise, it
+    #  returns `nil`.
+
+    def resolve_path(path)
+      pl = path.split(Regexp.new("[\/\\\\]+"))
+      pl.shift if pl[0].length < 1
+      return nil if pl.count < 1
+      
+      list = self
+      last = pl.pop
+      pl.each do |pc|
+        li = Fl::Framework::List::ListItem.where('(list_id = :lid) AND (name = :n)',
+                                                 lid: list.id, n: pc).first
+        return nil if li.nil? || !li.listed_object.is_a?(Fl::Framework::List::List)
+        list = li.listed_object
+      end
+
+      Fl::Framework::List::ListItem.where('(list_id = :lid) AND (name = :n)', lid: list.id, n: last).first
+    end
+    
     protected
 
     # The default properties to return from `to_hash`.
@@ -359,7 +463,7 @@ module Fl::Framework::List
     private
         
     def set_objects(objs, owner)
-      errs, conv = Fl::Framework::List::ListItem.normalize_objects(objs, self, owner)
+      errs, conv = self.list_item_class.normalize_objects(objs, self, owner)
       if errs > 0
         exc = NormalizationError.new(I18n.tx('fl.framework.list.model.normalization_failure'), conv)
         raise exc
