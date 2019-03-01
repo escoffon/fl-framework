@@ -517,6 +517,8 @@ module Fl::Framework::Core
       def to_hash_opts_with_defaults(opts, defaults = nil)
         if opts.is_a?(Hash)
           opts.dup
+        elsif opts.is_a?(ActionController::Parameters)
+          opts.to_h
         elsif defaults.is_a?(Hash)
           defaults.dup
         else

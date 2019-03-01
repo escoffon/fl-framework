@@ -18,6 +18,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
   let(:d22) { create(:test_datum_two, owner: a1, value: 'v22') }
   let(:d30) { create(:test_datum_three, owner: a1, value: 30) }
   let(:l1) { create(:list, owner: a1) }
+  let(:l2) { create(:list, owner: a1) }
 
   describe '#initialize' do
     it 'should fail with empty attributes' do
@@ -41,6 +42,12 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
       expect(li1.owner.id).to eql(a2.id)
     end
 
+    it 'should accept a name attribute' do
+      li1 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d11, name: 'item1')
+      expect(li1.valid?).to eq(true)
+      expect(li1.name).to eql('item1')
+    end
+
     it 'should use the list owner if necessary' do
       l = create(:list)
       li1 = Fl::Framework::List::ListItem.new(list: l, listed_object: d11)
@@ -52,8 +59,34 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
       expect(li2.valid?).to eq(true)
       expect(li2.owner.id).to eql(a1.id)
     end
+
+    it 'should accept fingerprint arguments' do
+      l = create(:list)
+      li1 = Fl::Framework::List::ListItem.new(list: l.fingerprint, listed_object: d11.fingerprint,
+                                              owner: a2.fingerprint, state_updated_by: a1.fingerprint)
+      expect(li1.valid?).to eq(true)
+      expect(li1.owner.fingerprint).to eql(a2.fingerprint)
+      expect(li1.list.fingerprint).to eql(l.fingerprint)
+      expect(li1.listed_object.fingerprint).to eql(d11.fingerprint)
+    end
   end
 
+  describe 'creation' do
+    it 'should set the fingerprint attributes' do
+      li1 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d11, owner: a2, name: 'item1')
+      expect(li1.valid?).to eq(true)
+      expect(li1.owner_fingerprint).to be_nil
+      expect(li1.listed_object_fingerprint).to be_nil
+      
+      expect(li1.save).to eq(true)
+      expect(li1.owner.id).to eql(a2.id)
+      expect(li1.valid?).to eq(true)
+      expect(li1.name).to eql('item1')
+      expect(li1.owner_fingerprint).to eql(li1.owner.fingerprint)
+      expect(li1.listed_object_fingerprint).to eql(li1.listed_object.fingerprint)
+    end
+  end
+  
   describe 'validation' do
     it 'should fail if :listed_object is not a listable' do
       d3 = create(:test_datum_three, owner: a1)
@@ -93,7 +126,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
         expect(li1.errors.messages.keys).to contain_exactly(:name)
       end
       
-      it 'should fail on duplicate names' do
+      it 'should fail on duplicate names on the same list' do
         d21 = create(:test_datum_two, owner: a1, value: 'v21')
         li1 = Fl::Framework::List::ListItem.create(list: l1, listed_object: d21, name: 'item1')
         expect(li1.valid?).to eq(true)
@@ -107,6 +140,16 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
         expect(li2.save).to eq(true)
         li2.name = 'item1'
         expect(li2.valid?).to eq(false)
+      end
+      
+      it 'should accept duplicate names on different lists' do
+        d21 = create(:test_datum_two, owner: a1, value: 'v21')
+        li1 = Fl::Framework::List::ListItem.create(list: l1, listed_object: d21, name: 'item1')
+        expect(li1.valid?).to eq(true)
+
+        d22 = create(:test_datum_two, owner: a1, value: 'v22')
+        li2 = Fl::Framework::List::ListItem.new(list: l2, listed_object: d22, name: 'item1')
+        expect(li2.valid?).to eq(true)
       end
     end
   end
@@ -246,7 +289,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
         h = li1.to_hash(a1, { verbosity: :ignore })
         expect(h.keys).to match_array(ignore_keys)
 
-        minimal_keys = id_keys | [ :owner, :list, :listed_object, :readonly_state,
+        minimal_keys = id_keys | [ :owner, :list, :listed_object, :readonly_state, :name,
                                    :state, :sort_order, :item_summary, :created_at, :updated_at ]
         h = li1.to_hash(a1, { verbosity: :minimal })
         expect(h.keys).to match_array(minimal_keys)
@@ -273,7 +316,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
         h = li1.to_hash(a1, { verbosity: :id, include: [ :list ] })
         expect(h.keys).to match_array(h_keys)
 
-        minimal_keys = id_keys | [ :owner, :list, :listed_object, :readonly_state,
+        minimal_keys = id_keys | [ :owner, :list, :listed_object, :readonly_state, :name,
                                    :state, :sort_order, :item_summary, :created_at, :updated_at ]
         h_keys = minimal_keys - [ :list, :sort_order ]
         h = li1.to_hash(a1, { verbosity: :minimal, except: [ :list, :sort_order ] })

@@ -61,6 +61,12 @@ en:
           cannot_create: "could not create an attachment for %{fingerprint}"
           active_record:
             forbidden: "no permission to perform operation %{op}"
+        list:
+          not_found: "no list with identifier %{id}"
+          creation_failure: 'failed to create a list'
+        list_item:
+          not_found: "no list item with identifier %{id}"
+          creation_failure: 'failed to create a list item'
 
       captcha:
         no-captcha: 'The request does not contain the CAPTCHA key %{key}'
@@ -73,6 +79,9 @@ en:
           invalid_list_item_class: "Registered list item classes must be a subclasses of Fl::Framework::List::ListItem"
           validate:
             inconsistent_list: "List item '%{list_item}' is not associated with list '%{list}'"
+        controller:
+          destroy:
+            deleted: "deleted list %{fingerprint} (%{title})"
 
       list_item:
         model:
@@ -84,3 +93,6 @@ en:
             invalid_state: "Invalid list item state: %{value}"
             invalid_name: "Invalid list item name: '%{name}' (make sure the name does not contain / or \\)"
             duplicate_name: "Duplicate list item name: '%{name}'"
+        controller:
+          destroy:
+            deleted: "deleted list item %{fingerprint} (%{name})"

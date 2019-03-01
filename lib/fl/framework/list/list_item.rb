@@ -32,7 +32,8 @@ module Fl::Framework::List
     include Fl::Framework::Core::ModelHash
     include Fl::Framework::Core::AttributeFilters
     extend Fl::Framework::Query
-
+    include Fl::Framework::List::Helper
+    
     self.table_name = 'fl_framework_list_items'
 
     # @!visibility private
@@ -108,6 +109,12 @@ module Fl::Framework::List
     # @param attrs [Hash] A hash of initialization parameters.
 
     def initialize(attrs = {})
+      if attrs.is_a?(Hash)
+        attrs[:list] = list_from_parameter(attrs[:list]) if attrs.has_key?(:list)
+        attrs[:listed_object] = listable_from_parameter(attrs[:listed_object]) if attrs[:listed_object]
+        attrs[:owner] = actor_from_parameter(attrs[:owner]) if attrs[:owner]
+        attrs[:state_updated_by] = actor_from_parameter(attrs[:state_updated_by]) if attrs[:state_updated_by]
+      end
       rv = super(attrs)
 
       self.owner = self.list.owner if !self.owner && self.list
@@ -713,6 +720,7 @@ module Fl::Framework::List
         end
 
         q = Fl::Framework::List::ListItem.where('(name = :name)', name: name)
+        q = q.where('(list_id = :lid)', lid: self.list.id) if self.list
         q = q.where('(id != :lid)', lid: self.id) if self.persisted?
         qc = q.count
         if qc > 0
@@ -722,7 +730,7 @@ module Fl::Framework::List
     end
     
     # @!visibility private
-    MINIMAL_HASH_KEYS = [ :owner, :list, :listed_object, :readonly_state, :state, :sort_order, :item_summary ]
+    MINIMAL_HASH_KEYS = [ :owner, :list, :listed_object, :readonly_state, :state, :sort_order, :item_summary, :name ]
     # @!visibility private
     STANDARD_HASH_KEYS = [ :state_updated_at, :state_updated_by, :state_note ]
     # @!visibility private
@@ -968,56 +976,6 @@ module Fl::Framework::List
             rv[:only_lists] = rv[:only_lists] - except_lists
           else
             rv[:except_lists] = except_lists
-          end
-        end
-      end
-
-      rv
-    end
-
-    def self._convert_owner_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when ActiveRecord::Base
-          acc << "#{u.class.name}/#{u.id}"
-        when String
-          # Technically, we could get the class from the name, check that it exists and that it is
-          # a subclass of ActiveRecord::Base, but for the time being we don't
-          
-          c, id = ActiveRecord::Base.split_fingerprint(u)
-          acc << u unless c.nil? || id.nil?
-        end
-
-        acc
-      end
-    end
-    
-    def self._partition_owner_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_owners)
-        if opts[:only_owners].nil?
-          rv[:only_owners] = nil
-        else
-          only_o = (opts[:only_owners].is_a?(Array)) ? opts[:only_owners] : [ opts[:only_owners] ]
-          rv[:only_owners] = _convert_owner_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_owners)
-        if opts[:except_owners].nil?
-          rv[:except_owners] = nil
-        else
-          x_o = (opts[:except_owners].is_a?(Array)) ? opts[:except_owners] : [ opts[:except_owners] ]
-          except_owners = _convert_owner_list(x_o)
-
-          # if there is a :only_owners, then we need to remove the :except_owners members from it.
-          # otherwise, we return :except_owners
-
-          if rv[:only_owners].is_a?(Array)
-            rv[:only_owners] = rv[:only_owners] - except_owners
-          else
-            rv[:except_owners] = except_owners
           end
         end
       end

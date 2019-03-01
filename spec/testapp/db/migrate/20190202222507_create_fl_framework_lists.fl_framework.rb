@@ -9,7 +9,9 @@ class CreateFlFrameworkLists < ActiveRecord::Migration[5.2]
 
       # The entity that owns the list; typically this is a user, but we define a polymorphic association
       # for flexibility
-      t.references	:owner, polymorphic: true
+      # The owner_fingerprint attribute is an optimization for query support
+      t.references	:owner, polymorphic: true, index: { name: :fl_fmwk_list_owner_idx }
+      t.string		:owner_fingerprint, index: { name: :fl_fmwk_list_owner_fp_idx }
 
       # Are new items readonly by default
       t.boolean		:default_readonly_state

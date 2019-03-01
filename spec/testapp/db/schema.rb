@@ -109,11 +109,13 @@ ActiveRecord::Schema.define(version: 2019_02_02_222507) do
     t.text "caption"
     t.string "owner_type"
     t.bigint "owner_id"
+    t.string "owner_fingerprint"
     t.boolean "default_readonly_state"
     t.text "list_display_preferences"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["owner_type", "owner_id"], name: "index_fl_framework_lists_on_owner_type_and_owner_id"
+    t.index ["owner_fingerprint"], name: "fl_fmwk_list_owner_fp_idx"
+    t.index ["owner_type", "owner_id"], name: "fl_fmwk_list_owner_idx"
   end
 
   create_table "test_actors", force: :cascade do |t|

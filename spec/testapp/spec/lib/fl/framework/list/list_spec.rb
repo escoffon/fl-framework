@@ -34,6 +34,7 @@ end
 RSpec.describe Fl::Framework::List::List, type: :model do
   let(:a1) { create(:test_actor) }
   let(:a2) { create(:test_actor) }
+  let(:a3) { create(:test_actor) }
   let(:d10) { create(:test_datum_one, owner: a1, value: 10) }
   let(:d11) { create(:test_datum_one, owner: a2, value: 11) }
   let(:d20) { create(:test_datum_two, owner: a2, value: 'v20') }
@@ -75,6 +76,19 @@ RSpec.describe Fl::Framework::List::List, type: :model do
       expect(l1.caption).to eql(caption)
       expect(l1.default_readonly_state).to eql(false)
     end
+
+    it 'should support the owner attribute' do
+      l1 = Fl::Framework::List::List.new(objects: [ d10, d20 ], owner: a1)
+      expect(l1.valid?).to be (true)
+      expect(l1.owner).not_to be_nil
+      expect(l1.owner.fingerprint).to eql(a1.fingerprint)
+      l1 = Fl::Framework::List::List.new(objects: [ d10, d20 ], owner: a1)
+      
+      l2 = Fl::Framework::List::List.new(objects: [ d11, d21 ], owner: a2.fingerprint)
+      expect(l2.valid?).to be (true)
+      expect(l2.owner).not_to be_nil
+      expect(l2.owner.fingerprint).to eql(a2.fingerprint)
+    end
     
     it 'should load the list of items' do
       l1 = Fl::Framework::List::List.new(objects: [ d10, d20 ])
@@ -96,6 +110,23 @@ RSpec.describe Fl::Framework::List::List, type: :model do
       l1 = Fl::Framework::List::List.new(objects: [
                                            { listed_object: d10 },
                                            { listed_object: d20, owner: a2, name: 'd20' }
+                                         ])
+
+      expect(l1.save).to be (true)
+      expect(l1.list_items.count).to eql(2)
+      lil = l1.list_items.to_a
+      expect(lil[0].listed_object.fingerprint).to eql(d10.fingerprint)
+      expect(lil[0].owner.fingerprint).to eql(d10.owner.fingerprint)
+      expect(lil[0].name).to be_nil
+      expect(lil[1].listed_object.fingerprint).to eql(d20.fingerprint)
+      expect(lil[1].owner.fingerprint).to eql(a2.fingerprint)
+      expect(lil[1].name).to eql('d20')
+    end
+
+    it 'should support object fingerprints' do
+      l1 = Fl::Framework::List::List.new(objects: [
+                                           d10.fingerprint, 
+                                           { listed_object: d20.fingerprint, owner: a2, name: 'd20' }
                                          ])
 
       expect(l1.save).to be (true)
@@ -130,6 +161,18 @@ RSpec.describe Fl::Framework::List::List, type: :model do
       expect(l1.save).to be(true)
       sort_orders = l1.list_items.map { |li| li.sort_order }
       expect(sort_orders).to eql([ 0, 1 ])
+    end
+  end
+
+  describe 'creation' do
+    it 'should set the fingerprint attributes' do
+      l1 = Fl::Framework::List::List.new(objects: [ d10, d20 ], owner: a1)
+
+      expect(l1.valid?).to eq(true)
+      expect(l1.owner_fingerprint).to be_nil
+      
+      expect(l1.save).to eq(true)
+      expect(l1.owner_fingerprint).to eql(l1.owner.fingerprint)
     end
   end
 
@@ -209,6 +252,78 @@ RSpec.describe Fl::Framework::List::List, type: :model do
     end
   end
 
+  describe '.build_query' do
+    let(:l1) { create(:list, objects: [ d21, d10 ], owner: a1) }
+    let(:l2) { create(:list, objects: [ d22, d20 ], owner: a1) }
+    let(:l3) { create(:list, objects: [ d11 ], owner: a2) }
+    let(:l4) { create(:list, objects: [ d20, d21, d22 ], owner: a3) }
+    let(:l5) { create(:list, objects: [ d21 ], owner: a2) }
+    let(:l6) { create(:list, objects: [ d10, d21, d22 ], owner: a1) }
+
+    it 'should return all lists with default options' do
+      # this statement triggers the list creation
+      xl = [ l1, l2, l3, l4, l5, l6 ].reverse
+      
+      q = Fl::Framework::List::List.build_query()
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints(xl))
+    end
+
+    it 'should support :only_owners and :except_owners' do
+      # this statement triggers the list creation
+      xl = [ l1, l2, l3, l4, l5, l6 ]
+      
+      q = Fl::Framework::List::List.build_query(only_owners: a1)
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l6, l2, l1 ]))
+      
+      q = Fl::Framework::List::List.build_query(only_owners: a1.fingerprint)
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l6, l2, l1 ]))
+      
+      q = Fl::Framework::List::List.build_query(only_owners: [ a3, a1.fingerprint ])
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l6, l4, l2, l1 ]))
+      
+      q = Fl::Framework::List::List.build_query(except_owners: a2)
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l6, l4, l2, l1 ]))
+      
+      q = Fl::Framework::List::List.build_query(except_owners: a2.fingerprint)
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l6, l4, l2, l1 ]))
+      
+      q = Fl::Framework::List::List.build_query(except_owners: [ a3, a1.fingerprint ])
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l5, l3 ]))
+      
+      q = Fl::Framework::List::List.build_query(except_owners: a2, only_owners: a2.fingerprint)
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ ]))
+      
+      q = Fl::Framework::List::List.build_query(except_owners: a2, only_owners: [ a2.fingerprint, a3 ])
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l4 ]))
+    end
+
+    it 'should support order and pagination options' do
+      # this statement triggers the list creation
+      xl = [ l1, l2, l3, l4, l5, l6 ]
+      
+      q = Fl::Framework::List::List.build_query(order: 'id')
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints(xl))
+
+      q = Fl::Framework::List::List.build_query(only_owners: a1, order: 'id')
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l1, l2, l6 ]))
+
+      q = Fl::Framework::List::List.build_query(only_owners: a1, order: 'id', limit: 2, offset: 1)
+      ll = q.to_a
+      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ l2, l6 ]))
+    end      
+  end
+  
   describe '#find_list_item' do
     it 'should find an object in the list' do
       l1 = create(:list, objects: [ d21, d10 ], owner: a1)
@@ -298,6 +413,17 @@ RSpec.describe Fl::Framework::List::List, type: :model do
         expect(obj_fingerprints(l1.objects)).to eql(obj_fingerprints([ d21, d10, d30 ]))
         l1.list_items.reload
         expect(obj_fingerprints(l1.objects)).to eql(obj_fingerprints([ d21, d10 ]))
+      end
+
+      it "should set the sort order for a new item" do
+        l1 = create(:list, objects: [ d21, d10 ], owner: a1)
+        no = l1.next_sort_order
+
+        li = l1.add_object(d20)
+        expect(li).to be_an_instance_of(Fl::Framework::List::ListItem)
+        expect(l1.save).to eql(true)
+        expect(li.sort_order).to eql(no)
+        expect(obj_fingerprints(l1.objects)).to eql(obj_fingerprints([ d21, d10, d20 ]))
       end
     end
 

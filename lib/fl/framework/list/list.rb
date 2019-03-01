@@ -70,6 +70,8 @@ module Fl::Framework::List
     include Fl::Framework::Core::ModelHash
     include Fl::Framework::Core::AttributeFilters
     include Fl::Framework::Core::TitleManagement
+    extend Fl::Framework::Query
+    include Fl::Framework::List::Helper
     
     self.table_name = 'fl_framework_lists'
     
@@ -126,6 +128,7 @@ module Fl::Framework::List
     validates :default_readonly_state, :presence => true
     validate :check_list_items
 
+    before_create :set_fingerprints
     before_validation :before_validation_checks
     before_save :before_save_checks
 
@@ -196,6 +199,8 @@ module Fl::Framework::List
       attrs = attrs || {}
       objs = attrs.delete(:objects)
 
+      attrs[:owner] = actor_from_parameter(attrs[:owner]) if attrs.has_key?(:owner)
+      
       unless attrs.has_key?(:caption)
         attrs[:caption] = I18n.localize_x(Time.now.to_date, :format => :list_title)
       end
@@ -341,6 +346,134 @@ module Fl::Framework::List
         rec['max_sort_order'].to_i + 1
       end
     end
+  
+    # Build a query to fetch lists.
+    #
+    # Note that any WHERE clauses from *:updated_after*, *:created_after*, *:updated_before*,
+    # and *:created_before* are concatenated using the AND operator. The values for these options are:
+    # a UNIX timestamp; a Time object; a string containing a representation of the time (this string
+    # is converted to a {Fl::Framework::Core::Icalendar::Datetime} internally).
+    #
+    # @param opts [Hash] A Hash containing configuration options for the query.
+    # @option opts [Array<Object,String>, Object, String] :only_owners Limit the returned values to lists
+    #  whose `owner` attribute is in the option's value
+    #  (technically, whose `owner_id` and `owner_type` attribute pairs are in the list derived from the
+    #  option's value).
+    #  The elements in an array value are object instances or object fingerprints; note that identifiers
+    #  are not supported, because the `owner` association is polymorphic.
+    #  If this option is not present, all list items are selected.
+    # @option opts [Array<Object,String>, Object, String] :except_owners Limit the returned values to lists
+    #  whose `owner` attribute is not in the option's value
+    #  (technically, whose `owner_id` and `owner_type` attribute pairs are not in the list derived from the
+    #  option's value).
+    #  The elements in an array value are object instances or object fingerprints; note that identifiers
+    #  are not supported, because the `owner` association is polymorphic.
+    #  If this option is not present, all list items are selected.
+    # @option opts [Integer, Time, String] :updated_after selects list items updated after a given time.
+    # @option opts [Integer, Time, String] :created_after selects list items created after a given time.
+    # @option opts [Integer, Time, String] :updated_before selects list items updated before a given time.
+    # @option opts [Integer, Time, String] :created_before selects list items created before a given time.
+    # @option opts [Integer] :offset Sets the number of records to skip before fetching;
+    #  a +nil+ value causes the option to be ignored.
+    #  Defaults to 0 (start at the beginning).
+    # @option opts [Integer] :limit The maximum number of records to return;
+    #  a `nil` value causes the option to be ignored.
+    #  Defaults to all records.
+    # @option opts [String, Array] :order A string or array containing the <tt>ORDER BY</tt> clauses
+    #  for the records. The string value is converted to an array by splitting it at commas.
+    #  A `false` value or an empty string or array causes the option to be ignored.
+    # @option opts [Symbol, Array<Symbol>, Hash] :includes An array of symbols (or a single symbol),
+    #  or a hash, to pass to the +includes+ method
+    #  of the relation; see the guide on the ActiveRecord query interface about this method.
+    #
+    # Note that *:limit*, *:offset*, and *:includes* are convenience options, since they can be
+    # added later by making calls to +limit+, +offset+, and +includes+ respectively, on the
+    # return value. But there are situations where the return type is hidden inside an API wrapper, and
+    # the only way to trigger these calls is through the configuration options.
+    #
+    # @return [ActiveRecord::Relation] If the query options are empty, the method returns `self`
+    #  (and therefore the class object); if they are not empty, it returns an association relation.
+
+    def self.build_query(opts = {})
+      q = self
+
+      if opts[:includes]
+        i = (opts[:includes].is_a?(Array) || opts[:includes].is_a?(Hash)) ? opts[:includes] : [ opts[:includes] ]
+        q = q.includes(i)
+      end
+
+      o_lists = _partition_owner_lists(opts)
+
+      # if :only_owners is nil, and :except_owners is also nil, the two options will create an empty set,
+      # so we can short circuit here.
+
+      o_nil_o = o_lists.has_key?(:only_owners) && o_lists[:only_owners].nil?
+      o_nil_x = o_lists.has_key?(:except_owners) && o_lists[:except_owners].nil?
+
+      if o_nil_o && o_nil_x
+        return q.where('(1 = 0)')
+      end
+
+      if o_lists[:only_owners].is_a?(Array)
+        # If we have :only_owners, the :except_owners have already been eliminated, so all we need
+        # is the only_owners
+
+        q = q.where('(owner_fingerprint IN (:ul))', { ul: o_lists[:only_owners] })
+      elsif o_lists[:except_owners]
+        # since only_owners is not present, we need to add the except_owners
+
+        q = q.where('(owner_fingerprint NOT IN (:ul))', { ul: o_lists[:except_owners] })
+      end
+      
+      ts = _date_filter_timestamps(opts)
+      wt = []
+      wta = {}
+      if ts[:c_after_ts]
+        wt << '(created_at > :c_after_ts)'
+        wta[:c_after_ts] = ts[:c_after_ts].to_time
+      end
+      if ts[:u_after_ts]
+        wt << '(updated_at > :u_after_ts)'
+        wta[:u_after_ts] = ts[:u_after_ts].to_time
+      end
+      if ts[:c_before_ts]
+        wt << '(created_at < :c_before_ts)'
+        wta[:c_before_ts] = ts[:c_before_ts].to_time
+      end
+      if ts[:u_before_ts]
+        wt << '(updated_at < :u_before_ts)'
+        wta[:u_before_ts] = ts[:u_before_ts].to_time
+      end
+      if wt.count > 0
+        q = q.where(wt.join(' AND '), wta)
+      end
+
+      order_clauses = _parse_order_option(opts)
+      q = q.order(order_clauses) if order_clauses.is_a?(Array)
+
+      offset = (opts.has_key?(:offset)) ? opts[:offset] : nil
+      q = q.offset(offset) if offset.is_a?(Integer) && (offset > 0)
+
+      limit = (opts.has_key?(:limit)) ? opts[:limit] : nil
+      q = q.limit(limit) if limit.is_a?(Integer) && (limit > 0)
+
+      q
+    end
+  
+    # Execute a query to fetch the number of list items for a given set of query options.
+    # The number returned is subject to the configuration options +opts+; for example,
+    # if <tt>opts[:only_lists]</tt> is defined, the return value is the number of list items whose
+    # list identifiers are in the option.
+    #
+    # @param opts [Hash] A Hash containing configuration options for the query.
+    #  See the documentation for {.build_query}.
+    #
+    # @return [Integer] Returns the number of list items that would be returned by the query.
+
+    def self.count_list_items(opts = {})
+      q = build_query(opts)
+      (q.nil?) ? 0 : q.count
+    end
 
     # Build a query to find list items in this list.
     # This is a convenience method that returns an `ActiveRecord::Relation` on {ListItem} with a
@@ -470,6 +603,10 @@ module Fl::Framework::List
       else
         self.list_items = conv
       end
+    end
+
+    def set_fingerprints()
+      self.owner_fingerprint = self.owner.fingerprint if self.owner
     end
 
     def check_list_items

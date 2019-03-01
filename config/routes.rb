@@ -4,4 +4,13 @@ Fl::Framework::Engine.routes.draw do
   end
 
   resources :attachments, :only => [ :show, :edit, :update, :destroy ]
+
+  resources :lists do
+    member do
+      post 'add_object'
+    end
+  end
+
+  resources :list_items do
+  end
 end
