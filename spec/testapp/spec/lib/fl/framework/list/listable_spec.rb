@@ -45,6 +45,9 @@ RSpec.describe Fl::Framework::List::Listable, type: :model do
   end
   
   describe '#containers' do
+    let(:d11) { create(:test_datum_one, owner: a2, value: 11) }
+    let(:d21) { create(:test_datum_two, owner: a1, value: 'v21') }
+
     it 'should return the correct list' do
       l1 = create(:list, owner: a1, objects: [ [ d10, a1 ], [ d20, a2 ] ])
       l2 = create(:list, owner: a2, objects: [ [ d20, a1 ] ])
@@ -60,6 +63,26 @@ RSpec.describe Fl::Framework::List::Listable, type: :model do
       expect(d20_l).to contain_exactly(l1.fingerprint, l2.fingerprint)
       d20_d = d20_c.map { |li| li.listed_object.fingerprint }
       expect(d20_d).to contain_exactly(d20.fingerprint, d20.fingerprint)
+    end
+
+    it 'should remove a destroyed object from all lists' do
+      l1 = create(:list, objects: [ d21, d10 ], owner: a1)
+      l2 = create(:list, objects: [ d11, d20, d21, d10 ], owner: a2)
+
+      expect(obj_fingerprints(l1.objects)).to eql(obj_fingerprints([ d21, d10 ]))
+      expect(obj_fingerprints(l2.objects)).to eql(obj_fingerprints([ d11, d20, d21, d10 ]))
+
+      d10.destroy
+      l1.reload
+      l2.reload
+      expect(obj_fingerprints(l1.objects)).to eql(obj_fingerprints([ d21 ]))
+      expect(obj_fingerprints(l2.objects)).to eql(obj_fingerprints([ d11, d20, d21 ]))
+
+      d11.destroy
+      l1.reload
+      l2.reload
+      expect(obj_fingerprints(l1.objects)).to eql(obj_fingerprints([ d21 ]))
+      expect(obj_fingerprints(l2.objects)).to eql(obj_fingerprints([ d20, d21 ]))
     end
   end
 

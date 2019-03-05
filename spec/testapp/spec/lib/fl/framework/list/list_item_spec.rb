@@ -9,6 +9,7 @@ end
 RSpec.describe Fl::Framework::List::ListItem, type: :model do
   let(:a1) { create(:test_actor) }
   let(:a2) { create(:test_actor) }
+  let(:a3) { create(:test_actor) }
   let(:d10) { create(:test_datum_one, owner: a1, value: 10) }
   let(:d11) { create(:test_datum_one, owner: a2, value: 11) }
   let(:d12) { create(:test_datum_one, owner: a2, value: 12) }
@@ -17,6 +18,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
   let(:d22) { create(:test_datum_two, owner: a1, value: 'v22') }
   let(:d30) { create(:test_datum_three, owner: a1, value: 30) }
   let(:l1) { create(:list, owner: a1) }
+  let(:l2) { create(:list, owner: a1) }
 
   describe '#initialize' do
     it 'should fail with empty attributes' do
@@ -40,6 +42,12 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
       expect(li1.owner.id).to eql(a2.id)
     end
 
+    it 'should accept a name attribute' do
+      li1 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d11, name: 'item1')
+      expect(li1.valid?).to eq(true)
+      expect(li1.name).to eql('item1')
+    end
+
     it 'should use the list owner if necessary' do
       l = create(:list)
       li1 = Fl::Framework::List::ListItem.new(list: l, listed_object: d11)
@@ -51,14 +59,98 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
       expect(li2.valid?).to eq(true)
       expect(li2.owner.id).to eql(a1.id)
     end
+
+    it 'should accept fingerprint arguments' do
+      l = create(:list)
+      li1 = Fl::Framework::List::ListItem.new(list: l.fingerprint, listed_object: d11.fingerprint,
+                                              owner: a2.fingerprint, state_updated_by: a1.fingerprint)
+      expect(li1.valid?).to eq(true)
+      expect(li1.owner.fingerprint).to eql(a2.fingerprint)
+      expect(li1.list.fingerprint).to eql(l.fingerprint)
+      expect(li1.listed_object.fingerprint).to eql(d11.fingerprint)
+    end
   end
 
+  describe 'creation' do
+    it 'should set the fingerprint attributes' do
+      li1 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d11, owner: a2, name: 'item1')
+      expect(li1.valid?).to eq(true)
+      expect(li1.owner_fingerprint).to be_nil
+      expect(li1.listed_object_fingerprint).to be_nil
+      
+      expect(li1.save).to eq(true)
+      expect(li1.owner.id).to eql(a2.id)
+      expect(li1.valid?).to eq(true)
+      expect(li1.name).to eql('item1')
+      expect(li1.owner_fingerprint).to eql(li1.owner.fingerprint)
+      expect(li1.listed_object_fingerprint).to eql(li1.listed_object.fingerprint)
+    end
+  end
+  
   describe 'validation' do
     it 'should fail if :listed_object is not a listable' do
       d3 = create(:test_datum_three, owner: a1)
       li1 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d3)
       expect(li1.valid?).to eq(false)
       expect(li1.errors.messages.keys).to contain_exactly(:listed_object)
+    end
+
+    context '#name' do
+      it 'should accept punctuation in name' do
+        d21 = create(:test_datum_two, owner: a1, value: 'v21')
+        li1 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d21, name: 'l1 - d21')
+        expect(li1.valid?).to eq(true)
+
+        d22 = create(:test_datum_two, owner: a1, value: 'v22')
+        li2 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d22, name: 'l1 - d22 .+;:')
+        expect(li2.valid?).to eq(true)
+      end
+      
+      it 'should fail if name contains / or \\' do
+        d21 = create(:test_datum_two, owner: a1, value: 'v21')
+        li1 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d21, name: 'l1/d21')
+        expect(li1.valid?).to eq(false)
+        expect(li1.errors.messages.keys).to contain_exactly(:name)
+
+        d22 = create(:test_datum_two, owner: a1, value: 'v22')
+        li2 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d22, name: 'l1\\d22')
+        expect(li2.valid?).to eq(false)
+        expect(li2.errors.messages.keys).to contain_exactly(:name)
+      end
+      
+      it 'should fail if name is longer than 200 characters' do
+        d21 = create(:test_datum_two, owner: a1, value: 'v21')
+        li1 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d21,
+                                                name: '0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789 ')
+        expect(li1.valid?).to eq(false)
+        expect(li1.errors.messages.keys).to contain_exactly(:name)
+      end
+      
+      it 'should fail on duplicate names on the same list' do
+        d21 = create(:test_datum_two, owner: a1, value: 'v21')
+        li1 = Fl::Framework::List::ListItem.create(list: l1, listed_object: d21, name: 'item1')
+        expect(li1.valid?).to eq(true)
+
+        d22 = create(:test_datum_two, owner: a1, value: 'v22')
+        li2 = Fl::Framework::List::ListItem.new(list: l1, listed_object: d22, name: 'item1')
+        expect(li2.valid?).to eq(false)
+        expect(li2.errors.messages.keys).to contain_exactly(:name)
+
+        li2.name = 'item2'
+        expect(li2.save).to eq(true)
+        li2.name = 'item1'
+        expect(li2.valid?).to eq(false)
+      end
+      
+      it 'should accept duplicate names on different lists' do
+        d21 = create(:test_datum_two, owner: a1, value: 'v21')
+        li1 = Fl::Framework::List::ListItem.create(list: l1, listed_object: d21, name: 'item1')
+        expect(li1.valid?).to eq(true)
+
+        d22 = create(:test_datum_two, owner: a1, value: 'v22')
+        li2 = Fl::Framework::List::ListItem.new(list: l2, listed_object: d22, name: 'item1')
+        expect(li2.valid?).to eq(true)
+      end
     end
   end
   
@@ -197,7 +289,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
         h = li1.to_hash(a1, { verbosity: :ignore })
         expect(h.keys).to match_array(ignore_keys)
 
-        minimal_keys = id_keys | [ :owner, :list, :listed_object, :readonly_state,
+        minimal_keys = id_keys | [ :owner, :list, :listed_object, :readonly_state, :name,
                                    :state, :sort_order, :item_summary, :created_at, :updated_at ]
         h = li1.to_hash(a1, { verbosity: :minimal })
         expect(h.keys).to match_array(minimal_keys)
@@ -224,7 +316,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
         h = li1.to_hash(a1, { verbosity: :id, include: [ :list ] })
         expect(h.keys).to match_array(h_keys)
 
-        minimal_keys = id_keys | [ :owner, :list, :listed_object, :readonly_state,
+        minimal_keys = id_keys | [ :owner, :list, :listed_object, :readonly_state, :name,
                                    :state, :sort_order, :item_summary, :created_at, :updated_at ]
         h_keys = minimal_keys - [ :list, :sort_order ]
         h = li1.to_hash(a1, { verbosity: :minimal, except: [ :list, :sort_order ] })
@@ -650,9 +742,10 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
                   d22.fingerprint, d22,
                   { listed_object: d22 }, { listed_object: d22.fingerprint },
                   l11.list_items.first,
-                  d30, d30.fingerprint, { listed_object: d30 }
+                  d30, d30.fingerprint, { listed_object: d30 },
+                  { listed_object: d21, owner: a3, name: 'd21' },
+                  { listed_object: d12, owner: a2, name: 'd12' }
                 ]
-
       errcount, resolved = Fl::Framework::List::ListItem.normalize_objects(objects, l10, a2)
       expect(errcount).to eql(4)
       
@@ -692,11 +785,60 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
       o = resolved[6]
       expect(o).to be_an_instance_of(String)
 
-      o = resolved[6]
-      expect(o).to be_an_instance_of(String)
-
       o = resolved[7]
       expect(o).to be_an_instance_of(String)
+
+      o = resolved[8]
+      expect(o).to be_an_instance_of(String)
+
+      o = resolved[9]
+      expect(o).to be_an_instance_of(Fl::Framework::List::ListItem)
+      expect(o.list.fingerprint).to eql(l10.fingerprint)
+      expect(o.listed_object.fingerprint).to eql(d21.fingerprint)
+      expect(o.owner.fingerprint).to eql(a2.fingerprint)
+      expect(o.name).to eql('d21')
+
+      o = resolved[10]
+      expect(o).to be_an_instance_of(Fl::Framework::List::ListItem)
+      expect(o.list.fingerprint).to eql(l10.fingerprint)
+      expect(o.listed_object.fingerprint).to eql(d12.fingerprint)
+      expect(o.owner.fingerprint).to eql(a2.fingerprint)
+      expect(o.name).to eql('d12')
+    end
+
+    it 'should accept a nil owner argument' do
+      l10 = create(:list, objects: [ [ d10, a1 ], [ d20, a1 ], [ d21, a2 ], [ d11, a1 ] ])
+      l11 = create(:list, objects: [ [ d10, a2 ], [ d22, a1 ], [ d20, a1 ], [ d12, a1 ] ])
+
+      objects = [ l10.list_items.first,
+                  d22.fingerprint, d22,
+                  { listed_object: d22 }, { listed_object: d22.fingerprint },
+                  { listed_object: d21, owner: a3, name: 'd21' },
+                  { listed_object: d12, owner: a2, name: 'd12' }
+                ]
+      errcount, resolved = Fl::Framework::List::ListItem.normalize_objects(objects, l10)
+      expect(errcount).to eql(0)
+      
+      o = resolved[0]
+      expect(o.owner.fingerprint).to eql(a1.fingerprint)
+
+      o = resolved[1]
+      expect(o.owner.fingerprint).to eql(a1.fingerprint)
+
+      o = resolved[2]
+      expect(o.owner.fingerprint).to eql(a1.fingerprint)
+
+      o = resolved[3]
+      expect(o.owner.fingerprint).to eql(d22.owner.fingerprint)
+
+      o = resolved[4]
+      expect(o.owner.fingerprint).to eql(d22.owner.fingerprint)
+
+      o = resolved[5]
+      expect(o.owner.fingerprint).to eql(a3.fingerprint)
+
+      o = resolved[6]
+      expect(o.owner.fingerprint).to eql(a2.fingerprint)
     end
   end
 end
