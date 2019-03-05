@@ -1,10 +1,10 @@
 {
   "name": "<%=@app_name%>",
   "private": true,
+  "scripts": {
+  },
   "dependencies": {
 <%=@dependencies%>
-  },
-  "scripts": {
   },
   "devDependencies": {
 <%=@devDependencies%>

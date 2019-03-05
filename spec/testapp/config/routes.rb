@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  mount Fl::Framework::Engine => "/fl-framework"
+  mount Fl::Framework::Engine => "/fl/framework", :as => 'fl_framework'
   
   # START added by fl:framework:comments generator
   resources :test_datum_ones do

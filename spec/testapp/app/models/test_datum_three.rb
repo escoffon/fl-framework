@@ -20,14 +20,16 @@ class TestDatumThree < ApplicationRecord
   protected
 
   def self.default_access_checker(op, obj, actor, context = nil)
-    case op.op
-    when :read
-      :public
-    when :write
-      (actor.id == obj.owner.id) ? :private : nil
-    else
-      nil
-    end
+    # temporary until we work out the new access code
+    :public
+    # case op.op
+    # when :read
+    #   :public
+    # when :write
+    #   (actor.id == obj.owner.id) ? :private : nil
+    # else
+    #   nil
+    # end
   end
 
   protected
