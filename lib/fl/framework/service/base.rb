@@ -358,7 +358,7 @@ module Fl::Framework::Service
                             { message: exc.message })
             obj = nil
           end
-          
+
           obj
         else
           nil

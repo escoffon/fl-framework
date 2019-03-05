@@ -16,9 +16,9 @@ FactoryBot.define do
         when ActiveRecord::Base
           list.add_object(o)
         when Array
-          list.add_object(o[0], o[1])
+          list.add_object(o[0], o[1], o[2])
         when Hash
-          list.add_object(o[:obj], o[:owner])
+          list.add_object(o[:obj], o[:owner], o[:name])
         end          
       end
     end
