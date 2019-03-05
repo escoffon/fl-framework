@@ -131,11 +131,23 @@ module Fl::Framework
     # Never trust parameters from the scary internet, only allow the white list through.
 
     def query_params
-      normalize_query_params.permit({ only_lists: [ ] }, { except_lists: [ ] },
-                                    { only_listables: [ ] }, { except_listables: [ ] },
-                                    { only_owners: [ ] }, { except_owners: [ ] },
-                                    :created_after, :updated_after, :created_before, :updated_before,
-                                    :order, :limit, :offset)
+      if params.has_key?(:list_id)
+        # This is a nested resaoure call, and the query is run in the context of the master list
+        
+        qp = normalize_query_params.permit({ only_listables: [ ] }, { except_listables: [ ] },
+                                           { only_owners: [ ] }, { except_owners: [ ] },
+                                           :created_after, :updated_after, :created_before, :updated_before,
+                                           :order, :limit, :offset)
+        qp[:only_lists] = [ "#{Fl::Framework::List::List.name}/#{params[:list_id]}" ]
+      else
+        qp = normalize_query_params.permit({ only_lists: [ ] }, { except_lists: [ ] },
+                                           { only_listables: [ ] }, { except_listables: [ ] },
+                                           { only_owners: [ ] }, { except_owners: [ ] },
+                                           :created_after, :updated_after, :created_before, :updated_before,
+                                           :order, :limit, :offset)
+      end
+
+      qp
     end
   end
 end

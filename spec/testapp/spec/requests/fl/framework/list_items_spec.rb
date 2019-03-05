@@ -6,7 +6,11 @@ RSpec.configure do |c|
   c.include Fl::Framework::Test::ObjectHelpers
 end
 
-RSpec.describe "Fl::Framework::ListItems", type: :request do
+RSpec.describe Fl::Framework::ListItemsController, type: :request do
+  def list_index_url(list, fmt = :json)
+    Fl::Framework::Engine.routes.url_helpers.list_list_items_path(list, format: fmt)
+  end
+  
   def index_url(fmt = :json)
     Fl::Framework::Engine.routes.url_helpers.list_items_path(format: fmt)
   end
@@ -15,8 +19,8 @@ RSpec.describe "Fl::Framework::ListItems", type: :request do
     Fl::Framework::Engine.routes.url_helpers.list_item_path(obj, format: fmt)
   end
   
-  def create_url(fmt = :json)
-    Fl::Framework::Engine.routes.url_helpers.list_items_path(format: fmt)
+  def list_create_url(list, fmt = :json)
+    Fl::Framework::Engine.routes.url_helpers.list_list_items_path(list, format: fmt)
   end
   
   def update_url(obj, fmt = :json)
@@ -348,6 +352,278 @@ RSpec.describe "Fl::Framework::ListItems", type: :request do
     end
   end
 
+  describe "GET /fl/framework/lists/:list_id/list_items" do
+    context('with format :json') do
+      it "should return a well formed response" do
+        get list_index_url(l4), params: { }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        expect(r).to be_a(Hash)
+        expect(r).to include('list_items', '_pg')
+        expect(r['list_items']).to be_a(Array)
+        expect(r['_pg']).to be_a(Hash)
+        expect(r['_pg']).to include('_c', '_s', '_p')
+      end
+
+      it "should succeed for an unknown list, but return an empty array" do
+        get list_index_url(0), params: { }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        expect(r).to be_a(Hash)
+        expect(r['list_items'].count).to eql(0)
+      end
+
+      it 'should return all list items with default options' do
+        # this statement triggers the list creation
+        xl = make_li_list([ l1, l2, l3, l4, l5, l6 ])
+
+        get list_index_url(l4), params: { }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = make_li_list([ l4 ])
+        expect(obj_fingerprints(r['list_items']).sort).to eql(obj_fingerprints(xli).sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+      end
+
+      it 'should ignore :only_lists and :except_lists' do
+        # this statement triggers the list creation
+        xl = [ l1, l2, l3, l4, l5, l6 ]
+        
+        get list_index_url(l4), params: { _q: { only_lists: [ l1.fingerprint, l2.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = make_li_list([ l4 ])
+        expect(obj_fingerprints(r['list_items']).sort).to eql(obj_fingerprints(xli.sort))
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { except_lists: [ l1.fingerprint, l4.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = make_li_list([ l4 ])
+        expect(obj_fingerprints(r['list_items']).sort).to eql(obj_fingerprints(xli.sort))
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { except_lists: [ l2.fingerprint ],
+                                                only_lists: [ l2.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = make_li_list([ l4 ])
+        expect(obj_fingerprints(r['list_items']).sort).to eql(obj_fingerprints(xli.sort))
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+      end
+
+      it 'should support :only_owners and :except_owners' do
+        # this statement triggers the list creation
+        xl = [ l1, l2, l3, l4, l5, l6 ]
+        
+        get list_index_url(l4), params: { _q: { only_owners: [ a1.fingerprint, a3.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d21 ], [ l4, d22 ] ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { except_owners: [ a1.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d20 ], [ l4, d22 ] ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { except_owners: [ a1.fingerprint ],
+                                                only_owners: [ a1.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { except_owners: [ a2.fingerprint ],
+                                                only_owners: [ a2.fingerprint, a3.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d22 ] ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+      end
+
+      it 'should support :only_listables and :except_listables' do
+        # this statement triggers the list creation
+        xl = [ l2, l3, l4, l5 ]
+        
+        get list_index_url(l4), params: { _q: { only_listables: [ d21.fingerprint, d10.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d21 ] ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { except_listables: [ d22.fingerprint, d21.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d20 ] ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { except_listables: [ d21.fingerprint ],
+                                                only_listables: [ d21.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { except_listables: [ d21.fingerprint ],
+                                                only_listables: [ d21.fingerprint, d22.fingerprint ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d22 ] ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+      end
+
+      it 'should support combinations of :only_ and :except_ options' do
+        # this statement triggers the list creation
+        xl = [ l1, l2, l3, l4, l5, l6 ]
+        
+        get list_index_url(l4), params: { _q: {
+                                            only_lists: [ l1.fingerprint, l4.fingerprint, l5.fingerprint ],
+                                            only_listables: [ d21.fingerprint, d10.fingerprint ]
+                                 }
+                               }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d21 ] ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: {
+                                            only_lists: [ l1.fingerprint, l4.fingerprint, l5.fingerprint ],
+                                            only_listables: [ d21.fingerprint, d10.fingerprint ],
+                                            only_owners: [ a1.fingerprint ]
+                                          }
+                                        }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d21 ] ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: {
+                                            only_lists: [ l1.fingerprint, l4.fingerprint, l5.fingerprint ],
+                                            only_listables: [ d21.fingerprint, d10.fingerprint ],
+                                            except_owners: [ a1.fingerprint ]
+                                 }
+                               }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ ])
+        expect(extract_li(r['list_items']).sort).to eql(xli.sort)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+      end
+
+      it 'should support order and pagination options' do
+        # this statement triggers the list creation
+        xl = [ l3, l4, l5 ]
+        
+        get list_index_url(l4), params: { _q: { order: 'list_id ASC, id ASC' } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d20 ], [ l4, d21 ], [ l4, d22 ] ])
+        expect(extract_li(r['list_items'])).to eql(xli)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(2)
+        
+        get list_index_url(l4), params: { _q: { order: 'list_id ASC, id ASC' }, _pg: { _s: 2, _p: 2 } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ [ l4, d22 ] ])
+        expect(extract_li(r['list_items'])).to eql(xli)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(3)
+
+        pg = r['_pg']
+        get list_index_url(l4), params: { _q: { order: 'id' }, _pg: pg }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        xli = extract_li([ ])
+        expect(extract_li(r['list_items'])).to eql(xli)
+        expect(r['_pg']['_c']).to eql(xli.count)
+        expect(r['_pg']['_p']).to eql(4)
+      end
+
+      it "should process to_hash params" do
+        # this statement triggers the list creation
+        xl = [ l1 ]
+
+        id_keys = [ "type", "api_root", "url_path", "fingerprint", "id" ]
+        
+        d_li_keys = id_keys | [ "created_at", "updated_at", "list", "listed_object", "owner",
+                                "readonly_state", "state", "state_updated_at", "state_updated_by", "state_note",
+                                "sort_order", "item_summary", "name" ]
+        d_list_keys = id_keys | [ "created_at", "updated_at",
+                                  "caption", "title", "owner",
+                                  "default_readonly_state", "list_display_preferences" ]
+        d_owner_keys = id_keys | [ "created_at", "updated_at", "name" ]
+        get list_index_url(l1), params: { _q: { order: 'id' } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        li0 = r['list_items'][0]
+        expect(li0.keys).to match_array(d_li_keys)
+        expect(li0['list'].keys).to match_array(d_list_keys)
+        expect(li0['owner'].keys).to match_array(d_owner_keys)
+        
+        get list_index_url(l1), params: { _q: { order: 'id' }, to_hash: { verbosity: 'id' } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        li0 = r['list_items'][0]
+        expect(li0.keys).to match_array(id_keys)
+
+        get list_index_url(l1), params: { _q: { order: 'id' },
+                                          to_hash: { verbosity: 'id', include: [ 'owner', 'name' ] } }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        li0 = r['list_items'][0]
+        expect(li0.keys).to match_array(id_keys | [ 'owner', 'name' ])
+        expect(li0['owner'].keys).to match_array(d_owner_keys)
+
+        get list_index_url(l1), params: {
+              _q: { order: 'id' },
+              to_hash: {
+                verbosity: 'id', include: [ 'list', 'listed_object', 'owner' ],
+                to_hash: {
+                  owner: { verbosity: 'id' },
+                  list: { verbosity: 'id' },
+                  listed_object: { verbosity: 'id' }
+                }
+              }
+            }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        li0 = r['list_items'][0]
+        expect(li0.keys).to match_array(id_keys | [ 'list', 'listed_object', 'owner' ])
+        expect(li0['list'].keys).to match_array(id_keys)
+        expect(li0['owner'].keys).to match_array(id_keys)
+        expect(li0['listed_object'].keys).to match_array(id_keys)
+      end
+    end
+  end
+
   describe "GET /fl/framework/list_items/:id" do
     context('with format :json') do
       it "should return a well formed response" do
@@ -406,18 +682,43 @@ RSpec.describe "Fl::Framework::ListItems", type: :request do
     end
   end
 
-  describe "POST /fl/framework/list_items" do
+  describe "POST /fl/framework/lists/:list_id/list_items" do
     context('with format :json') do
       it "should return the new list item" do
+        # this creates l5
+        l = l5
+        
         create_params = {
-          list: l5.fingerprint,
           listed_object: d10.fingerprint,
           owner: a2.fingerprint,
           name: 'd10'
         }
 
         expect do
-          post create_url(), params: { fl_framework_list_item: create_params }
+          post list_create_url(l5), params: { fl_framework_list_item: create_params }
+        end.to change(Fl::Framework::List::ListItem, :count).by(1)
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        li = r['list_item']
+        expect(li['list']['fingerprint']).to eql(l5.fingerprint)
+        expect(li['listed_object']['fingerprint']).to eql(d10.fingerprint)
+        expect(li['owner']['fingerprint']).to eql(a2.fingerprint)
+        expect(li['name']).to eql(create_params[:name])
+      end
+
+      it "should ingnore the :list parameter" do
+        # this creates l5
+        l = l5
+        
+        create_params = {
+          list: l2.fingerprint,
+          listed_object: d10.fingerprint,
+          owner: a2.fingerprint,
+          name: 'd10'
+        }
+
+        expect do
+          post list_create_url(l5), params: { fl_framework_list_item: create_params }
         end.to change(Fl::Framework::List::ListItem, :count).by(1)
         expect(response).to be_successful
         r = JSON.parse(response.body)
@@ -482,7 +783,9 @@ RSpec.describe "Fl::Framework::ListItems", type: :request do
         li = l1.list_items[0]
         li_id = li.id
 
-        delete delete_url(li), params: { }
+        expect do
+          delete delete_url(li), params: { }
+        end.to change(Fl::Framework::List::ListItem, :count).by(-1)
         expect(response).to be_successful
         r = JSON.parse(response.body)
         expect(r).to be_a(Hash)

@@ -585,6 +585,11 @@ module Fl::Framework::List
         when :owner
           o_opts = to_hash_opts_with_defaults(to_hash_opts[:owner], { verbosity: :minimal })
           rv[k] = self.owner.to_hash(actor, o_opts)
+        when :list_items
+          li_opts = to_hash_opts_with_defaults(to_hash_opts[:list_items], { verbosity: :minimal })
+          rv[k] = self.list_items.map do |obj|
+            obj.to_hash(actor, li_opts)
+          end
         else
           rv[k] = self.send(k) if self.respond_to?(k)
         end

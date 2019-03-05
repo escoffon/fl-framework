@@ -15,8 +15,14 @@ module Fl::Framework::Service
     # @return [ActionController::Parameters] Returns the create parameters.
 
     def create_params(p = nil)
-      strong_params(p).require(:fl_framework_list_item).permit(:list, :listed_object, :owner,
-                                                               :name, :readonly_state, :state, :state_note)
+      # if :list_id is present in the params, it overrides the value of :list.
+      # this supports nested list item controllers.
+      
+      sp = strong_params(p)
+      np = sp.require(:fl_framework_list_item).permit(:list, :listed_object, :owner, :name,
+                                                      :readonly_state, :state, :state_note)
+      np[:list] = "#{Fl::Framework::List::List.name}/#{sp[:list_id]}" if sp.has_key?(:list_id)
+      np      
     end
 
     # Get update parameters.

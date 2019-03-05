@@ -78,27 +78,35 @@ module Fl::Framework::Service
     #     {Fl::Framework::List::ListItem}.
 
     def add_object(opts = {})
-      p = (opts[:params]) ? opts[:params].to_h : add_object_params(self.params).to_h
-      op = (opts[:permission]) ? opts[:permission].to_sym : Fl::Framework::Access::Grants::WRITE
-      #ctx = if opts.has_key?(:context)
-      #        (opts[:context] == :params) ? p : opts[:context]
-      #      else
-      # This is equivalent to setting the default to :params
-      #        p
-      #      end
-      idname = (opts[:idname]) ? opts[:idname].to_sym : :id
+      list = nil
+      li = nil
+      
+      begin
+        p = (opts[:params]) ? opts[:params].to_h : add_object_params(self.params).to_h
+        op = (opts[:permission]) ? opts[:permission].to_sym : Fl::Framework::Access::Grants::WRITE
+        #ctx = if opts.has_key?(:context)
+        #        (opts[:context] == :params) ? p : opts[:context]
+        #      else
+        # This is equivalent to setting the default to :params
+        #        p
+        #      end
+        idname = (opts[:idname]) ? opts[:idname].to_sym : :id
 
-      list = get_and_check(op, idname)
-      if list && success?
-        rs = verify_captcha(opts[:captcha], p)
-        if rs['success']
-          li = list.add_object(p[:listed_object], p[:owner], p[:name])
+        list = get_and_check(op, idname)
+        if list && success?
+          rs = verify_captcha(opts[:captcha], p)
+          if rs['success']
+            li = list.add_object(p[:listed_object], p[:owner], p[:name])
+          else
+            li = nil
+          end
         else
           li = nil
         end
-      else
-        li = nil
+      rescue => x
+        set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY, x.message)
       end
+
 
       [ list, li ]
     end
@@ -120,7 +128,12 @@ module Fl::Framework::Service
     private
   
     def add_object_params(p = nil)
-      strong_params(p).fetch(:fl_framework_list, {}).permit(:listed_object, :owner, :name)
+      pp = strong_params(p).fetch(:fl_framework_list, {}).permit(:listed_object, :owner, :name)
+
+      # we execute this statement to trigger an exception if :listed_object is missing
+      rp = pp.require(:listed_object)
+      
+      pp
     end
   end
 end

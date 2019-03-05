@@ -246,6 +246,22 @@ RSpec.describe "Fl::Framework::Lists", type: :request do
         expect(r['_error']).to include('status', 'message', 'details')
       end
 
+      it("should return list items on request") do
+        get show_url(l1), params: { with_list_items: 1 }
+        expect(response).to be_successful
+        r = JSON.parse(response.body)
+        l = r['list']
+        expect(l['id']).to eql(l1.id)
+        expect(l.keys).to include('list_items')
+        expect(l['list_items']).to be_a(Array)
+
+        # The list items should have gone through to_hash; we check this by confirming that there
+        # are :list and :listed_object keys
+
+        li = l['list_items'][0]
+        expect(li.keys).to include('list', 'listed_object')
+      end
+
       it("should process to_hash params") do
         id_keys = [ "type", "api_root", "url_path", "fingerprint", "id" ]
         get show_url(l2), params: {
@@ -426,9 +442,8 @@ RSpec.describe "Fl::Framework::Lists", type: :request do
         }
 
         post add_object_url(l1), params: { fl_framework_list: add_params }
-        expect(response).to have_http_status(:not_found)
+        expect(response).to have_http_status(:unprocessable_entity)
         r = JSON.parse(response.body)
-        print("++++++++++ #{r}\n")
         expect(r).to be_a(Hash)
         expect(r).to include('_error')
         expect(r['_error']).to include('status', 'message', 'details')
@@ -441,9 +456,8 @@ RSpec.describe "Fl::Framework::Lists", type: :request do
         }
 
         post add_object_url(l1), params: { fl_framework_list: add_params }
-        expect(response).to have_http_status(:not_found)
+        expect(response).to have_http_status(:unprocessable_entity)
         r = JSON.parse(response.body)
-        print("++++++++++ #{r}\n")
         expect(r).to be_a(Hash)
         expect(r).to include('_error')
         expect(r['_error']).to include('status', 'message', 'details')

@@ -66,6 +66,10 @@ DESC
       {
         from: File.join(APP_ROOT, 'active_storage.js'),
         to: File.join(VENDOR_ROOT, 'active_storage.js'),
+      },
+      {
+        from: File.join(APP_ROOT, 'list_api_services.js'),
+        to: File.join(VENDOR_ROOT, 'list_api_services.js'),
       }
     ]
 
@@ -123,13 +127,13 @@ DESC
       }
     end
 
-    def _package_entry(name, version)
-      "    \"#{name}\": \"#{version}\""
+    def _package_entry(name, version, offset)
+      "#{offset}    \"#{name}\": \"#{version}\""
     end
 
-    def _format_package_list(pkg)
+    def _format_package_list(pkg, offset)
       d = pkg[:names].sort.reduce([ ]) do |acc, n|
-        acc.push(_package_entry(n, pkg[:full][n]))
+        acc.push(_package_entry(n, pkg[:full][n], offset))
         acc
       end
       d.join(",\n")
@@ -151,17 +155,20 @@ DESC
         end
       end
 
-      d = dependencies.keys.sort.reduce([ ]) do |acc, n|
-        acc << _package_entry(n, dependencies[n])
+      d = dependencies.keys.sort.reduce({ names: [ ], full: { } }) do |acc, n|
+        acc[:names] << n
+        acc[:full][n] = dependencies[n]
         acc
       end
 
-      { updated: num_updates, output: d.join(",\n") + "\n" }
+      { updated: num_updates, output: d }
     end
     
     def _update_package_file(gem_p)
       pkg_file = File.join(destination_root, PACKAGE_FILE)
       pkg = File.open(File.join(destination_root, PACKAGE_FILE)) { |f| JSON.parse(f.read()) }
+      pkg['dependencies'] = {} unless pkg['dependencies'].is_a?(Hash)
+      pkg['devDependencies'] = {} unless pkg['devDependencies'].is_a?(Hash)
       deps = _update_dependencies(pkg['dependencies'], gem_p[:dependencies])
       devDeps = _update_dependencies(pkg['devDependencies'], gem_p[:devDependencies])
 
@@ -172,26 +179,44 @@ DESC
       while plines.length > 0
         l = plines.shift
         
-        if l =~ /"dependencies":/
-          output << l
-          output << deps[:output]
+        if l =~ /^(\s*)("dependencies":)(.*)/
+          m = Regexp.last_match
+          offset = m[1]
+          tag = m[2]
+          rest = m[3]
+          comma = (rest.index(',')) ? ',' : ''
 
-          while plines.length > 0
-            l = plines.shift
-            if l =~ /}/
-              output << l
-              break
+          output << "#{offset}#{tag} {\n"
+          output << _format_package_list(deps[:output], offset)
+          output << "\n#{offset}}#{comma}\n"
+
+          if rest.index('}').nil?
+            while plines.length > 0
+              l = plines.shift
+              if l =~ /}/
+                output << l
+                break
+              end
             end
           end
-        elsif l =~ /"devDependencies":/
-          output << l
-          output << devDeps[:output]
+        elsif l =~ /^(\s*)("devDependencies":)(.*)/
+          m = Regexp.last_match
+          offset = m[1]
+          tag = m[2]
+          rest = m[3]
+          comma = (rest.index(',')) ? ',' : ''
 
-          while plines.length > 0
-            l = plines.shift
-            if l =~ /}/
-              output << l
-              break
+          output << "#{offset}#{tag} {\n"
+          output << _format_package_list(devDeps[:output], offset)
+          output << "\n#{offset}}#{comma}\n"
+
+          if rest.index('}').nil?
+            while plines.length > 0
+              l = plines.shift
+              if l =~ /}/
+                output << l
+                break
+              end
             end
           end
         else
@@ -207,7 +232,6 @@ DESC
 
     def add_yarn_packages()
       gem_p = _list_packages(@gem_root)
-
       if File.exists?(File.join(destination_root, PACKAGE_FILE))
         _update_package_file(gem_p)
       else
@@ -216,8 +240,8 @@ DESC
                     else
                       'Rails application'
                     end
-        @dependencies = _format_package_list(gem_p[:dependencies])
-        @devDependencies = _format_package_list(gem_p[:devDependencies])
+        @dependencies = _format_package_list(gem_p[:dependencies], '  ')
+        @devDependencies = _format_package_list(gem_p[:devDependencies], '  ')
 
         template('package.json', File.join(destination_root, PACKAGE_FILE))
       end

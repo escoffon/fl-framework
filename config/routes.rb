@@ -9,8 +9,9 @@ Fl::Framework::Engine.routes.draw do
     member do
       post 'add_object'
     end
+    resources :list_items, shallow: true, controller: 'list_items'
   end
 
-  resources :list_items do
+  resources :list_items, only: [ :index ], controller: 'list_items' do
   end
 end
