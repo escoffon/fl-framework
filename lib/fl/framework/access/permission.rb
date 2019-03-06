@@ -9,16 +9,19 @@ module Fl::Framework::Access
   #  NAME = :my_permission
   #  GRANTS = [ Fl::Framework::Access::Permission::Read::NAME ]
   #
-  #  def initialize()
+  #  def initialize(ext)
+  #    @ext = ext
   #    super(NAME, GRANTS)
   #  end
+  #
+  #  attr_reader :ext
   # end
   #
-  # myp = MyPermission.new
+  # myp = MyPermission.new('additional data')
   # ```
-  # The `myp = MyPermission.new` statement registers `MyPermission` with the permission registry.
+  # The `MyPermission.new` call registers `MyPermission` with the permission registry.
   #
-  # #### Cumulative permissions
+  # #### Cumulative (forwarded) permissions
   #
   # A permission can grant other permissions by listing them in the constructor's *grants* argument.
   # Access checkers need to consider this "forwarding" of grants when determining if an actor has
@@ -48,18 +51,19 @@ module Fl::Framework::Access
       #
       # @param permission [Fl::Framework::Access::Permission] The duplicate permission.
       # @param msg [String] Message to pass to the superclass implementation.
+      #  If `nil`, a standard message is created from the permission name.
 
       def initialize(permission, msg = nil)
         @permission = permission
+        msg = I18n.tx('fl.framework.access.permission.duplicate',
+                      name: permission.name, class_name: permission.class.name) unless msg.is_a?(String)
         super(msg)
       end
 
-      # The name of the permission.
-      # @return [Symbol] Returns the name of the permission.
+      # The duplicate permission.
+      # @return [Fl::Framework::Access::Permission] Returns the *permission* argument to the constructor.
 
-      def name()
-        @permission.name
-      end
+      attr_reader :permission
     end
 
     # Exception raised when a permission name is not registered.
@@ -69,9 +73,11 @@ module Fl::Framework::Access
       #
       # @param name [Symbol,String] The missing permission name.
       # @param msg [String] Message to pass to the superclass implementation.
+      #  If `nil`, a standard message is created from the permission name.
 
       def initialize(name, msg = nil)
         @name = name.to_sym
+        msg = I18n.tx('fl.framework.access.permission.missing', name: name) unless msg.is_a?(String)
         super(msg)
       end
 
@@ -251,7 +257,8 @@ module Fl::Framework::Access
   Permission::Read.new
 
   # The **:write** permission class.
-  # This permission grants write only access to assets; for read and write access, use {#Permission::Edit}.
+  # Note that this permission grants write only access to assets; for read and write access,
+  # use {#Permission::Edit}.
   
   class Permission::Write < Permission
     # The permission name.

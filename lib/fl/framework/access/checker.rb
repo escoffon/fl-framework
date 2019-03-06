@@ -13,6 +13,17 @@ module Fl::Framework::Access
       super()
     end
 
+    # Configure the including class.
+    # The access control macro {Fl::Framework::Access::Access::ClassMacros#has_access_control} calls
+    # this method in its implementation.
+    # Use it to perform checker-specific configuration of the including class (for example, to inject
+    # instance methods to manage access rights).
+    #
+    # @param base [Class] The class object in whose context the `has_access_control` macro is executed.
+
+    def configure(base)
+    end
+    
     # Run an access check.
     # This method implements the algorithm to check if *actor* has been granted permission *permission*
     # on object *asset*. For example, to check if user `u1` has **:read** access to file asset *a*,
@@ -39,7 +50,7 @@ module Fl::Framework::Access
     # @return [Symbol,nil,Boolean] An access check method is expected to return a symbol containing the
     #  name of the granted permission if access rights were granted.
     #  Note that the returned value may be different from *permission* if the permission is granted through
-    #  forwarding (for example, if the request was for **:write** and it was granted because of a
+    #  forwarding (for example, if the request was for **:write** and it was granted because of an
     #  **:edit** permission).
     #  It should return `nil` if access grants were not granted.
     #  Under some conditions, it may elect to return `false` to indicate that there was some kind of error

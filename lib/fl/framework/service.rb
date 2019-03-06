@@ -24,7 +24,7 @@ end
 
 require 'fl/framework/service/base'
 require 'fl/framework/service/nested'
-require 'fl/framework/service/comment'
-require 'fl/framework/service/attachment'
+#require 'fl/framework/service/comment'
+#require 'fl/framework/service/attachment'
 require 'fl/framework/service/list'
 require 'fl/framework/service/list_item'

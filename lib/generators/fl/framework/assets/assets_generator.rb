@@ -1,22 +1,22 @@
 module Fl::Framework
-  class ListsGenerator < Rails::Generators::Base
+  class AssetsGenerator < Rails::Generators::Base
     include Fl::Framework::GeneratorHelper
     
     desc <<-DESC
-  This generator installs support for list objects.
-  It copies the lists migration file to the application's db/migrations directory.
+  This generator installs support for asset management.
+  It copies the assets migration file to the application's db/migrations directory.
 
   For example, given this command:
-    rails generate fl:framework:lists
+    rails generate fl:framework:assets
 
   The generator will create:
-    db/migrate TS_create_fl_framework_lists.fl_framework.rb
+    db/migrate TS_create_fl_framework_assets.fl_framework.rb
   where TS is a timestamp.
 DESC
 
     PWD = File.expand_path('.')
     DB_MIGRATE = File.expand_path('../../../../../../db/migrate', __FILE__)
-    MIGRATION_FILE_NAME = 'create_fl_framework_lists'
+    MIGRATION_FILE_NAME = 'create_fl_framework_assets'
     
     source_root File.expand_path('../templates', __FILE__)
 
