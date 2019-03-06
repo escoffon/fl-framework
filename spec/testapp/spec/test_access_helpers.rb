@@ -55,6 +55,16 @@ module Fl::Framework::Test
   # Helpers for testing the access control functionality.
   
   module AccessHelpers
+    # Get the list of test permissions.
+    #
+    # @return [Array<Symbol>] Returns an array containing the names under which the test permissions
+    #  were registered.
+    
+    def test_permission_names()
+      [ TestPermissionOne::NAME, TestPermissionTwo::NAME, TestPermissionThree::NAME,
+        TestPermissionFour::NAME, TestPermissionFive::NAME, TestPermissionSix::NAME ]
+    end
+
     # Cleanup the access control registry.
     # This method drops a given list of permissions from the permission registry.
     #
@@ -62,7 +72,7 @@ module Fl::Framework::Test
     #  drop. If *plist* is not an array, the value of {#test_permission_names} is used.
     
     def cleanup_permission_registry(plist = nil)
-      plist = [ ] unless plist.is_a?(Array)
+      plist = test_permission_names() unless plist.is_a?(Array)
       names = plist.map { |p| p.to_sym }
   
       r = Fl::Framework::Access::Permission.class_variable_get(:@@_permission_registry)

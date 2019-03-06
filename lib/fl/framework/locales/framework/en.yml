@@ -96,3 +96,9 @@ en:
         controller:
           destroy:
             deleted: "deleted list item %{fingerprint} (%{name})"
+
+      access:
+        permission:
+          duplicate: "duplicate permission '%{name}' (%{class_name})"
+          missing: "the permission '%{name}' is not registered"
+          

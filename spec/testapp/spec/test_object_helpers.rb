@@ -1,5 +1,5 @@
 module Fl::Framework::Test
-  # Object helpers fo testing.
+  # Object helpers for testing.
   
   module ObjectHelpers
     # Get object identifiers.

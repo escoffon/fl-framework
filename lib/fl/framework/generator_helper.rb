@@ -44,5 +44,33 @@ module Fl::Framework
 
       return rv
     end
+
+    # Find a migration file in a target directory.
+    # This method finds a file that matches the name *n*, ignoring the migration file timestamp.
+    #
+    # @param d [String] The path to the directory to search.
+    # @param n [String] The template to match.
+    #
+    # @return [Array] Returns an array containing two string elements: the matched template, and the
+    #  complete file name (including timestamp and extension).
+    #  If the file is not found, the two elements have value `nil`.
+    
+    def find_migration_file(d, n)
+      migration_file_re = Regexp.new("[0-9]+_(#{n}).rb$")
+      name = nil
+      infile = nil
+      curdir = Dir.getwd
+      Dir.chdir(d)
+      Dir.glob('*.rb') do |fn|
+        if fn =~ migration_file_re
+          name = Regexp.last_match[1]
+          infile = fn
+          break
+        end
+      end
+      Dir.chdir(curdir)
+
+      [ name, infile ]
+    end
   end
 end

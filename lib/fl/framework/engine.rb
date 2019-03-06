@@ -33,11 +33,14 @@ module Fl
           require 'fl/framework/neo4j'
         end
 
+        require 'fl/framework/application_record'
+        require 'fl/framework/active_record'
+
         require 'fl/framework/core'
         require 'fl/framework/query'
         require 'fl/framework/access'
-        require 'fl/framework/comment'
-        require 'fl/framework/attachment'
+#        require 'fl/framework/comment'
+#        require 'fl/framework/attachment'
         require 'fl/framework/service'
         require 'fl/framework/controller'
         require 'fl/framework/test'
@@ -47,6 +50,7 @@ module Fl
         require 'fl/framework/application_record'
 
         require 'fl/framework/list'
+        require 'fl/framework/asset'
         
         require 'fl/google'
 

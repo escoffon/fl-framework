@@ -10,10 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_03_05_135424) do
+ActiveRecord::Schema.define(version: 2019_03_06_130403) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "fl_framework_assets", force: :cascade do |t|
+    t.string "owner_type"
+    t.bigint "owner_id"
+    t.string "owner_fingerprint"
+    t.string "asset_type"
+    t.bigint "asset_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["asset_type", "asset_id"], name: "fl_fmwk_assets_asset_idx"
+    t.index ["asset_type"], name: "fl_fmwk_assets_asset_type_idx"
+    t.index ["owner_fingerprint"], name: "fl_fmwk_assets_owner_fp_idx"
+    t.index ["owner_type", "owner_id"], name: "fl_fmwk_assets_owner_idx"
+  end
 
   create_table "fl_framework_list_item_state_t", force: :cascade do |t|
     t.string "name"
