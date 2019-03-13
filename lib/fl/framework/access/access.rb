@@ -1,5 +1,3 @@
-require 'fl/framework/access/grants'
-
 module Fl::Framework::Access
   # Access APIs.
   # This module defines two main classes of methods:
