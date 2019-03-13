@@ -101,4 +101,18 @@ en:
         permission:
           duplicate: "duplicate permission '%{name}' (%{class_name})"
           missing: "the permission '%{name}' is not registered"
-          
+
+      asset:
+        checker:
+          not_an_asset: "class %{class_name} is not an asset"
+
+      asset_record:
+        model:
+          validate:
+            not_an_asset: "asset %{fingerprint} is not a registered asset type"
+            exists: "a record for asset %{fingerprint} already exists"
+
+      access_grant:
+        model:
+          validate:
+            unknown_permission: "unknown permission '%{permission}'"

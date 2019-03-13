@@ -45,6 +45,36 @@ module Fl::Framework
       return rv
     end
 
+    # Copy a migration file into the application's migrations directory.
+    # The method checks if the file *name* is already in the target directory, and if so
+    # issues a warning and skips the operation. Otherwise, it copies the original into the target,
+    # appending `.fl_framework` to the file name.
+    #
+    # @param migration_dir [String] THe location of the target migrations directory.
+    # @param name [String] The file "name;" this is used to find the file, independently of the
+    #  timestamp embedded in the complete name.
+    
+    def create_migration_file(migration_dir, name)
+      now = Time.new
+      ts = now.strftime('%Y%m%d%H%M%S')
+      
+      in_name, in_file = find_migration_file(migration_dir, name)
+      if in_name.nil?
+        say_status('error', 'could not find the template migration file')
+      else
+        out_dir = File.join(destination_root, 'db', 'migrate')
+        out_name, out_file = find_migration_file(out_dir, "#{name}.fl_framework")
+        if out_name
+          say_status('warn', "migration file exists: #{File.basename(out_file)}")
+        else
+          out_file = File.join(out_dir, "#{ts}_#{in_name}.fl_framework.rb")
+          say_status('create', "Creating migration file #{File.basename(out_file)}")
+          self.class.source_root File.expand_path(migration_dir)
+          copy_file(in_file, out_file)
+        end
+      end
+    end
+
     # Find a migration file in a target directory.
     # This method finds a file that matches the name *n*, ignoring the migration file timestamp.
     #

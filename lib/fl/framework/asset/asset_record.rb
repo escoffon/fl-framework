@@ -5,6 +5,8 @@ module Fl::Framework::Asset
   # Asset records list assets with the system.
   # It will need the migration `create_fl_framework_assets`.
   #
+  # An asset record is an entry in the database of registered assets known to the system.
+  #
   # ## Attributes
   # This class defines the following attributes:
   #
@@ -23,6 +25,9 @@ module Fl::Framework::Asset
     self.table_name = 'fl_framework_assets'
 
     before_create :set_fingerprints
+
+    validate :ensure_asset_is_asset
+    validate :ensure_record_is_unique
 
     # @!attribute [rw] created_at
     # The time when the asset record was created.
@@ -340,6 +345,23 @@ module Fl::Framework::Asset
 
     private
 
+    def ensure_asset_is_asset()
+      if self.asset && !self.asset.asset?
+        errors.add(:asset, I18n.tx('fl.framework.asset_record.model.validate.not_an_asset',
+                                   fingerprint: self.asset.fingerprint))
+      end
+    end
+
+    def ensure_record_is_unique
+      if self.asset
+        unless Fl::Framework::Asset::AssetRecord.where('(asset_type = :at) AND (asset_id = :aid)',
+                                                       at: self.asset.class.name, aid: self.asset.id).first.nil?
+          errors.add(:asset, I18n.tx('fl.framework.asset_record.model.validate.exists',
+                                     fingerprint: self.asset.fingerprint))
+        end
+      end
+    end
+    
     def set_fingerprints()
       self.owner_fingerprint = self.owner.fingerprint if self.owner
     end

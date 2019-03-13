@@ -13,6 +13,8 @@ module Fl::Framework::List
       #
       # ```
       #   class MyListable < ActiveRecord::Base
+      #     include Fl::Framework::List::Listable
+      #
       #     is_listable
       #   end
       # ```
@@ -210,6 +212,4 @@ class ActiveRecord::Base
   def list_item_summary
     ''
   end
-
-  include Fl::Framework::List::Listable
 end

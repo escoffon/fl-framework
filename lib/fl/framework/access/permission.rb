@@ -30,7 +30,7 @@ module Fl::Framework::Access
   # `[ :read, :write ]`; an access checker for the **:write** permission should grant access if
   # **:edit** is granted.
   #
-  # Use the class methods {.permission_grants} and {.grants_for_permission} to support forwarded access
+  # Use the class methods {.permission_grantors} and {.grantors_for_permission} to support forwarded access
   # checks.
   #
   # #### Standard permission classes
@@ -87,9 +87,17 @@ module Fl::Framework::Access
       attr_reader :name
     end
     
-    self.class_variable_set(:@@_permission_registry, {})
-    self.class_variable_set(:@@_permission_grants, {})
+    @_permission_registry = {}
+    @_permission_grants = nil
 
+    # Get the permission name for this class.
+    #
+    # @return [Symbol] Returns the name of the permission implemented by this class.
+
+    def self.name()
+      @_permission_name
+    end
+    
     # Register a permission object.
     # There is no real need to call this method, since {#initialize} does this automatically.
     #
@@ -99,18 +107,11 @@ module Fl::Framework::Access
 
     def self.register(permission)
       k = permission.name.to_sym
-      r = class_variable_get(:@@_permission_registry)
-      raise Fl::Framework::Access::Permission::Duplicate.new(permission) if r.has_key?(k)
-      r[k] = permission
+      raise Fl::Framework::Access::Permission::Duplicate.new(permission) if @_permission_registry.has_key?(k)
+      @_permission_registry[k] = permission
 
-      pg = class_variable_get(:@@_permission_grants)
-      permission.grants.each do |g|
-        unless g == k
-          f = pg.has_key?(g) ? pg[g] : [ ]
-          f << k unless f.include?(k)
-          pg[g] = f
-        end
-      end
+      # A registration invalidates the permission grants registry
+      _invalidate_permission_grants()
     end
 
     # Look up a permission in the registry.
@@ -121,8 +122,7 @@ module Fl::Framework::Access
     #  {Fl::Framework::Access:Permission} if *name* is registered, `nil` otherwise.
       
     def self.lookup(name)
-      r = class_variable_get(:@@_permission_registry)
-      r[name.to_sym]
+      @_permission_registry[name.to_sym]
     end
 
     # Remove a permission from the registry.
@@ -131,18 +131,12 @@ module Fl::Framework::Access
 
     def self.unregister(name)
       n = name.to_sym
-      r = class_variable_get(:@@_permission_registry)
-      if r.has_key?(n)
-        p = r.delete(n)
+      if @_permission_registry.has_key?(n)
+        p = @_permission_registry.delete(n)
       end
 
-      npg = class_variable_get(:@@_permission_grants).reduce({ }) do |acc, kv|
-        gk, gv = kv
-        acc[gk] = gv - [ n ]
-        acc
-      end
-
-      class_variable_set(:@@_permission_grants, ngp)
+      # A deregistration invalidates the permission grants registry
+      _invalidate_permission_grants()
     end
 
     # Return the names of all permissions in the registry.
@@ -151,29 +145,34 @@ module Fl::Framework::Access
     #  permissions.
       
     def self.registered()
-      class_variable_get(:@@_permission_registry).map { |k, v| k.to_sym }
+      @_permission_registry.map { |k, v| k.to_sym }
     end
 
-    # Return the grants issued by permissions in the registry.
+    # Return the grantors for permissions in the registry.
     # Compound permissions (those with a nonempty {Permission#grants} array) include other permissions.
-    # This method returns a map of the granted permissions.
+    # This method returns a map of the permissions that grant another one.
     #
     # @return [Hash] Returns a hash where the keys are permission names, and the values are arrays that
     #  list the other permissions that grant it.
       
-    def self.permission_grants()
-      class_variable_get(:@@_permission_grants)
+    def self.permission_grantors()
+      _permission_grants()
     end
 
-    # Return the grants issued to a given permission in the registry.
+    # Return the grantorss for a given permission in the registry.
     #
-    # @param name [Symbol,String] The name of the permission.
+    # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The permission whose grants
+    #  to get. The value of this parameter is described in {Fl::Framework::Access::Helper.permission_name}.
     #
     # @return [Array<Symbol>] Returns an array that lists the permission that grant *name*.
       
-    def self.grants_for_permission(name)
-      g = class_variable_get(:@@_permission_grants)
-      k = name.to_sym
+    def self.grantors_for_permission(permission)
+      # g = class_variable_get(:@_permission_grants)
+      # k = name.to_sym
+      # (g.has_key?(k)) ? g[k] : [ ]
+
+      k = Fl::Framework::Access::Helper.permission_name(permission)
+      g = _permission_grants
       (g.has_key?(k)) ? g[k] : [ ]
     end
       
@@ -185,9 +184,10 @@ module Fl::Framework::Access
     #
     # @param name [Symbol,String] The name of the permission; this value must be unique for all
     #  permission instances.
-    # @param grants [Array<Symbol,String>] An array containing the names of other permissions
-    #  that are also granted by *name*. For example, a **:manage** permission may grant
-    #  **:read**, **:write**, and **:delete**.
+    # @param grants [Array<Symbol,String,Fl::Framework::Access::Permission,Class>] An array containing
+    #  the list other permissions that are also granted by *name*. For example, a **:manage** permission
+    #  may grant **:read**, **:write**, and **:delete**.
+    #  The element values are as described in {Fl::Framework::Access::Helper.permission_name}.
     #
     # @raise [Fl::Framework::Access::Permission::Duplicate] Raised if *name* is already registered.
     #
@@ -196,11 +196,12 @@ module Fl::Framework::Access
 
     def initialize(name, grants = [ ])
       @name = name.to_sym
-      @grants_raw = (grants.is_a?(Array)) ? grants.map { |g| g.to_sym } : [ ]
-      @grants = nil
+#      @grants_raw = (grants.is_a?(Array)) ? grants.map { |g| Fl::Framework::Access::Helper.permission_name(g) } : [ ]
+      @grants = (grants.is_a?(Array)) ? grants.map { |g| Fl::Framework::Access::Helper.permission_name(g) } : [ ]
 
       rv = super()
         
+      self.class.instance_variable_set(:@_permission_name, name)
       Fl::Framework::Access::Permission.register(self)
 
       rv
@@ -210,32 +211,81 @@ module Fl::Framework::Access
     # @return [Symbol] Returns the name of the permission.
 
     attr_reader :name
-      
-    # Get the expanded grants list.
-    # The list is generated lazily, but at the time the method is first called all the permissions
-    # in the original unexpanded list must have been registered.
-    #
-    # @return [Array<Symbol>] Returns the list of permissions granted by this permission.
-    #
-    # @raise [Fl::Framework::Access::Permission::Missing] Raised if a listed permission has not been
-    #  registered.
 
-    def grants()
-      @grants = _expand_grants() if @grants.nil?
-      @grants
+    # The grants list.
+    # This is the normalized value of the *grants* argument to {#initialize}, and it lists the permission
+    # that this permission grants.
+    # @return [Array<Symbol>] Returns the list of permissions granted by this permission.
+
+    attr_reader :grants
+
+    # # Get the expanded grants list.
+    # # The list is generated lazily, but at the time the method is first called all the permissions
+    # # in the original unexpanded list must have been registered.
+    # #
+    # # @return [Array<Symbol>] Returns the list of permissions granted by this permission.
+    # #
+    # # @raise [Fl::Framework::Access::Permission::Missing] Raised if a listed permission has not been
+    # #  registered.
+
+    # def grants()
+    #   self.class.grants_for_permission(self.name)
+    # end
+
+    # Get the grantor list.
+    # This is the list of permission that grant this permission; it is the (global) reverse of the
+    # {#grants} list.
+    #
+    # @return [Array<Symbol>] Returns the list of permissions that grant this permission.
+
+    def grantors()
+      Fl::Framework::Access::Permission.grantors_for_permission(self.name)
     end
 
     private
 
-    def _expand_grants()
-      @grants_raw.reduce([ ]) do |acc, n|
-        p = Fl::Framework::Access::Permission.lookup(n)
-        raise Fl::Framework::Access::Permission::Missing.new(n) if p.nil?
+    def self._invalidate_permission_grants()
+      @_permission_grants = nil
+    end
 
-        acc |= [ p.name ] | p.grants
-        acc
+    def self._permission_grants()
+      _rebuild_permission_grants unless @_permission_grants.is_a?(Hash)
+      @_permission_grants
+    end
+
+    def self._rebuild_permission_grants()
+      @_permission_grants = {}
+      @_permission_registry.each do |pk, pv|
+        _register_grants(pv.grants, pk)
+      end
+
+      # a bit hoakey, but we need to remove spurious grants to self that may have been (well, were...)
+      # introduced by _register_grants
+
+      @_permission_grants.each { |gk, gv| gv.delete(gk) }
+      
+      @_permission_grants
+    end
+
+    def self._register_grants(gl, pn)
+      @_permission_grants[pn] = [ ] unless @_permission_grants.has_key?(pn)
+      @_permission_grants[pn] |= [ pn ]
+      gl.each do |gn|
+        @_permission_grants[gn] |= [ pn ]
+        gp = lookup(gn)
+        _register_grants(gp.grants, pn) if gp && (gp.grants.count > 0)
       end
     end
+    
+    # def _expand_grants()
+    #   @grants_raw.reduce([ ]) do |acc, n|
+    #     p = Fl::Framework::Access::Permission.lookup(n)
+    #     raise Fl::Framework::Access::Permission::Missing.new(n) if p.nil?
+
+    #     acc |= [ p.name ] | p.grants
+    #     acc
+    #   end
+    # end
   end
 
   # The **:read** permission class.
@@ -320,7 +370,7 @@ module Fl::Framework::Access
     NAME = :manage
 
     # dependent permissions granted by **:manage**.
-    GRANTS = [ :read, :write, :delete ]
+    GRANTS = [ :edit, :delete ]
 
     # Initializer.
     def initialize()

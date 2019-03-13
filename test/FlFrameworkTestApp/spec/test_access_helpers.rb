@@ -1,53 +1,56 @@
-class TestPermissionOne < Fl::Framework::Access::Permission
-  NAME = :one
-  
-  def initialize()
-    super(NAME)
+module TestAccess
+  class P1 < Fl::Framework::Access::Permission
+    NAME = :p1
+    GRANTS = [ ]
+    
+    def initialize()
+      super(NAME, GRANTS)
+    end
   end
-end
 
-class TestPermissionTwo < Fl::Framework::Access::Permission
-  NAME = :two
-  GRANTS = [ TestPermissionOne::NAME ]
-  
-  def initialize()
-    super(NAME, GRANTS)
+  class P2 < Fl::Framework::Access::Permission
+    NAME = :p2
+    GRANTS = [ ]
+    
+    def initialize()
+      super(NAME, GRANTS)
+    end
   end
-end
 
-class TestPermissionThree < Fl::Framework::Access::Permission
-  NAME = :three
-  GRANTS = [ TestPermissionTwo::NAME ]
-  
-  def initialize()
-    super(NAME, GRANTS)
+  class P3 < Fl::Framework::Access::Permission
+    NAME = :p3
+    GRANTS = [ ]
+    
+    def initialize()
+      super(NAME, GRANTS)
+    end
   end
-end
 
-class TestPermissionFour < Fl::Framework::Access::Permission
-  NAME = :four
-  GRANTS = [ TestPermissionOne::NAME, TestPermissionTwo::NAME ]
-  
-  def initialize()
-    super(NAME, GRANTS)
+  class P4 < Fl::Framework::Access::Permission
+    NAME = :p4
+    GRANTS = [ P1::NAME, P2::NAME]
+    
+    def initialize()
+      super(NAME, GRANTS)
+    end
   end
-end
 
-class TestPermissionFive < Fl::Framework::Access::Permission
-  NAME = :five
-  GRANTS = [ ]
-  
-  def initialize()
-    super(NAME, GRANTS)
+  class P5 < Fl::Framework::Access::Permission
+    NAME = :p5
+    GRANTS = [ P4::NAME, P3::NAME ]
+    
+    def initialize()
+      super(NAME, GRANTS)
+    end
   end
-end
 
-class TestPermissionSix < Fl::Framework::Access::Permission
-  NAME = :six
-  GRANTS = [ TestPermissionOne::NAME, TestPermissionTwo::NAME, TestPermissionFive::NAME ]
-  
-  def initialize()
-    super(NAME, GRANTS)
+  class P6 < Fl::Framework::Access::Permission
+    NAME = :p6
+    GRANTS = [ P5::NAME ]
+    
+    def initialize()
+      super(NAME, GRANTS)
+    end
   end
 end
 
@@ -63,15 +66,7 @@ module Fl::Framework::Test
     
     def cleanup_permission_registry(plist = nil)
       plist = [ ] unless plist.is_a?(Array)
-      names = plist.map { |p| p.to_sym }
-  
-      r = Fl::Framework::Access::Permission.class_variable_get(:@@_permission_registry)
-      nr = r.reduce({ }) do |acc, kv|
-        k, v = kv
-        acc[k] = v unless names.include?(k)
-        acc
-      end
-      Fl::Framework::Access::Permission.class_variable_set(:@@_permission_registry, nr)
+      plist.each { |p| Fl::Framework::Access::Permission.unregister(p) }
     end
   end
 end

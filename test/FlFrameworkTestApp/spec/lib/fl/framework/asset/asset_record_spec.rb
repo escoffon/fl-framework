@@ -6,18 +6,31 @@ RSpec.configure do |c|
   c.include Fl::Framework::Test::ObjectHelpers
 end
 
+# Testing creation is tricky, since asset objects automatically create an asset_record from an
+# after_create hook, so we have to resort to somewhat unothodox methods
+
+module T
+  def self.clear_asset_record(d)
+    ar = Fl::Framework::Asset::AssetRecord.where('(asset_type = :at) AND (asset_id = :aid)',
+                                                 at: d.class.name, aid: d.id).first
+    ar.destroy if ar
+  end
+end
+
 RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
   let(:a1) { create(:test_actor) }
   let(:a2) { create(:test_actor) }
   let(:a3) { create(:test_actor) }
+  let(:a4) { create(:test_actor) }
   let(:d10) { create(:test_datum_one, owner: a1, value: 10) }
   let(:d11) { create(:test_datum_one, owner: a2, value: 11) }
+  let(:d110) { create(:test_datum_one, owner: a2, value: 110) }
   let(:d12) { create(:test_datum_one, owner: a2, value: 12) }
   let(:d20) { create(:test_datum_two, owner: a1, value: 'v20') }
   let(:d21) { create(:test_datum_two, owner: a2, value: 'v21') }
   let(:d22) { create(:test_datum_two, owner: a1, value: 'v22') }
-  let(:d30) { create(:test_datum_three, owner: a2, value: 30) }
-
+  let(:d30) { create(:test_datum_three, owner: a3, value: 30) }
+  
   describe '#initialize' do
     it 'should fail with empty attributes' do
       ar1 = Fl::Framework::Asset::AssetRecord.new
@@ -26,62 +39,93 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
     end
 
     it 'should succeed with asset and owner' do
-      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d11, owner: d11.owner)
+      T.clear_asset_record(d110)
+      
+      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d110, owner: d110.owner)
       expect(ar1.valid?).to eq(true)
-      expect(ar1.owner.fingerprint).to eql(d11.owner.fingerprint)
-      expect(ar1.asset.fingerprint).to eql(d11.fingerprint)
+      expect(ar1.owner.fingerprint).to eql(d110.owner.fingerprint)
+      expect(ar1.asset.fingerprint).to eql(d110.fingerprint)
     end
 
     it 'should accept fingerprint arguments' do
-      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d11.fingerprint, owner: d11.owner.fingerprint)
+      T.clear_asset_record(d110)
+      
+      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d110.fingerprint, owner: d110.owner.fingerprint)
       expect(ar1.valid?).to eq(true)
-      expect(ar1.owner.fingerprint).to eql(d11.owner.fingerprint)
-      expect(ar1.asset.fingerprint).to eql(d11.fingerprint)
+      expect(ar1.owner.fingerprint).to eql(d110.owner.fingerprint)
+      expect(ar1.asset.fingerprint).to eql(d110.fingerprint)
 
-      ar2 = Fl::Framework::Asset::AssetRecord.new(asset: d11.fingerprint)
+      ar2 = Fl::Framework::Asset::AssetRecord.new(asset: d110.fingerprint)
       expect(ar2.valid?).to eq(true)
-      expect(ar2.owner.fingerprint).to eql(d11.owner.fingerprint)
-      expect(ar2.asset.fingerprint).to eql(d11.fingerprint)
+      expect(ar2.owner.fingerprint).to eql(d110.owner.fingerprint)
+      expect(ar2.asset.fingerprint).to eql(d110.fingerprint)
     end
 
     it 'should use the asset owner if necessary and possible' do
-      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d11)
+      T.clear_asset_record(d110)
+      
+      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d110)
       expect(ar1.valid?).to eq(true)
-      expect(ar1.owner.fingerprint).to eql(d11.owner.fingerprint)
-      expect(ar1.asset.fingerprint).to eql(d11.fingerprint)
+      expect(ar1.owner.fingerprint).to eql(d110.owner.fingerprint)
+      expect(ar1.asset.fingerprint).to eql(d110.fingerprint)
     end
   end
 
   describe 'create' do
     it 'should populate the fingerprint attributes on creation' do
-      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d11)
+      T.clear_asset_record(d110)
+      
+      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d110)
 
       expect(ar1.valid?).to eq(true)
       expect(ar1.owner_fingerprint).to be_nil
 
       expect(ar1.save).to eq(true)
-      expect(ar1.owner_fingerprint).to eql(d11.owner.fingerprint)
+      expect(ar1.owner_fingerprint).to eql(d110.owner.fingerprint)
+    end
+  end
+
+  describe 'validate' do
+    it 'should fail if the asset is not a registered asset' do
+      d40 = create(:test_datum_four, owner: a1)
+      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d40)
+
+      expect(ar1.valid?).to eq(false)
+      expect(ar1.errors.messages.keys).to include(:asset)
+    end
+
+    it 'should fail if an asset record exists for the same asset' do
+      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d10)
+
+      expect(ar1.valid?).to eq(false)
+      expect(ar1.errors.messages.keys).to include(:asset)
     end
   end
   
   describe '#update_attributes' do
     it 'should ignore :asset and :owner attributes' do
-      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d11, owner: d11.owner)
+      T.clear_asset_record(d110)
+      T.clear_asset_record(d21)
+      
+      ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d110, owner: d110.owner)
       expect(ar1.valid?).to eq(true)
-      expect(ar1.owner.fingerprint).to eql(d11.owner.fingerprint)
-      expect(ar1.asset.fingerprint).to eql(d11.fingerprint)
+      expect(ar1.owner.fingerprint).to eql(d110.owner.fingerprint)
+      expect(ar1.asset.fingerprint).to eql(d110.fingerprint)
 
       ar1.update_attributes(asset: d21, owner: a2)
+      T.clear_asset_record(d110)
       expect(ar1.valid?).to eq(true)
-      expect(ar1.owner.fingerprint).to eql(d11.owner.fingerprint)
-      expect(ar1.asset.fingerprint).to eql(d11.fingerprint)
+      expect(ar1.owner.fingerprint).to eql(d110.owner.fingerprint)
+      expect(ar1.asset.fingerprint).to eql(d110.fingerprint)
     end
   end
 
   describe "model hash support" do
     context "#to_hash" do
       it "should track :verbosity" do
-        ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d11, owner: d11.owner)
+        T.clear_asset_record(d110)
+      
+        ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d110, owner: d110.owner)
 
         id_keys = [ :type, :api_root, :url_path, :fingerprint, :id ]
         h = ar1.to_hash(a1, { verbosity: :id })
@@ -109,7 +153,9 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
       end
 
       it "should customize key lists" do
-        ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d11, owner: d11.owner)
+        T.clear_asset_record(d110)
+      
+        ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d110, owner: d110.owner)
 
         id_keys = [ :type, :api_root, :url_path, :fingerprint, :id ]
         h_keys = id_keys | [ :asset ]
@@ -123,7 +169,9 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
       end
 
       it "should customize key lists for subobjects" do
-        ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d11, owner: d11.owner)
+        T.clear_asset_record(d110)
+      
+        ar1 = Fl::Framework::Asset::AssetRecord.new(asset: d110, owner: d110.owner)
 
         id_keys = [ :type, :api_root, :url_path, :fingerprint, :id ]
         h = ar1.to_hash(a1, { verbosity: :minimal })
@@ -147,25 +195,17 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
 
   describe ".build_query" do
     it 'should generate a simple query from default options' do
-      a10 = Fl::Framework::Asset::AssetRecord.create(asset: d10)
-      a11 = Fl::Framework::Asset::AssetRecord.create(asset: d11)
-      a12 = Fl::Framework::Asset::AssetRecord.create(asset: d12)
-      a20 = Fl::Framework::Asset::AssetRecord.create(asset: d20)
-      a21 = Fl::Framework::Asset::AssetRecord.create(asset: d21)
-      a22 = Fl::Framework::Asset::AssetRecord.create(asset: d22)
-      
+      # This statement implicitly creates the asset records
+      data = [ d10, d11, d12, d20, d21, d22 ]
+
       q = Fl::Framework::Asset::AssetRecord.build_query()
       ql = q.map { |li| li.asset }
       expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d22, d21, d20, d12, d11, d10 ]))
     end
 
     it 'should process :only_owners and :except_owners' do
-      a10 = Fl::Framework::Asset::AssetRecord.create(asset: d10)
-      a11 = Fl::Framework::Asset::AssetRecord.create(asset: d11)
-      a12 = Fl::Framework::Asset::AssetRecord.create(asset: d12)
-      a20 = Fl::Framework::Asset::AssetRecord.create(asset: d20)
-      a21 = Fl::Framework::Asset::AssetRecord.create(asset: d21)
-      a22 = Fl::Framework::Asset::AssetRecord.create(asset: d22)
+      # This statement implicitly creates the asset records
+      data = [ d10, d11, d12, d20, d21, d22, d30 ]
       
       q = Fl::Framework::Asset::AssetRecord.build_query(only_owners: a1.fingerprint)
       ql = q.map { |li| li.asset }
@@ -185,33 +225,28 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
 
       q = Fl::Framework::Asset::AssetRecord.build_query(except_owners: a1.fingerprint)
       ql = q.map { |li| li.asset }
-      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d21, d12, d11 ]))
+      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d30, d21, d12, d11 ]))
 
       q = Fl::Framework::Asset::AssetRecord.build_query(except_owners: [ a1.fingerprint ])
       ql = q.map { |li| li.asset }
-      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d21, d12, d11 ]))
+      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d30, d21, d12, d11 ]))
 
       q = Fl::Framework::Asset::AssetRecord.build_query(except_owners: a2)
       ql = q.map { |li| li.asset }
-      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d22, d20, d10 ]))
+      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d30, d22, d20, d10 ]))
 
       q = Fl::Framework::Asset::AssetRecord.build_query(except_owners: [ a2 ])
       ql = q.map { |li| li.asset }
-      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d22, d20, d10 ]))
+      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ d30, d22, d20, d10 ]))
       
-      q = Fl::Framework::Asset::AssetRecord.build_query(only_owners: a3.fingerprint)
+      q = Fl::Framework::Asset::AssetRecord.build_query(only_owners: a4.fingerprint)
       ql = q.map { |li| li.asset }
       expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ ]))
     end
 
     it 'should process :only_asset_types and :except_asset_types' do
-      a10 = Fl::Framework::Asset::AssetRecord.create(asset: d10)
-      a11 = Fl::Framework::Asset::AssetRecord.create(asset: d11)
-      a12 = Fl::Framework::Asset::AssetRecord.create(asset: d12)
-      a20 = Fl::Framework::Asset::AssetRecord.create(asset: d20)
-      a21 = Fl::Framework::Asset::AssetRecord.create(asset: d21)
-      a22 = Fl::Framework::Asset::AssetRecord.create(asset: d22)
-      a30 = Fl::Framework::Asset::AssetRecord.create(asset: d30)
+      # This statement implicitly creates the asset records
+      data = [ d10, d11, d12, d20, d21, d22, d30 ]
       
       q = Fl::Framework::Asset::AssetRecord.build_query(only_asset_types: TestDatumOne)
       ql = q.map { |li| li.asset }
@@ -239,13 +274,8 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
     end
 
     it 'should filter by combination of owner and asset type' do
-      a10 = Fl::Framework::Asset::AssetRecord.create(asset: d10)
-      a11 = Fl::Framework::Asset::AssetRecord.create(asset: d11)
-      a12 = Fl::Framework::Asset::AssetRecord.create(asset: d12)
-      a20 = Fl::Framework::Asset::AssetRecord.create(asset: d20)
-      a21 = Fl::Framework::Asset::AssetRecord.create(asset: d21)
-      a22 = Fl::Framework::Asset::AssetRecord.create(asset: d22)
-      a30 = Fl::Framework::Asset::AssetRecord.create(asset: d30)
+      # This statement implicitly creates the asset records
+      data = [ d10, d11, d12, d20, d21, d22, d30 ]
       
       q = Fl::Framework::Asset::AssetRecord.build_query(only_asset_types: TestDatumOne,
                                                         only_owners: a1)
@@ -259,13 +289,8 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
     end
 
     it 'should process :order, :offset, :limit' do
-      a10 = Fl::Framework::Asset::AssetRecord.create(asset: d10)
-      a11 = Fl::Framework::Asset::AssetRecord.create(asset: d11)
-      a12 = Fl::Framework::Asset::AssetRecord.create(asset: d12)
-      a20 = Fl::Framework::Asset::AssetRecord.create(asset: d20)
-      a21 = Fl::Framework::Asset::AssetRecord.create(asset: d21)
-      a22 = Fl::Framework::Asset::AssetRecord.create(asset: d22)
-      a30 = Fl::Framework::Asset::AssetRecord.create(asset: d30)
+      # This statement implicitly creates the asset records
+      data = [ d10, d11, d12, d20, d21, d22, d30 ]
       
       q = Fl::Framework::Asset::AssetRecord.build_query(order: 'updated_at ASC', limit: 2, offset: 2)
       ql = q.map { |li| li.asset }

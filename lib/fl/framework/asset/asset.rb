@@ -13,6 +13,8 @@ module Fl::Framework::Asset
       #
       # This method includes {Fl::Framework::Asset::Asset::InstanceMethods} in the calling
       # class. Those instance methods provide functionality used by asset instances.
+      # It also defines the {#asset_record} association that tracks the asset record for this asset
+      # (yes it's very confusing and we should have picked better names).
       #
       # @param [Hash] cfg A hash containing configuration parameters.
       #  The following key/value pairs are supported:
@@ -35,25 +37,26 @@ module Fl::Framework::Asset
         end
 
         self.instance_eval do
-          def listable_summary_method
-            self.class_variable_get(:@@summary_method)
+          def asset_owner_method
+            self.class_variable_get(:@@_owner_method)
           end
         end
         
         has_one :asset_record, class_name: 'Fl::Framework::Asset::AssetRecord', as: :asset,
       		dependent: :destroy
 
+        extend Fl::Framework::Asset::Asset::ClassMethods
         include Fl::Framework::Asset::Asset::InstanceMethods
 
         after_create :create_active_record
       end
     end
 
-    # Instance methods for asset objects.
+    # Class methods for asset objects.
     # These methods are injected into the class by {ClassMacros#is_asset} and implement functionality
     # to manage asset behavior.
     
-    module InstanceMethods
+    module ClassMethods
       # Check if this model is an asset.
       #
       # @return [Boolean] Returns `true` if the model is an asset.
@@ -61,24 +64,34 @@ module Fl::Framework::Asset
       def asset?
         true
       end
-
+    end
+    
+    # Instance methods for asset objects.
+    # These methods are injected into the class by {ClassMacros#is_asset} and implement functionality
+    # to manage asset behavior.
+    
+    module InstanceMethods
+      # #@!attribute [r] asset_record
+      # This is actually a `has_one` association to the corresponding {Fl::Framework::Asset::AssetRecord}
+      # instance. It is managed by the asset implementation and should be treated as a readonly value.
+      
       protected
 
       # Callback after an instance is created.
       # This method registers with the asset system by creating a {Fl::Framework::Asset::AssetRecord}.
 
       def create_active_record()
-        ap = Fl::Framework::Asset::AssetRecord.create(asset: self, owner: self.owner)
+        Fl::Framework::Asset::AssetRecord.create(asset: self, owner: self.owner)
       end
     end
 
     # Perform actions when the module is included.
     #
-    # - Injects the class methods, to make {ClassMethods#is_listable} available. The instance methods
-    #   are injected by {ClassMethods#is_listable}.
+    # - Injects the class macros, to make {ClassMacros#is_asset} available. The instance methods
+    #   are injected by {ClassMacros#is_asset}.
 
     def self.included(base)
-      base.extend ClassMethods
+      base.extend ClassMacros
 
       base.instance_eval do
       end
@@ -91,14 +104,23 @@ module Fl::Framework::Asset
 end
 
 class ActiveRecord::Base
-  # Backstop asset checker.
+  # Backstop class asset checker.
   # This is the default implementation, which returns `false`, for those models that have not
   # registered as assets.
   #
   # @return [Boolean] Returns `false`; {Fl::Framework::Asset::Asset::ClassMacros#is_asset} overrides
   #  the implementation to return `true`.
   
-  def asset?
+  def self.asset?
     false
+  end
+
+  # Instance asset checker.
+  # Calls the class method {.asset?} and returns its return value.
+  #
+  # @return [Boolean] Returns the return value from {.asset?}.
+  
+  def asset?
+    self.class.asset?
   end
 end

@@ -71,6 +71,7 @@ module Fl::Framework::List
     include Fl::Framework::Core::AttributeFilters
     include Fl::Framework::Core::TitleManagement
     extend Fl::Framework::Query
+    include Fl::Framework::List::Listable
     include Fl::Framework::List::Helper
     
     self.table_name = 'fl_framework_lists'
@@ -90,7 +91,7 @@ module Fl::Framework::List
     
     is_listable
 
-    # @!attribute [rq] owner
+    # @!attribute [rw] owner
     # A `belongs_to` association that describes the entity that "owns" the list; this is typically
     # the creator. This association is polymorphic and it is optional (*i.e.* the owner can be `nil`).
     # @return [Association] the list owner.
