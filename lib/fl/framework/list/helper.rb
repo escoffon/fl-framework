@@ -2,8 +2,33 @@ module Fl::Framework::List
   # Helpers for the list module.
   # Use it via `include`; the methods in {ClassMethods} are injected as class methods of the including
   # class.
-  
+  #
+  # Alternatively, you can use it as a namespace for helper methods.
+  # For example, {.make_listable} adds listable behavior to a class.
+
   module Helper
+    # Enable listable support for a class.
+    # Use this method to convert an existing class into a listable:
+    #
+    # ```
+    # class TheClass < ActiverRecord::Base
+    #   # class definition
+    # end
+    #
+    #
+    # Fl::Framework::List::Helper.make_listable(TheClass, summary: :my_summary_method)
+    # ```
+    # See the documentation for {Listable::ClassMethods#is_listable}.
+    #
+    # @param klass [Class] The class object where listable behavior is enabled.
+    # @param cfg [Hash] A hash containing configuration parameters. See the documentation for
+    #  {Listable::ClassMethods#is_listable}.
+
+    def self.make_listable(klass, *cfg)
+      klass.send(:include, Fl::Framework::List::Listable)
+      klass.send(:is_listable, *cfg)
+    end
+
     # Class methods.
 
     module ClassMethods

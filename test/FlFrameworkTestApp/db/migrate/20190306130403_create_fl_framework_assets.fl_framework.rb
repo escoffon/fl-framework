@@ -16,7 +16,8 @@ class CreateFlFrameworkAssets < ActiveRecord::Migration[5.2]
       t.string		:owner_fingerprint, index: { name: :fl_fmwk_assets_owner_fp_idx }
 
       # The entity that owns the asset data; polymorphic because assets map to different model classes.
-      t.references	:asset, polymorphic: true, index: { name: :fl_fmwk_assets_asset_idx }
+      # The index is unique to ensure that only one asset record per asset is created.
+      t.references	:asset, polymorphic: true, index: { name: :fl_fmwk_assets_asset_idx, unique: true }
 
       t.timestamps
     end

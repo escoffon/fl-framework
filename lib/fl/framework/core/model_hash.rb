@@ -202,7 +202,7 @@ module Fl::Framework::Core
 
           if (verbosity == :minimal) || (verbosity == :standard) || (verbosity == :verbose) \
             	|| (verbosity == :complete)
-            l_include << :permissions if self.respond_to?(:permission?)
+            l_include << :permissions if self.respond_to?(:has_permission?)
           end
         end
 
@@ -590,7 +590,7 @@ module Fl::Framework::Core
         rv = {}
         plist.each do |p|
           ps = p.to_sym
-          rv[ps] = self.permission?(actor, ps)
+          rv[ps] = self.has_permission?(ps, actor)
         end
 
         rv

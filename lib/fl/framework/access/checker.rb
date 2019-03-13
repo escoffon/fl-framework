@@ -17,7 +17,8 @@ module Fl::Framework::Access
     # The access control macro {Fl::Framework::Access::Access::ClassMacros#has_access_control} calls
     # this method in its implementation.
     # Use it to perform checker-specific configuration of the including class (for example, to inject
-    # instance methods to manage access rights).
+    # instance methods to manage access rights); see {Fl::Framework::Asset::AccessChecker} for an
+    # example.
     #
     # @param base [Class] The class object in whose context the `has_access_control` macro is executed.
 
@@ -39,9 +40,8 @@ module Fl::Framework::Access
     # The default implementation is rather restrictive: it simply returns `nil` to indicate that
     # no access has been granted. Subclasses are expected to override it.
     #
-    # @param permission [Symbol,String,Fl::Framework::Access::Permission] The requested permission;
-    #  this is usually the name of a permission registered with the permission registry, but it could
-    #  also be passed as a permission instance.
+    # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The requested permission.
+    #  See {Fl::Framework::Access::Helper.permission_name}.
     # @param actor [Object] The actor requesting *permission*.
     # @param asset [Object] The target of the request (the asset for which *permission* is requested).
     # @param context [any] The context in which to do the check; this is arbitrary data to pass to the
@@ -59,6 +59,21 @@ module Fl::Framework::Access
 
     def access_check(permission, actor, asset, context = nil)
       return nil
+    end
+
+    protected
+    
+    # Get the name of a permission.
+    # This is just a wrapper for {Fl::Framework::Access::Helper.permission_name}, provided here as
+    # a convenience for subclasses.
+    #
+    # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The permission whose name
+    #  to get.
+    #
+    # @return [Symbol,nil] Returns the permission name if it can resolve it; otherwise, it returns `nil`.
+    
+    def permission_name(permission)
+      Fl::Framework::Access::Helper.permission_name(permission)
     end
   end
 end

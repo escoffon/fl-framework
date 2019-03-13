@@ -10,10 +10,29 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_03_06_130403) do
+ActiveRecord::Schema.define(version: 2019_03_07_175045) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "fl_framework_access_grants", force: :cascade do |t|
+    t.string "permission"
+    t.bigint "asset_id"
+    t.string "data_object_type"
+    t.bigint "data_object_id"
+    t.string "data_object_fingerprint"
+    t.string "actor_type"
+    t.bigint "actor_id"
+    t.string "actor_fingerprint"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_fingerprint"], name: "fl_fmwk_acl_grants_fp_idx"
+    t.index ["actor_type", "actor_id"], name: "fl_fmwk_acl_grants_actor_idx"
+    t.index ["asset_id"], name: "fl_fmwk_acl_grants_asset_idx"
+    t.index ["data_object_fingerprint"], name: "fl_fmwk_acl_grants_data_fp_idx"
+    t.index ["data_object_type", "data_object_id"], name: "fl_fmwk_acl_grants_data_idx"
+    t.index ["permission"], name: "fl_fmwk_acl_grants_perm_idx"
+  end
 
   create_table "fl_framework_assets", force: :cascade do |t|
     t.string "owner_type"
@@ -23,7 +42,7 @@ ActiveRecord::Schema.define(version: 2019_03_06_130403) do
     t.bigint "asset_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["asset_type", "asset_id"], name: "fl_fmwk_assets_asset_idx"
+    t.index ["asset_type", "asset_id"], name: "fl_fmwk_assets_asset_idx", unique: true
     t.index ["asset_type"], name: "fl_fmwk_assets_asset_type_idx"
     t.index ["owner_fingerprint"], name: "fl_fmwk_assets_owner_fp_idx"
     t.index ["owner_type", "owner_id"], name: "fl_fmwk_assets_owner_idx"
@@ -84,6 +103,15 @@ ActiveRecord::Schema.define(version: 2019_03_06_130403) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "test_datum_fours", force: :cascade do |t|
+    t.string "title"
+    t.bigint "owner_id"
+    t.string "value"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_id"], name: "index_test_datum_fours_on_owner_id"
+  end
+
   create_table "test_datum_ones", force: :cascade do |t|
     t.string "title"
     t.bigint "owner_id"
@@ -111,6 +139,7 @@ ActiveRecord::Schema.define(version: 2019_03_06_130403) do
     t.index ["owner_id"], name: "index_test_datum_twos_on_owner_id"
   end
 
+  add_foreign_key "fl_framework_access_grants", "fl_framework_assets", column: "asset_id", name: "fl_fmwk_acl_grants_asset_fk"
   add_foreign_key "fl_framework_list_items", "fl_framework_list_item_state_t", column: "state", name: "fl_fmwk_list_items_sta_fk"
   add_foreign_key "fl_framework_list_items", "fl_framework_lists", column: "list_id", name: "fl_fmwk_list_items_list_fk"
 end

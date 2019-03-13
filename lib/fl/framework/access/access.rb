@@ -183,6 +183,14 @@ module Fl::Framework::Access
     # that use access control implement these methods.
 
     module ClassMethods
+      # Check if this model supports access control.
+      #
+      # @return [Boolean] Returns `true` if the model has access control functionality.
+      
+      def has_access_control?
+        true
+      end
+
       # Check if an actor has permission to perform an operation on an asset.
       # The *actor* requests permission *permission* on `self`.
       #
@@ -206,7 +214,7 @@ module Fl::Framework::Access
       #  A `false` return value indicates that an error occurred while performing the access check, and
       #  should be interpreted as a denial.
 
-      def permission?(permission, actor, context = nil)
+      def has_permission?(permission, actor, context = nil)
         self.access_checker.access_check(permission, actor, self, context)
       end
     end
@@ -271,7 +279,7 @@ module Fl::Framework::Access
       #  A `false` return value indicates that an error occurred while performing the access check, and
       #  should be interpreted as a denial.
 
-      def permission?(permission, actor, context = nil)
+      def has_permission?(permission, actor, context = nil)
         self.access_checker.access_check(permission, actor, self, context)
       end
     end
@@ -289,5 +297,27 @@ module Fl::Framework::Access
       base.class_eval do
       end
     end
+  end
+end
+
+class ActiveRecord::Base
+  # Backstop class access control checker.
+  # This is the default implementation, which returns `false`, for those models that have not
+  # registered as having access control support.
+  #
+  # @return [Boolean] Returns `false`; {Fl::Framework::Asset::Asset::ClassMacros#has_access_control}
+  #  overrides the implementation to return `true`.
+  
+  def self.has_access_control?
+    false
+  end
+
+  # Instance asset checker.
+  # Calls the class method {.has_access_control?} and returns its return value.
+  #
+  # @return [Boolean] Returns the return value from {.has_access_control?}.
+  
+  def has_access_control?
+    self.class.has_access_control?
   end
 end

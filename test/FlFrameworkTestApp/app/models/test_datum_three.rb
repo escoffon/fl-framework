@@ -1,5 +1,10 @@
+# TestDatumThree is a nonlistable asset; the listable support is turned on in-class
+
 class TestDatumThree < ApplicationRecord
   include Fl::Framework::Core::ModelHash
+  include Fl::Framework::Asset::Asset
+
+  is_asset
   
   belongs_to :owner, class_name: 'TestActor'
 

@@ -1,15 +1,16 @@
+# TestDatumOne is a listable asset; the listable and asset support is turned on in-class
+
 class TestDatumOne < ApplicationRecord
   include Fl::Framework::Core::ModelHash
+  include Fl::Framework::List::Listable
+  include Fl::Framework::Asset::Asset
   
   belongs_to :owner, class_name: 'TestActor'
 
-  # this model is listable
-
   is_listable
-  
-  validates :owner, :title, :value, presence: true
+  is_asset
 
-  protected
+  validates :owner, :title, :value, presence: true
 
   protected
   
