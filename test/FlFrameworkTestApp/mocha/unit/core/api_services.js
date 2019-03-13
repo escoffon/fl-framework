@@ -165,7 +165,7 @@ axmock
 
 	// we do this to check that parameters are generated
 	if (_.isObject(cfg.params)) rv.push(cfg.params);
-	
+
 	return rv;
     })
 
@@ -395,6 +395,22 @@ describe('fl.api_services module', function() {
 		expect(srv.xsrfToken).to.be.undefined;
 		srv.xsrfToken = 'MY-TOKEN';
 		expect(srv.xsrfToken).to.eq('MY-TOKEN');
+	    });
+
+	    it('should support custom base URLs in the constructor', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let baseURL = 'http://www.server.com:8080';
+		let srv = new FlAPIService(API_CFG, { baseURL: baseURL });
+		
+		return srv.show(1)
+		    .then(function(data) {
+			expect(data).to.be.an.instanceof(MyAPITestModel);
+			expect(data.value1).to.eq('model1 - value1');
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
+
+			return Promise.resolve(true);
+		    });
 	    });
 	});
 
@@ -639,7 +655,6 @@ describe('fl.api_services module', function() {
 			return Promise.resolve(true);
 		    })
 		    .catch(function(xx) {
-	console.log(">>>>>>>>>> xx"); console.log(xx); console.log("<<<<<<<<<<");
 		    });
 	    });
 
@@ -666,6 +681,20 @@ describe('fl.api_services module', function() {
 			let r = srv.response;
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let baseURL = 'http://www.server.com:8080';
+		let srv = new FlAPIService(API_CFG);
+
+		return srv.index({ }, { baseURL: baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
 			
 			return Promise.resolve(true);
 		    });
@@ -730,6 +759,20 @@ describe('fl.api_services module', function() {
 			let r = srv.response;
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let baseURL = 'http://www.server.com:8080';
+		let srv = new FlAPIService(API_CFG);
+
+		return srv.index({ }, { baseURL: baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
 			
 			return Promise.resolve(true);
 		    });
@@ -828,6 +871,20 @@ describe('fl.api_services module', function() {
 		    });
 	    });
 
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let baseURL = 'http://www.server.com:8080';
+		let srv = new FlAPIService(API_CFG);
+
+		return srv.show(1, null, { baseURL: baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
 	    it('should set response on success', function() {
 		let srv = new FlAPIService(API_CFG);
 
@@ -893,6 +950,20 @@ describe('fl.api_services module', function() {
 			let r = srv.response;
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let baseURL = 'http://www.server.com:8080';
+		let srv = new FlAPIService(API_CFG);
+
+		return srv.create({ wrapped: { value1: 'new value1' } }, { baseURL: baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
 			
 			return Promise.resolve(true);
 		    });
@@ -1000,6 +1071,20 @@ describe('fl.api_services module', function() {
 			let r = srv.response;
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let baseURL = 'http://www.server.com:8080';
+		let srv = new FlAPIService(API_CFG);
+
+		return srv.update(1, { wrapped: { value1: 'new value1' } }, { baseURL: baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
 			
 			return Promise.resolve(true);
 		    });
@@ -1162,6 +1247,21 @@ describe('fl.api_services module', function() {
 		    });
 	    });
 
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService();
+		let baseURL = 'http://www.server.com:8080';
+
+		return srv.index(null, { baseURL : baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
 	    it('should set response on success', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
@@ -1258,6 +1358,22 @@ describe('fl.api_services module', function() {
 		    });
 	    });
 
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+		let params = { param: 'value' };
+		let baseURL = 'http://www.server.com:8080';
+
+		return srv.show(1, params, { baseURL: baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
 	    it('should set response on success', function() {
 		let MyAPIService = FlClassManager.get_class('MyAPIService');
 		let srv = new MyAPIService();
@@ -1328,6 +1444,21 @@ describe('fl.api_services module', function() {
 			let r = srv.response;
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+		let baseURL = 'http://www.server.com:8080';
+
+		return srv.create({ wrapped: { value1: 'new value1' } }, { baseURL: baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
 			
 			return Promise.resolve(true);
 		    });
@@ -1442,6 +1573,21 @@ describe('fl.api_services module', function() {
 			let r = srv.response;
 
 			expect(r.config.xsrfCookieName).to.eq('YET-COOKIE-NAME');
+			
+			return Promise.resolve(true);
+		    });
+	    });
+
+	    it('should support custom base URLs in the configuration argument', function() {
+		let MyAPITestModel = FlClassManager.get_class('MyAPITestModel');
+		let MyAPIService = FlClassManager.get_class('MyAPIService');
+		let srv = new MyAPIService({ xsrfCookieName: 'NEW-COOKIE-NAME' });
+		let baseURL = 'http://www.server.com:8080';
+
+		return srv.update(1, { wrapped: { value1: 'new value1' } }, { baseURL: baseURL })
+		    .then(function(data) {
+			expect(srv.response.config.baseURL).to.eql(baseURL);
+			expect(srv.response.config.url).to.match(new RegExp(`^${baseURL}`));
 			
 			return Promise.resolve(true);
 		    });

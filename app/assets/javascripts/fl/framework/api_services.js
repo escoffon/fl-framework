@@ -137,6 +137,41 @@ const DEFAULT_SRV_CFG = {
  * On error, the response returns an status code in the 400 or 500 range, and the body is a JSON
  * representation of the error.
  *
+ * ##### Host (base) URLs
+ *
+ * The **root_url_template** in the configuration (and **shallow_root_url_template**) are slightly
+ * misnamed, as they contain just the path component of the complete URL.
+ * This is as it should be, because the API signature should not include the server address (because
+ * the same API could be running on different servers).
+ *
+ * In a browser environment, the current page's server address is used if one is not provided, but in
+ * other environments (for example, react native) there is no notion of a "current page" or
+ * "currrent server address." In this latter case, the API user must specify an absolute URL; the
+ * mechanism for doing so is to pass a **baseURL** option in the server configuration object argument
+ * in the constructor and in the network call methods like {@sref FlAPIService#get} and
+ * {@sref FlAPIService#index}.
+ * For example, to create a service instance that communicates with the server
+ * at `http://srv.example.com:80`, pass the **baseURL** argument in the constructor:
+ * ```
+ * function get_data_promise() {
+ *   let srv = new MyAPIService({ baseURL : baseURL });
+ *
+ *   return srv.index();
+ * }
+ * ```
+ * Alternatively, you can customize the base URL for each function call:
+ * ```
+ * function get_data_promise(baseURL) {
+ *   let srv = new MyAPIService();
+ *
+ *   return srv.index(null, { baseURL : baseURL })
+ * };
+ * ```
+ * (These examples are a bit contrived, but you get the idea.)
+ * Either approach is acceptable, although placing the base URL in the constructor might be a bit
+ * cleaner. On the other hand, if you have a long lived service object that needs to switch target
+ * servers, the per-call customization is what you want.
+ *
  * ##### The status object
  *
  * The status object as returned by the methods contains the following properties:
@@ -202,6 +237,7 @@ const DEFAULT_SRV_CFG = {
  * ```
  * const LIST_ITEM_API_CFG = {
  *   root_url_template: '/lists/${list.id}/list_items',
+ *   shallow_root_url_template: '/list_items',
  *   namespace: 'list_item',
  *   data_names: [ 'list_item', 'list_items' ]
  * };
@@ -217,7 +253,9 @@ const DEFAULT_SRV_CFG = {
  * ```
  * Note how the root URL template contains the directive `${list.id}`, and how the constructor takes
  * the list object that provides the nesting resource; this list object is saved in the **this.list**
- * property.
+ * property. Individual list items are accessed via the `/list_items` URL; for example, the URL for the
+ * `show` action for the list item with identifier 1234 in list `3456` is `/list_items/1234` rather
+ * than `/lists/3456/list_items/1234`.
  *
  * ##### Rails nested resources
  *
@@ -262,7 +300,8 @@ let FlAPIService = FlClassManager.make_class({
      * @description The constructor; called during `new` creation.
      *
      * @param {Object} api_cfg Configuration for the API object.
-     * @property {String} api_cfg.root_url_template The template used to generate the root URL.
+     * @property {String} api_cfg.root_url_template The template used to generate the path component
+     *  of the URL.
      *  The value may contain replacement directives of the form `${expr}`, similar to the syntax
      *  used for ES6 template literals. For example, the template `/my/${parent.id}/dependents` will
      *  generate a root URL `/my/1234/dependents`, where `1234` is the result of the expression

@@ -165,7 +165,7 @@ let FlFrameworkListItemAPIService = FlClassManager.make_class({
      *  ```
      *  and passing *srv_cfg* as the second argument.
      *
-     * @param {Integer,FlFrameworkListList} list The object or object identifier for the list that
+     * @param {Integer|FlFrameworkListList} list The object or object identifier for the list that
      *  defines the nesting resource for the API.
      * @param {Object} srv_cfg Configuration for the service.
      */
