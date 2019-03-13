@@ -145,16 +145,16 @@ const DEFAULT_SRV_CFG = {
  * the same API could be running on different servers).
  *
  * In a browser environment, the current page's server address is used if one is not provided, but in
- * other environments (for example, react native) there is no notion of a "current page" or
+ * other environments (for example, React native) there is no notion of a "current page" or
  * "currrent server address." In this latter case, the API user must specify an absolute URL; the
  * mechanism for doing so is to pass a **baseURL** option in the server configuration object argument
- * in the constructor and in the network call methods like {@sref FlAPIService#get} and
+ * in the constructor or in the network call methods like {@sref FlAPIService#get} and
  * {@sref FlAPIService#index}.
  * For example, to create a service instance that communicates with the server
  * at `http://srv.example.com:80`, pass the **baseURL** argument in the constructor:
  * ```
  * function get_data_promise() {
- *   let srv = new MyAPIService({ baseURL : baseURL });
+ *   let srv = new MyAPIService({ baseURL : 'http://srv.example.com:80' });
  *
  *   return srv.index();
  * }
@@ -167,7 +167,7 @@ const DEFAULT_SRV_CFG = {
  *   return srv.index(null, { baseURL : baseURL })
  * };
  * ```
- * (These examples are a bit contrived, but you get the idea.)
+ * (This last examples is a bit contrived, but you get the idea.)
  * Either approach is acceptable, although placing the base URL in the constructor might be a bit
  * cleaner. On the other hand, if you have a long lived service object that needs to switch target
  * servers, the per-call customization is what you want.
