@@ -26,6 +26,9 @@ module Fl::Framework::Asset
                   class_name: 'Fl::Framework::Asset::AccessGrant',
                   dependent: :destroy
                 })
+      base.send(:after_create, :create_owner_grant)
+      # see the documentation for :clear_grants_hack for why we use :prepend
+      base.send(:before_destroy, :clear_grants_hack, prepend: true)
       base.send(:include, Fl::Framework::Asset::AccessChecker::InstanceMethods)
     end
     
@@ -158,6 +161,35 @@ module Fl::Framework::Asset
       def revoke_permission(permission, actor)
         g = find_grant(permission, actor)
         self.grants.destroy(g) unless g.nil?
+      end
+
+      protected
+      
+      # Callback before an instance is destroyed: clear the grants list.
+      # We need this method (and we need to prepend it), because of the interaction between the
+      # `asset_record` and `grants` associations. Because the two are defined in that order,
+      # their destroy callbacks are also called in that order; and because `asset_record` has
+      # **:dependent** set to `:destroy`, it attempts to destroy the asset record (in the
+      # **fl_framework_assets** table). But because there are outstanding grant records (in the
+      # **fl_framework_access_grants**), and because there is a foreign key constraint from that
+      # table to **fl_framework_asset**, the delete call fails.
+      # The solution is to place the `has_many` for **grants** before the `has_one` for **asset_record**;
+      # unfortunately, this is not possible, since typically the class first declares to be an asset
+      # with `is_asset`, and then to support access control with `has_access_control`.
+      # The workaround is to prepend this callback to the other ones, and make it clear the **grants**
+      # association.
+
+      def clear_grants_hack()
+        self.grants.clear
+      end
+      
+      # Callback after an instance is created: add the owner grant.
+      # This method adds a {Permission::Owner} grant to the owner of the asset; this grant is used
+      # by the query methods to find assets owned by a given actor.
+
+      def create_owner_grant()
+        self.grants.create(permission: Fl::Framework::Asset::Permission::Owner::NAME,
+                           actor: self.owner, asset: self.asset_record)
       end
     end
   end

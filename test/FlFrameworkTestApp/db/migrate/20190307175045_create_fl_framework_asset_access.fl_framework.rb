@@ -28,6 +28,9 @@ class CreateFlFrameworkAssetAccess < ActiveRecord::Migration[5.2]
       t.timestamps
     end
 
+    # This index optimizes data type filters
+    add_index :fl_framework_access_grants, :data_object_type, name: :fl_fmwk_acl_grants_data_type_idx
+
     reversible do |o|
       o.up do
         # constraints on the access grants table

@@ -159,7 +159,7 @@ module Fl::Framework::Access
       _permission_grants()
     end
 
-    # Return the grantorss for a given permission in the registry.
+    # Return the grantors for a given permission in the registry.
     #
     # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The permission whose grants
     #  to get. The value of this parameter is described in {Fl::Framework::Access::Helper.permission_name}.

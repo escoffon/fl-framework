@@ -31,6 +31,7 @@ ActiveRecord::Schema.define(version: 2019_03_07_175045) do
     t.index ["asset_id"], name: "fl_fmwk_acl_grants_asset_idx"
     t.index ["data_object_fingerprint"], name: "fl_fmwk_acl_grants_data_fp_idx"
     t.index ["data_object_type", "data_object_id"], name: "fl_fmwk_acl_grants_data_idx"
+    t.index ["data_object_type"], name: "fl_fmwk_acl_grants_data_type_idx"
     t.index ["permission"], name: "fl_fmwk_acl_grants_perm_idx"
   end
 
@@ -139,7 +140,6 @@ ActiveRecord::Schema.define(version: 2019_03_07_175045) do
     t.index ["owner_id"], name: "index_test_datum_twos_on_owner_id"
   end
 
-  add_foreign_key "fl_framework_access_grants", "fl_framework_assets", column: "asset_id", name: "fl_fmwk_acl_grants_asset_fk"
   add_foreign_key "fl_framework_list_items", "fl_framework_list_item_state_t", column: "state", name: "fl_fmwk_list_items_sta_fk"
   add_foreign_key "fl_framework_list_items", "fl_framework_lists", column: "list_id", name: "fl_fmwk_list_items_list_fk"
 end

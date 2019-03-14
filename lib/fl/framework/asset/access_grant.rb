@@ -120,6 +120,33 @@ module Fl::Framework::Asset
     #  The elements in an array value are object instances or object fingerprints; note that identifiers
     #  are not supported, because the `data_object` association is polymorphic.
     #  If this option is not present, all grants are selected.
+    # @option opts [Array<Object,String>, Object, String] :only_types Limit the returned
+    #  values to grants whose `data_object_type` attribute is in the option's value
+    #  (technically, whose `data_object_type` attribute is in the list derived from the option's value).
+    #  The elements in an array value are strings or classes; the strings contain class names, and the
+    #  classes are converted to class names.
+    #  If this option is not present, all grants are selected.
+    # @option opts [Array<Object,String>, Object, String] :except_types Limit the returned
+    #  values to grants whose `data_object_type` attribute is not in the option's value
+    #  (technically, whose `data_object_type` attribute is not in the list derived from the option's value).
+    #  The elements in an array value are strings or classes; the strings contain class names, and the
+    #  classes are converted to class names.
+    #  If this option is not present, all grants are selected.
+    # @option opts [Array,scalar] :only_permissions Limit the returned
+    #  values to grants whose `permission` attribute is in the option's value
+    #  (technically, whose `permission` attribute is in the list derived from the option's value).
+    #  A scalar value, or an element in an array value, is extracted using
+    #  {Fl::Framework::Access:Helper.permission_name}.
+    #  If this option is not present, all grants are selected.
+    #  Note that this option (and **:except_permissions**) does not expand permission grants; if you
+    #  are interested in, say, all assets readable by a given actor, use the specialized
+    #  method {.accessible_query}, which does expand grants.
+    # @option opts [Array,scalar] :except_permissions Limit the returned
+    #  values to grants whose `permission` attribute is not in the option's value
+    #  (technically, whose `permission` attribute is not in the list derived from the option's value).
+    #  A scalar value, or an element in an array value, is extracted using
+    #  {Fl::Framework::Access:Helper.permission_name}.
+    #  If this option is not present, all grants are selected.
     # @option opts [Integer, Time, String] :updated_after selects list items updated after a given time.
     # @option opts [Integer, Time, String] :created_after selects list items created after a given time.
     # @option opts [Integer, Time, String] :updated_before selects list items updated before a given time.
@@ -151,21 +178,30 @@ module Fl::Framework::Asset
       if opts[:includes]
         i = (opts[:includes].is_a?(Array) || opts[:includes].is_a?(Hash)) ? opts[:includes] : [ opts[:includes] ]
         q = q.includes(i)
+      else
+        q = q.includes(:actor, :data_object)
       end
 
       a_lists = _partition_actor_lists(opts)
       d_lists = _partition_datum_lists(opts)
+      p_lists = _partition_permission_lists(opts)
+      t_lists = _partition_type_lists(opts)
 
       # if :only_actors is nil, and :except_actors is also nil, the two options will create an empty set,
       # so we can short circuit here.
-      # and similarly for :only_assets and :except_assets, and :only_listables and :except_listables
+      # and similarly for :only_data and :except_data, :only_permissions and :except_permissions,
+      # and :only_types and :except_types
 
       a_nil_o = a_lists.has_key?(:only_actors) && a_lists[:only_actors].nil?
       a_nil_x = a_lists.has_key?(:except_actors) && a_lists[:except_actors].nil?
       d_nil_o = d_lists.has_key?(:only_data) && d_lists[:only_data].nil?
       d_nil_x = d_lists.has_key?(:except_data) && d_lists[:except_data].nil?
+      p_nil_o = p_lists.has_key?(:only_permissions) && p_lists[:only_permissions].nil?
+      p_nil_x = p_lists.has_key?(:except_permissions) && p_lists[:except_permissions].nil?
+      t_nil_o = t_lists.has_key?(:only_types) && t_lists[:only_types].nil?
+      t_nil_x = t_lists.has_key?(:except_types) && t_lists[:except_types].nil?
 
-      if a_nil_o && a_nil_x && d_nil_o && d_nil_x
+      if a_nil_o && a_nil_x && d_nil_o && d_nil_x && p_nil_o && p_nil_x && t_nil_o && t_nil_x
         return q.where('(1 = 0)')
       end
     
@@ -189,6 +225,28 @@ module Fl::Framework::Asset
         # since only_actors is not present, we need to add the except_actors
 
         q = q.where('(actor_fingerprint NOT IN (:ul))', { ul: a_lists[:except_actors] })
+      end
+    
+      if p_lists[:only_permissions].is_a?(Array)
+        # If we have :only_permissions, the :except_permissions have already been eliminated, so all we need
+        # is the only_permissions
+
+        q = q.where('(permission IN (:ul))', { ul: p_lists[:only_permissions] })
+      elsif p_lists[:except_permissions]
+        # since only_permissions is not present, we need to add the except_permissions
+
+        q = q.where('(permission NOT IN (:ul))', { ul: p_lists[:except_permissions] })
+      end
+    
+      if t_lists[:only_types].is_a?(Array)
+        # If we have :only_types, the :except_types have already been eliminated, so all we need
+        # is the only_types
+
+        q = q.where('(data_object_type IN (:ul))', { ul: t_lists[:only_types] })
+      elsif t_lists[:except_types]
+        # since only_types is not present, we need to add the except_types
+
+        q = q.where('(data_object_type NOT IN (:ul))', { ul: t_lists[:except_types] })
       end
       
       ts = _date_filter_timestamps(opts)
@@ -239,6 +297,80 @@ module Fl::Framework::Asset
     def self.count_grants(opts = {})
       q = build_query(opts)
       (q.nil?) ? 0 : q.count
+    end
+  
+    # Build a query to fetch data objects accessible to an actor.
+    # This method sets up the permission filters as requested by *permissions*, merges the *opts*
+    # values, and calls {.build_query} to generate the query.
+    #
+    # Note that, differently from {.build_query}, this method expands the grantors for the permission
+    # list: for example, a `:read` request is expanded to its grantors `:edit` and `:manage`, and the
+    # expanded list is placed in **:only_permissions**.
+    # Also, the {Fl::Framework::Asset::Permission::Owner} permission is automatically added to the
+    # permission list, since ownership implies full access to assets.
+    #
+    # For example, to get all the data objects to which user *a1* has read access:
+    #
+    # ```
+    # q = Fl::Framework::Asset::AccessGrant.accessible_query(a1, Fl::Framework::Access::Permission::Read)
+    # objects = q.map { |g| g.data_object }
+    # ```
+    #
+    # This query returns grants to *a1* for the `:read`, `:edit`, and `:manage` permissions (and `:owner`,
+    # which is added implicitly).
+    # To select just data of type `MyDatum`:
+    #
+    # ```
+    # class MyDatum < ActiveRecord::Base
+    #   include Fl::Framework::Asset::Asset
+    #   include Fl::Framework::Access::Access
+    #   is_asset
+    #   has_access_control Fl::Framework::Asset::AccessChecker.new
+    # end
+    #
+    # q = Fl::Framework::Asset::AccessGrant.accessible_query(a1,
+    #                                                        Fl::Framework::Access::Permission::Read,
+    #                                                        only_types: MyDatum)
+    # objects = q.map { |g| g.data_object }
+    # ```
+    #
+    # @param actor [Object] The actor for which to return accessible objects.
+    # @param permissions [Array,scalar] An array of permission specifiers, or a single permission
+    #  specifier. This array is loaded into the **:only_permissions** option to {.build_query}.
+    #  The special value `:any` indicates that all permissions are acceptable.
+    # @param opts [Hash] A Hash containing configuration options for the query.
+    #  See the description for *opts* in {.build_query}.
+    #  Note that the options **:only_actors**, **:except_actors**, **:only_permissions**,
+    #  and **:except_permissions** are ignored.
+    #
+    # @return [ActiveRecord::Relation] If the query options are empty, the method returns `self`
+    #  (and therefore the class object); if they are not empty, it returns an association relation.
+
+    def self.accessible_query(actor, permissions, *opts)
+      no = { only_actors: actor }
+      if permissions != :any
+        pl = (permissions.is_a?(Array)) ? permissions : [ permissions ]
+        plist = pl.reduce([ ]) do |acc, p|
+          pn = Fl::Framework::Access::Helper.permission_name(p)
+          acc |= [ pn ]
+          acc |= Fl::Framework::Access::Permission.grantors_for_permission(pn)
+          acc
+        end
+
+        no[:only_permissions] = plist | [ Fl::Framework::Asset::Permission::Owner::NAME ]
+      end
+
+      if opts.count > 0
+        opts[0].each do |ok, ov|
+          case ok.to_sym
+          when :only_actors, :except_actors, :only_permissions, :except_permissions
+          else
+            no[ok] = ov
+          end
+        end
+      end
+             
+      self.build_query(no)
     end
     
     protected
@@ -426,6 +558,86 @@ module Fl::Framework::Asset
             rv[:only_data] = rv[:only_data] - except_data
           else
             rv[:except_data] = except_data
+          end
+        end
+      end
+
+      rv
+    end
+
+    def self._convert_permission_list(ul)
+      ul.map { |u| Fl::Framework::Access::Helper.permission_name(u) }
+    end
+
+    def self._partition_permission_lists(opts)
+      rv = { }
+
+      if opts.has_key?(:only_permissions)
+        if opts[:only_permissions].nil?
+          rv[:only_permissions] = nil
+        else
+          only_o = (opts[:only_permissions].is_a?(Array)) ? opts[:only_permissions] : [ opts[:only_permissions] ]
+          rv[:only_permissions] = _convert_permission_list(only_o)
+        end
+      end
+
+      if opts.has_key?(:except_permissions)
+        if opts[:except_permissions].nil?
+          rv[:except_permissions] = nil
+        else
+          x_o = (opts[:except_permissions].is_a?(Array)) ? opts[:except_permissions] : [ opts[:except_permissions] ]
+          except_permissions = _convert_permission_list(x_o)
+
+          # if there is a :only_permissions, then we need to remove the :except_permissions members from it.
+          # otherwise, we return :except_permissions
+
+          if rv[:only_permissions].is_a?(Array)
+            rv[:only_permissions] = rv[:only_permissions] - except_permissions
+          else
+            rv[:except_permissions] = except_permissions
+          end
+        end
+      end
+
+      rv
+    end
+
+    def self._convert_type_list(ul)
+      ul.map do |u|
+        if u.is_a?(Class)
+          u.name
+        else
+          u.to_s
+        end
+      end
+    end
+
+    def self._partition_type_lists(opts)
+      rv = { }
+
+      if opts.has_key?(:only_types)
+        if opts[:only_types].nil?
+          rv[:only_types] = nil
+        else
+          only_o = (opts[:only_types].is_a?(Array)) ? opts[:only_types] : [ opts[:only_types] ]
+          rv[:only_types] = _convert_type_list(only_o)
+        end
+      end
+
+      if opts.has_key?(:except_types)
+        if opts[:except_types].nil?
+          rv[:except_types] = nil
+        else
+          x_o = (opts[:except_types].is_a?(Array)) ? opts[:except_types] : [ opts[:except_types] ]
+          except_types = _convert_type_list(x_o)
+
+          # if there is a :only_types, then we need to remove the :except_types members from it.
+          # otherwise, we return :except_types
+
+          if rv[:only_types].is_a?(Array)
+            rv[:only_types] = rv[:only_types] - except_types
+          else
+            rv[:except_types] = except_types
           end
         end
       end
