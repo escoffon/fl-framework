@@ -119,9 +119,10 @@ RSpec.describe Fl::Framework::Access::Access do
       d1 = TestAccessDatumOne.new(o1, 'd1 title', 'd1')
       d2 = TestAccessDatumTwo.new(o1, 'd2 title', 'd2')
 
-      expect(TestAccessDatumOne.methods).to include(:has_access_control, :access_checker, :permission?)
-      expect(TestAccessDatumOne.instance_methods).to include(:access_checker, :permission?)
-      expect(d1.methods).to include(:access_checker, :permission?)
+      expect(TestAccessDatumOne.methods).to include(:has_access_control, :has_access_control?,
+                                                    :access_checker, :has_permission?)
+      expect(TestAccessDatumOne.instance_methods).to include(:access_checker, :has_permission?)
+      expect(d1.methods).to include(:access_checker, :has_permission?)
 
       expect(TestAccessDatumOne.access_checker).to be_an_instance_of(TestAccessCheckerOne)
       expect(d1.access_checker).to be_an_instance_of(TestAccessCheckerOne)
@@ -145,21 +146,21 @@ RSpec.describe Fl::Framework::Access::Access do
   # We mostly check that the correct access checker is called; the behavior of the Checker#access_check
   # method is tested in checker_spec.rb
   
-  describe ".permission?" do
+  describe ".has_permission?" do
     it "should grant or deny permission correctly" do
       o1 = create(:test_actor, name: 'owner')
       r1 = create(:test_actor, name: 'reader only')
       w1 = create(:test_actor, name: 'reader and writer')
       d1 = TestAccessDatumOne.new(o1, 'd1 title', 'd1')
 
-      g = d1.permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
+      g = d1.has_permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
       expect(g).to eql(Fl::Framework::Access::Permission::Read::NAME)
-      g = d1.permission?(Fl::Framework::Access::Permission::Read::NAME, w1)
+      g = d1.has_permission?(Fl::Framework::Access::Permission::Read::NAME, w1)
       expect(g).to eql(Fl::Framework::Access::Permission::Read::NAME)
 
-      g = d1.permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
+      g = d1.has_permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
       expect(g).to be_nil
-      g = d1.permission?(Fl::Framework::Access::Permission::Write::NAME, w1)
+      g = d1.has_permission?(Fl::Framework::Access::Permission::Write::NAME, w1)
       expect(g).to eql(Fl::Framework::Access::Permission::Write::NAME)
     end
 
@@ -169,14 +170,14 @@ RSpec.describe Fl::Framework::Access::Access do
       w1 = create(:test_actor, name: 'reader and writer')
       d2 = TestAccessDatumTwo.new(o1, 'd2 title', 'd2')
 
-      g = d2.permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
+      g = d2.has_permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
       expect(g).to eql(Fl::Framework::Access::Permission::Edit::NAME)
-      g = d2.permission?(Fl::Framework::Access::Permission::Read::NAME, w1)
+      g = d2.has_permission?(Fl::Framework::Access::Permission::Read::NAME, w1)
       expect(g).to eql(Fl::Framework::Access::Permission::Edit::NAME)
 
-      g = d2.permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
+      g = d2.has_permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
       expect(g).to eql(Fl::Framework::Access::Permission::Edit::NAME)
-      g = d2.permission?(Fl::Framework::Access::Permission::Write::NAME, w1)
+      g = d2.has_permission?(Fl::Framework::Access::Permission::Write::NAME, w1)
       expect(g).to eql(Fl::Framework::Access::Permission::Edit::NAME)
     end
 
@@ -185,7 +186,7 @@ RSpec.describe Fl::Framework::Access::Access do
       r1 = create(:test_actor, name: 'reader only')
       d1 = TestAccessDatumOne.new(o1, 'd1 title', 'd1')
 
-      g = d1.permission?(:unknown, r1)
+      g = d1.has_permission?(:unknown, r1)
       expect(g).to be_nil
     end
   end
@@ -197,26 +198,26 @@ RSpec.describe Fl::Framework::Access::Access do
       w1 = create(:test_actor, name: 'reader and writer')
       d1 = TestAccessDatumOne.new(o1, 'd1 title', 'd1')
 
-      g = d1.permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
+      g = d1.has_permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
       expect(g).to eql(Fl::Framework::Access::Permission::Read::NAME)
 
-      g = d1.permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
+      g = d1.has_permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
       expect(g).to be_nil
 
       d1.access_checker = Fl::Framework::Access::NullChecker.new
 
-      g = d1.permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
+      g = d1.has_permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
       expect(g).to eql(Fl::Framework::Access::Permission::Read::NAME)
 
-      g = d1.permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
+      g = d1.has_permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
       expect(g).to eql(Fl::Framework::Access::Permission::Write::NAME)
 
       d10 = TestAccessDatumOne.new(o1, 'd10 title', 'd10')
 
-      g = d10.permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
+      g = d10.has_permission?(Fl::Framework::Access::Permission::Read::NAME, r1)
       expect(g).to eql(Fl::Framework::Access::Permission::Read::NAME)
 
-      g = d10.permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
+      g = d10.has_permission?(Fl::Framework::Access::Permission::Write::NAME, r1)
       expect(g).to be_nil
     end
   end

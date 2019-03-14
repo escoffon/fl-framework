@@ -39,7 +39,7 @@ module Fl::Framework
     # GET /list_items/1.json
     def show
       service = Fl::Framework::Service::ListItem.new(current_user, params, self)
-      @list_item = service.get_and_check(Fl::Framework::Access::Grants::READ)
+      @list_item = service.get_and_check(Fl::Framework::Access::Permission::Read)
       respond_to do |format|
         format.html do
         end
@@ -102,7 +102,7 @@ module Fl::Framework
     # DELETE /list_items/1.json
     def destroy
       service = Fl::Framework::Service::ListItem.new(current_user, params, self)
-      @list_item = service.get_and_check(Fl::Framework::Access::Grants::DESTROY)
+      @list_item = service.get_and_check(Fl::Framework::Access::Permission::Delete)
       if @list_item && service.success?
         name = @list_item.name
         fingerprint = @list_item.fingerprint

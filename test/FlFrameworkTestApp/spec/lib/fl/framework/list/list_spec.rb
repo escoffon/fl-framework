@@ -20,17 +20,6 @@ class MyListItemOne < Fl::Framework::List::ListItem
   end
 end
 
-class MyListOne < Fl::Framework::List::List
-  self.list_item_class = MyListItemOne
-end
-
-class MyListItemTwo < Fl::Framework::List::ListItem
-end
-
-class MyListTwo < Fl::Framework::List::List
-  self.list_item_class = MyListItemTwo
-end
-
 RSpec.describe Fl::Framework::List::List, type: :model do
   let(:a1) { create(:test_actor) }
   let(:a2) { create(:test_actor) }
@@ -628,22 +617,6 @@ RSpec.describe Fl::Framework::List::List, type: :model do
     end
   end
 
-  describe "list item factories" do
-    it 'should create list item instances of the right class' do
-      l1 = MyListOne.create(objects: [ d21, d10 ], owner: a1)
-
-      l1.list_items.reload
-      expect(l1.list_items[0]).to be_a(MyListItemOne)
-    end
-
-    skip 'should forward additional arguments for hash inputs' do
-      l1 = MyListOne.create(objects: [ d21, d10 ], owner: a1)
-
-      l1.list_items.reload
-      expect(l1.list_items[0]).to be_a(MyListItemOne)
-    end
-  end
-
   describe "model hash support" do
     context "#to_hash" do
       it "should track :verbosity" do
@@ -716,6 +689,7 @@ RSpec.describe Fl::Framework::List::List, type: :model do
         b_keys = id_keys + [ :title, :value, :created_at, :updated_at ]
         l_keys = id_keys + [ :title ]
         expect(h[:owner].keys).to match_array(o_keys)
+        b_keys |= [ :permissions ] if d21.has_access_control?
         expect(h[:objects][0].keys).to match_array(b_keys)
         expect(h[:lists][0].keys).to match_array(l_keys)
       end

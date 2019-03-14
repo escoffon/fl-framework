@@ -18,6 +18,7 @@ module Fl::Framework::Access
     #
     # Fl::Framework::Access::Helper.add_access_control(TheClass, MyAccessChecker.new, owner: :my_owner_method)
     # ```
+    # If the class has already enabled access control, the operation is not performed.
     #
     # @param klass [Class] The class object where access control is enabled.
     # @param checker [Fl::Framework::Access::Checker] The checker to use for access control.
@@ -25,8 +26,10 @@ module Fl::Framework::Access
     #  {Fl::Framework::Access::Access::ClassMacros.has_access_control}.
 
     def self.add_access_control(klass, checker, *cfg)
-      klass.send(:include, Fl::Framework::Access::Access)
-      klass.send(:has_access_control, checker, *cfg)
+      unless klass.has_access_control?
+        klass.send(:include, Fl::Framework::Access::Access)
+        klass.send(:has_access_control, checker, *cfg)
+      end
     end
 
     # Get the name of a permission.

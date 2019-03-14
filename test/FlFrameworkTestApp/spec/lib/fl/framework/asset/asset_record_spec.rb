@@ -175,7 +175,7 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
 
         id_keys = [ :type, :api_root, :url_path, :fingerprint, :id ]
         h = ar1.to_hash(a1, { verbosity: :minimal })
-        a_keys = id_keys + [ :owner, :title, :value, :created_at, :updated_at ]
+        a_keys = id_keys + [ :owner, :title, :value, :permissions, :created_at, :updated_at ]
         expect(h[:asset].keys).to match_array(a_keys)
 
         h = ar1.to_hash(a1, {

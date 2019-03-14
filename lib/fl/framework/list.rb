@@ -5,8 +5,8 @@ module Fl::Framework
   end
 end
 
+require 'fl/framework/list/permission'
 require 'fl/framework/list/helper'
 require 'fl/framework/list/listable'
 require 'fl/framework/list/list_item'
-#require 'fl/framework/list/base'
 require 'fl/framework/list/list'

@@ -64,8 +64,10 @@ module Fl::Framework::Service
     #  (typically {Fl::Google::RECAPTCHA}, which implements
     #  {https://www.google.com/recaptcha/intro Google reCAPTCHA}).
     #  If the value is a hash, it is passed to the initializer for {Fl::CAPTCHA::Base}.
-    # @option opts [Symbol,String] :permission The name of the permission to request in order to
-    #  complete the operation. Defaults to {Fl::Framework::Access::Grants::WRITE}.
+    # @option opts [Symbol,String,Fl::Framework::Access::Permission,Class] :permission The permission
+    #  to request in order to complete the operation.
+    #  See {Fl::Framework::Access::Helper.permission_name}.
+    #  Defaults to {Fl::Framework::Access::Permission::Write::NAME}.
     # @option opts [Object] :context The context to pass to the access checker method {#class_allow_op?}.
     #  The special value **:params** (a Symbol named **params**) indicates that the create parameters are
     #  to be passed as the context.
@@ -83,7 +85,7 @@ module Fl::Framework::Service
       
       begin
         p = (opts[:params]) ? opts[:params].to_h : add_object_params(self.params).to_h
-        op = (opts[:permission]) ? opts[:permission].to_sym : Fl::Framework::Access::Grants::WRITE
+        op = (opts[:permission]) ? opts[:permission] : Fl::Framework::Access::Permission::Write::NAME
         #ctx = if opts.has_key?(:context)
         #        (opts[:context] == :params) ? p : opts[:context]
         #      else

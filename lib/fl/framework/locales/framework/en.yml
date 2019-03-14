@@ -75,8 +75,6 @@ en:
       list:
         model:
           normalization_failure: "Some objects could not be loaded into list items"
-          bad_list_item_class: "To register a list item class, provide a class or a class name"
-          invalid_list_item_class: "Registered list item classes must be a subclasses of Fl::Framework::List::ListItem"
           validate:
             inconsistent_list: "List item '%{list_item}' is not associated with list '%{list}'"
         controller:

@@ -8,7 +8,8 @@ module Fl::Framework::Service
   # Service objects include access checks for the various operations, so that controllers do not have to
   # perform explicit checks; this streamlines the controller code. Access checking can be turned off
   # by setting the configuration parameter +disable_access_check+ to true.
-  # Also, if the service's {#model_class} does not respond to +permission?+, no access control is performed.
+  # Also, if the service's {#model_class} does not respond to `has_permission?`, no access control
+  # is performed.
 
   class Base
     # The key in the request parameters that contains the CAPTCHA response.
@@ -30,18 +31,18 @@ module Fl::Framework::Service
     # Initializer.
     #
     # @param actor [Object] The actor (typically an instance of {Fl::Core::Actor}, and more specifically
-    #  a {Fl::Core::User}) on whose behalf the service operates. It may be +nil+.
-    # @param params [Hash, ActionController::Parameters] The processing parameters. If the value is +nil+,
+    #  a {Fl::Core::User}) on whose behalf the service operates. It may be `nil`.
+    # @param params [Hash, ActionController::Parameters] The processing parameters. If the value is `nil`,
     #  the parameters are obtained from the `params` property of _controller_. If _controller_ is also
-    #  +nil+, the value is set to an empty hash. Hash values are converted to `ActionController::Parameters`.
+    #  `nil`, the value is set to an empty hash. Hash values are converted to `ActionController::Parameters`.
     # @param controller [ActionController::Base] The controller (if any) that created the service object;
     #  this parameter gives access to the request context.
     # @param cfg [Hash] Configuration options.
-    # @option cfg [Boolean] :disable_access_checks Controls the access checks: set it to +true+ to
-    #  disable access checking. The default value is +false+.
-    # @option cfg [Boolean] :disable_captcha Controls the CAPTCHA checks: set it to +true+ to
+    # @option cfg [Boolean] :disable_access_checks Controls the access checks: set it to `true` to
+    #  disable access checking. The default value is `false`.
+    # @option cfg [Boolean] :disable_captcha Controls the CAPTCHA checks: set it to `true` to
     #  disable verification, even if the individual method options requested.
-    #  This is mainly used during testing. The default value is +false+.
+    #  This is mainly used during testing. The default value is `false`.
     #
     # @raise Raises an exception if the target model class has not been defined.
 
@@ -60,8 +61,8 @@ module Fl::Framework::Service
 
       raise "please define a target model class for #{self.class.name}" unless self.class.model_class
 
-      @_has_instance_permission = (self.model_class.instance_methods.include?(:permission?)) ? true : false
-      @_has_class_permission = (self.model_class.methods.include?(:permission?)) ? true : false
+      @_has_instance_permission = (self.model_class.instance_methods.include?(:has_permission?)) ? true : false
+      @_has_class_permission = (self.model_class.methods.include?(:has_permission?)) ? true : false
 
       @_disable_access_checks = (cfg[:disable_access_checks]) ? true : false
       @_disable_captcha = (cfg[:disable_captcha]) ? true : false
@@ -148,31 +149,32 @@ module Fl::Framework::Service
     # @!attribute [r] success?
     # Checks if the status indicates success.
     #
-    # @return [Boolean, nil] Returns +true+ if the current status contains a {Fl::Framework::Service::OK} value in the
-    #  +:status+ key, +false+ otherwise. If there is no +:status+ key, returns +nil+.
+    # @return [Boolean, nil] Returns `true` if the current status contains a {Fl::Framework::Service::OK} value in the
+    #  +:status+ key, `false` otherwise. If there is no +:status+ key, returns `nil`.
 
     def success?()
       return nil unless @status && @status.has_key?(:status)
       (@status[:status] == Fl::Framework::Service::OK) ? true : false
     end
 
-    # Check if the class object associated with the service allows an operation.
-    # This check is done for operation triggered by the class object, like running the +:index+
-    # or +:create+ action.
+    # Check if the class object associated with the service grants a permission.
+    # This check is done for operation triggered by the class object, like running the `index`
+    # or `create` action.
     #
-    # @param op [Symbol] The operation.
-    # @param ctx [Object] The context to pass to the +permission?+ method.
+    # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The permission to check.
+    #  See {Fl::Framework::Access::Helper.permission_name} for a description of this value.
+    # @param ctx [Object] The context to pass to the `has_permission?` method.
     # @param [Symbol] idname The name of the key in _params_ that contains the object identifier.
-    #  A +nil+ value defaults to +:id+.
+    #  A `nil` value defaults to **:id**.
     #
-    # @return [Boolean] Returns +true+ if the service's {#actor} is granted permission _op_,
-    #  +false+ otherwise.
-    #  If the {#model_class} does not respond to +permission?+, or if permission checking is disabled,
-    #  +true+ is returned.
+    # @return [Boolean] Returns `true` if the service's {#actor} is granted *permission*,
+    #  `false` otherwise.
+    #  If the {#model_class} does not respond to `has_permission?`, or if permission checking is disabled,
+    #  `true` is returned.
 
-    def class_allow_op?(op, ctx = nil, idname = nil)
+    def class_allow_op?(permission, ctx = nil, idname = nil)
       if do_access_checks?(self.model_class)
-        if !self.model_class.permission?(self.actor, op, ctx)
+        if !self.model_class.has_permission?(permission, self.actor, ctx)
           idname = idname || :id
           idv = params["_#{idname}".to_sym]
           idv = params[idname] if idv.nil?
@@ -186,24 +188,25 @@ module Fl::Framework::Service
       true
     end
 
-    # Check if an object allows an operation.
-    # This check is done for operation triggered by a class instance, like running the +:show+
-    # or +:update+ action.
+    # Check if an object grants a permission.
+    # This check is done for operation triggered by a class instance, like running the `show`
+    # or `update` action.
     #
     # @param obj [Object] The object to check; this is typically an instance of {#model_class}.
-    # @param op [Symbol] The operation.
+    # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The permission to check.
+    #  See {Fl::Framework::Access::Helper.permission_name} for a description of this value.
     # @param ctx [Object] The context to pass to the +permission?+ method.
     # @param [Symbol] idname The name of the key in _params_ that contains the object identifier.
-    #  A +nil+ value defaults to +:id+.
+    #  A `nil` value defaults to **:id**.
     #
-    # @return [Boolean] Returns +true+ if the service's {#actor} is granted permission _op_,
-    #  +false+ otherwise.
+    # @return [Boolean] Returns `true` if the service's {#actor} is granted permission _op_,
+    #  `false` otherwise.
     #  If the _obj_ does not respond to +permission?+, or if permission checking is disabled,
-    #  +true+ is returned.
+    #  `true` is returned.
 
-    def allow_op?(obj, op, ctx = nil, idname = nil)
+    def allow_op?(obj, permission, ctx = nil, idname = nil)
       if do_access_checks?(obj)
-        if !obj.permission?(self.actor, op, ctx)
+        if !obj.has_permission?(permission, self.actor, ctx)
           idname = idname || :id
           idv = params["_#{idname}".to_sym]
           idv = params[idname] if idv.nil?
@@ -218,29 +221,32 @@ module Fl::Framework::Service
     end
 
     # Look up an object in the database, and check if the service's actor has permissions on it.
-    # This method uses the +:id+ entry in the {#params} to look up the object in the database
-    # (using the target model class as the context for +find+).
-    # If it does not find the object, it sets the status to {Fl::Framework::Service::NOT_FOUND} and returns +nil+.
-    # If it finds the object, it then calls {Fl::Framework::Access::Access::InstanceMethods#permission?} to
-    # confirm that the actor has _op_ access to the object.
-    # If the permission call fails, it sets the status to {Fl::Framework::Service::FORBIDDEN} and returns the object.
+    # This method uses the **:id** entry in the {#params} to look up the object in the database
+    # (using the target model class as the context for `find`).
+    # If it does not find the object, it sets the status to {Fl::Framework::Service::NOT_FOUND} and
+    # returns `nil`.
+    # If it finds the object, it then calls {Fl::Framework::Access::Access::InstanceMethods#has_permission?}
+    # to confirm that the actor has *permission* access to the object.
+    # If the permission call fails, it sets the status to {Fl::Framework::Service::FORBIDDEN} and returns
+    # the object.
     # Otherwise, it sets the status to {Fl::Framework::Service::OK} and returns the object.
     #
-    # @param [Symbol] op The operation for which to request permission. If +nil+, no access check is performed
-    #  and the call is the equivalent of a simple database lookup.
+    # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The permission to check.
+    #  See {Fl::Framework::Access::Helper.permission_name} for a description of this value.
+    #  If `nil`, no access check is performed and the call is the equivalent of a simple database lookup.
     # @param [Symbol] idname The name of the key in _params_ that contains the object identifier.
-    #  A +nil+ value defaults to +:id+.
-    # @param [Hash] params The parameters where to look up the +:id+ key used to fetch the object.
-    #  If +nil+, use the _params_ value that was passed to the constructor.
+    #  A `nil` value defaults to **:id**.
+    # @param [Hash] params The parameters where to look up the **:id** key used to fetch the object.
+    #  If `nil`, use the _params_ value that was passed to the constructor.
     # @option [Object] context The context to pass to the access checker method {#allow_op?}.
     #  The special value +:params+ (a Symbol named +params+) indicates that the value of _params_ is to be
     #  passed as the context.
-    #  Defaults to +nil+.
+    #  Defaults to `nil`.
     #
-    # @return [Object, nil] Returns an object, or +nil+. Note that a non-nil return value is not a guarantee
+    # @return [Object, nil] Returns an object, or `nil`. Note that a non-nil return value is not a guarantee
     #  that the check operation succeded.
 
-    def get_and_check(op, idname = nil, params = nil, context = nil)
+    def get_and_check(permission, idname = nil, params = nil, context = nil)
       idname = idname || :id
       params = params || self.params
       ctx = (:context == :params) ? params : context
@@ -255,7 +261,7 @@ module Fl::Framework::Service
         return nil
       end
 
-      self.clear_status if allow_op?(obj, op, ctx, idname)
+      self.clear_status if allow_op?(obj, permission, ctx, idname)
       obj
     end
 
@@ -272,8 +278,8 @@ module Fl::Framework::Service
     # Note that verification failures have the side effect of setting the status, so that clients can use
     # {#success?} or check the +success+ field in the return value to determine if the call was successful.
     #
-    # @param [Boolean,Hash] opts The CAPTCHA options. If +nil+ or +false+, return a success value: no
-    #  verification is requested. If a hash or +true+, run the verification; the hash value is passed
+    # @param [Boolean,Hash] opts The CAPTCHA options. If `nil` or `false`, return a success value: no
+    #  verification is requested. If a hash or `true`, run the verification; the hash value is passed
     #  to the {Fl::Framework::CAPTCHA::Base} initializer.
     #
     # @return [Hash] Returns a hash with the same structure as the return value from
@@ -309,19 +315,21 @@ module Fl::Framework::Service
     # key in the error status from the object's +errors+. 
     #
     # The method calls {#class_allow_op?} for `opts[:permission]` to confirm that the
-    # service's _actor_ has permission to create objects. If the permission is not granted, +nil+ is returned.
+    # service's _actor_ has permission to create objects. If the permission is not granted, `nil` is returned.
     #
     # @param opts [Hash] Options to the method. This section describes the common options; subclasses may
     #  define type-specific ones.
     # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
-    #  initializer. If not present or +nil+, use the value returned by {#create_params}.
-    # @option opts [Boolean,Hash] :captcha If this option is present and is either +true+ or a hash,
+    #  initializer. If not present or `nil`, use the value returned by {#create_params}.
+    # @option opts [Boolean,Hash] :captcha If this option is present and is either `true` or a hash,
     #  the method does a CAPTCHA validation using an appropriate subclass of {Fl::CAPTCHA::Base}
     #  (typically {Fl::Google::RECAPTCHA}, which implements
     #  {https://www.google.com/recaptcha/intro Google reCAPTCHA}).
     #  If the value is a hash, it is passed to the initializer for {Fl::CAPTCHA::Base}.
-    # @option opts [Symbol,String] :permission The name of the permission to request in order to
-    #  complete the operation. Defaults to {Fl::Framework::Access::Grants::CREATE}.
+    # @option opts [Symbol,String,Fl::Framework::Access::Permission,Class] :permission The permission
+    #  to request in order to complete the operation.
+    #  See {Fl::Framework::Access::Helper.permission_name}.
+    #  Defaults to {Fl::Framework::Access::Permission::Create::NAME}.
     # @option opts [Object] :context The context to pass to the access checker method {#class_allow_op?}.
     #  The special value +:params+ (a Symbol named +params+) indicates that the create parameters are to be
     #  passed as the context.
@@ -333,7 +341,7 @@ module Fl::Framework::Service
 
     def create(opts = {})
       p = (opts[:params]) ? opts[:params].to_h : create_params(self.params).to_h
-      op = (opts[:permission]) ? opts[:permission].to_sym : Fl::Framework::Access::Grants::CREATE
+      op = (opts[:permission]) ? opts[:permission] : Fl::Framework::Access::Permission::Create::NAME
       ctx = if opts.has_key?(:context)
               (opts[:context] == :params) ? p : opts[:context]
             else
@@ -370,20 +378,21 @@ module Fl::Framework::Service
 
     # Update an instance of the model class.
     # This method attempts to update an instance of the model class; if the operation fails,
-    # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the +:details+
-    # key in the error status from the object's +errors+. 
+    # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the
+    # **:details** key in the error status from the object's +errors+. 
     #
     # The method calls {#allow_op?} for `opts[:permission]` to confirm that the
     # service's _actor_ has permission to update the object.
-    # If the permission is not granted, +nil+ is returned.
+    # If the permission is not granted, `nil` is returned.
     #
     # @param opts [Hash] Options to the method. This section describes the common options; subclasses may
     #  define type-specific ones.
-    # @option opts [Symbol,String] :idname The name of the key in {#params} that contains the object identifier.
-    #  Defaults to +:id+.
+    # @option opts [Symbol,String] :idname The name of the key in {#params} that contains the object
+    #  identifier.
+    #  Defaults to **:id**.
     # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
-    #  initializer. If not present or +nil+, use the value returned by {#update_params}.
-    # @option opts [Boolean,Hash] :captcha If this option is present and is either +true+ or a hash,
+    #  initializer. If not present or `nil`, use the value returned by {#update_params}.
+    # @option opts [Boolean,Hash] :captcha If this option is present and is either `true` or a hash,
     #  the method does a CAPTCHA validation using an appropriate subclass of {Fl::CAPTCHA::Base}
     #  (typically {Fl::Google::RECAPTCHA}, which implements
     #  {https://www.google.com/recaptcha/intro Google reCAPTCHA}).
@@ -401,7 +410,7 @@ module Fl::Framework::Service
 
     def update(opts = {})
       p = (opts[:params]) ? opts[:params].to_h : update_params(self.params).to_h
-      op = (opts[:permission]) ? opts[:permission].to_sym : Fl::Framework::Access::Grants::WRITE
+      op = (opts[:permission]) ? opts[:permission] : Fl::Framework::Access::Permission::Write::NAME
       ctx = if opts.has_key?(:context)
               (opts[:context] == :params) ? p : opts[:context]
             else
@@ -449,7 +458,7 @@ module Fl::Framework::Service
     #
     # @param p [Hash,ActionController::Parameters,String,nil] The parameters to convert.
     #  If a string value, it is assumed to contain a JSON representation.
-    #  If +nil+, use {#params}.
+    #  If `nil`, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the converted parameters.
 
@@ -469,7 +478,7 @@ module Fl::Framework::Service
     #   end
     #
     # @param p [Hash,ActionController::Parameters] The parameters from which to extract the create parameters
-    #  subset. If +nil+, use {#params}.
+    #  subset. If `nil`, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the create parameters.
     #
@@ -489,7 +498,7 @@ module Fl::Framework::Service
     #   end
     #
     # @param p [Hash,ActionController::Parameters] The parameters from which to extract the update parameters
-    #  subset. If +nil+, use {#params}.
+    #  subset. If `nil`, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the update parameters.
     #
@@ -514,7 +523,7 @@ module Fl::Framework::Service
     # the parameters as arrays, or they will be filtered out by the permission system.
     #
     # @param p [Hash,ActionController::Parameters] The parameters from which to extract the `to_hash`
-    #  parameters subset. If +nil+, use {#params}.
+    #  parameters subset. If `nil`, use {#params}.
     #
     # @return [ActionController::Parameters] Returns the standard permitted `to_hash` parameters.
 
@@ -552,7 +561,7 @@ module Fl::Framework::Service
     # @return [Hash, nil] If a query is generated, it returns a Hash containing two keys:
     #  - *:results* are the results from the query; this is an array of objects.
     #  - *:_pg* are the pagination controls returned by {#pagination_controls}.
-    #  If no query is generated (in other words, if {#index_query} fails), it returns +nil+.
+    #  If no query is generated (in other words, if {#index_query} fails), it returns `nil`.
 
     def index(query_opts = {}, _q = {}, _pg = {})
       qo = init_query_opts(query_opts, _q, _pg)
@@ -640,7 +649,7 @@ module Fl::Framework::Service
     #
     # The method builds the pagination controls as follows:
     # 1. Initialize with the values from *:_pg* in _opts_, if any.
-    # 2. Set the value of *:_c* to the length of the _results_ array, or to 0 if _results_ is +nil+.
+    # 2. Set the value of *:_c* to the length of the _results_ array, or to 0 if _results_ is `nil`.
     # 3. If _opts_ does not have a *:limit* value, set *:_s* to -1 and *:_p* to 1, since we cannot determine
     #    the page size and therefore calculate a starting page from the *:offset* option.
     # 4. Otherwise, set *:_s* to the value of *:limit* in _opts_, and *:_p* to the next page, based on the
@@ -650,7 +659,7 @@ module Fl::Framework::Service
     #
     # @param results [Array, nil] An array containing the results from the query.
     # @param opts [Hash] A hash containing query options.
-    # @param pars [Hash] The submission query parameters. If +nil+, the controller's +params+ value is used.
+    # @param pars [Hash] The submission query parameters. If `nil`, the controller's +params+ value is used.
     #
     # @return [Hash] Returns a hash containing the pagination controls: *:_s* is the page size, *:_p* is the
     #  next page to fetch.
@@ -717,11 +726,11 @@ module Fl::Framework::Service
 
     # Check that access checks are enabled and supported.
     #
-    # @param obj [Object, Class, nil] The object that makes the +permission?+ call; if +nil+, the
+    # @param obj [Object, Class, nil] The object that makes the +permission?+ call; if `nil`, the
     #  {#model_class} is used.
     #
-    # @return [Boolean] Returns +true+ if access checks are enabled, and _obj_ responds to +permission?+;
-    #  otherwise, it returns +false+.
+    # @return [Boolean] Returns `true` if access checks are enabled, and _obj_ responds to +permission?+;
+    #  otherwise, it returns `false`.
 
     def do_access_checks?(obj = nil)
       obj = self.model_class if obj.nil?
@@ -730,7 +739,7 @@ module Fl::Framework::Service
 
     # Check that CAPTCHA checks are enabled and supported.
     #
-    # @return [Boolean] Returns +true+ if CAPTCHA checks are enabled; otherwise, it returns +false+.
+    # @return [Boolean] Returns `true` if CAPTCHA checks are enabled; otherwise, it returns `false`.
 
     def do_captcha_checks?()
       (@_disable_captcha) ? false : true
@@ -749,12 +758,12 @@ module Fl::Framework::Service
 
     # Build a query to list objects.
     # This method is expected to return a ActiveRecord::Relation set up according to the query
-    # parameters in <i>query_opts</i>. The default implementation returns +nil+; subclasses are
+    # parameters in <i>query_opts</i>. The default implementation returns `nil`; subclasses are
     # expected to override it to return the correct relation instance.
     #
     # @param query_opts [Hash] A hash of query options to build the query.
     #
-    # @return [ActiveRecord::Relation, nil] Returns an instance of ActiveRecord::Relation, or +nil+
+    # @return [ActiveRecord::Relation, nil] Returns an instance of ActiveRecord::Relation, or `nil`
     #  on error.
 
     def index_query(query_opts = {})
