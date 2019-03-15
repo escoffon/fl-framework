@@ -395,13 +395,15 @@ module Fl::Framework::Core
       #
       # @return [Array<Symbol>] Returns an array of symbol values that list the operations for which to obtain
       #  permissions.
-      #  The default implementation returns the array <tt>[:read, :write, :destroy]</tt>; subclasses may
+      #  The default implementation returns the array <tt>[:read, :write, :delete]</tt>; subclasses may
       #  override to add subclass-specific operations. For example, Fl::Assets::Picture returns the array
       #  <tt>[:read, :write, :destroy, :download, :tweet]</tt>, which include the subclass-specific operations
       #  to download the image or tweet it out.
 
       def to_hash_operations_list
-        [ Fl::Framework::Access::Grants::READ, Fl::Framework::Access::Grants::WRITE, Fl::Framework::Access::Grants::DESTROY ]
+        [ Fl::Framework::Access::Permission::Read::NAME,
+          Fl::Framework::Access::Permission::Write::NAME,
+          Fl::Framework::Access::Permission::Delete::NAME ]
       end
 
       # Get the options to pass to {#to_hash_url_path}.
@@ -586,6 +588,8 @@ module Fl::Framework::Core
       #  a +nil+ value indicates no permission.
 
       def to_hash_permission_list(actor, plist = nil)
+        return [ ] if actor.nil?
+        
         plist = self.to_hash_operations_list unless plist
         rv = {}
         plist.each do |p|

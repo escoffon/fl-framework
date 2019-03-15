@@ -29,6 +29,10 @@ class S < B
 end
 
 RSpec.describe Fl::Framework::Access::Permission, type: :model do
+  after(:example) do
+    cleanup_permission_registry([ MyPermission::NAME ])
+  end
+  
   describe ".permission_name" do
     it "should return symbol and string arguments" do
       n = Fl::Framework::Access::Permission::Read::NAME

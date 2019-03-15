@@ -159,7 +159,7 @@ module Fl::Framework::Access
       _permission_grants()
     end
 
-    # Return the grantorss for a given permission in the registry.
+    # Return the grantors for a given permission in the registry.
     #
     # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The permission whose grants
     #  to get. The value of this parameter is described in {Fl::Framework::Access::Helper.permission_name}.
@@ -276,17 +276,25 @@ module Fl::Framework::Access
         _register_grants(gp.grants, pn) if gp && (gp.grants.count > 0)
       end
     end
-    
-    # def _expand_grants()
-    #   @grants_raw.reduce([ ]) do |acc, n|
-    #     p = Fl::Framework::Access::Permission.lookup(n)
-    #     raise Fl::Framework::Access::Permission::Missing.new(n) if p.nil?
-
-    #     acc |= [ p.name ] | p.grants
-    #     acc
-    #   end
-    # end
   end
+
+  # The **:create** permission class.
+  # This permission grants the ability to create assets (typically of a specific class).
+  
+  class Permission::Create < Permission
+    # The permission name.
+    NAME = :create
+
+    # dependent permissions granted by **:create**.
+    GRANTS = [ ]
+
+    # Initializer.
+    def initialize()
+     super(NAME, GRANTS)
+    end
+  end
+
+  Permission::Create.new
 
   # The **:read** permission class.
   # This permission grants read only access to assets.

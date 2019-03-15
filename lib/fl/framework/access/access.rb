@@ -1,141 +1,59 @@
-require 'fl/framework/access/grants'
-
 module Fl::Framework::Access
-  # Access APIs.
-  # This module defines two main classes of methods:
-  # 1. Class methods to register new access checkers, or to override existing ones.
-  #    See {Fl::Framework::Access::Access::ClassMethods#access_op}.
-  # 2. Instance (and class) methods to check if an actor has access to an object.
-  #    See {Fl::Framework::Access::Access::OldInstanceMethods#permission?} and
-  #    {Fl::Framework::Access::Access::ClassMethods#default_access_checker}.
+  # Access control APIs.
+  # This module adds support for access control to a class.
+  # When it is included, it defines the macro {ClassMacros#has_access_control}, which turns on access
+  # control support in the class.
+  # When access control is enabled, a number of instance and class methods are registered; see the
+  # documentation for {ClassMethods} and {InstanceMethods}.
+  #
   # The methods in this module define and implement a framework for standardizing access control
-  # management, but don't provide a specific access control algorithm.
-  # Classes that include this module are expected to implement their own access check algorithms, typically
-  # by overriding the default implementation of
-  # {Fl::Framework::Access::Access::ClassMethods::default_access_checker}, or by
-  # registering specialized access checker procs with
-  # {Fl::Framework::Access::Access::ClassMethods::access_op}.
+  # management, but don't provide a specific access control algorithm, and don't enforce access
+  # control at the record level. (That functionality is left to a higher level layer, typically in a
+  # service object.
+  # Classes define the access check strategy by providing an instance of (a subclass of)
+  # {Fl::Framework::Access::AccessChecker} to {ClassMacros#has_access_control}.
   #
-  # The APIs use a generic object called an _actor_ as the entity that requests permission to perform
-  # a given operation on an object. The type of _actor_ is left undefined, and it is expected that
-  # users of this framework will provide their own specific types. Typically, this will be some kind of
+  # The APIs use a generic object called an *actor* as the entity that requests permission to perform
+  # a given operation on an object. The type of *actor* is left undefined, and it is expected that
+  # clients of this framework will provide their own specific types. Typically, this will be some kind of
   # user object, but it may be a software agent as well. The framework mostly passes the actor parameter
-  # down to the methods that implement the specialized access control algorithms; these methods should
-  # be aware of the nature of the actor entity.
+  # down to the access checkers that implement the specialized access control algorithms; these checkers
+  # should be aware of the nature of the actor entity.
   #
-  # The module's {.included} method registers a number of standard operation types, using
-  # +:default_access_checker+.
-  # Since initially +:default_access_checker+ maps to either {ClassMethods#default_access_checker}
-  # or {OldInstanceMethods#default_access_checker}, by default no permissions are granted: this forces classes
-  # that include {Fl::Framework::Access::Access} to override the access policies as needed.
-  # This can be done in one of two ways (or with a combination of these two ways):
-  # 1. Override the class +:default_access_checker+ to implement the desired access policies.
-  #    (The instance +:default_access_checker+ calls the class implementation, so typically one does not
-  #    override the instance method.)
-  # 2. Use {ClassMethods#access_op} to register a new access checker method that implements the desired
-  #    access policies.
+  # The access package also defines a number of standard permissions; see the documentation for the
+  # {Permission} class.
   #
-  # === Examples
-  # There are a few ways to use this framework. One is to define a mixin module that contains the access
-  # algorithms, and include it to override the defaults:
-  #   module MyAccess
-  #     module ClassMethods
-  #       def default_access_checker(op, obj, actor, context = nil)
-  #         # (access check code here ...)
-  #       end
-  #     end
+  # To enable access control, define an access checker subclass and pass it to
+  # {ClassMacros#has_access_control}:
   #
-  #     module OldInstanceMethods
-  #     end
-  #
-  #     def self.included(base)
-  #       base.extend ClassMethods
-  #       base.instance_eval do
-  #       end
-  #       base.class_eval do
-  #         include OldInstanceMethods
-  #       end
-  #     end
+  # ```
+  # class MyAccessChecker < Fl::Framework::Access::Checker
+  #   def access_check(permission, actor, asset, context = nil)
+  #     # here is the access check code
   #   end
+  # end
   #
-  #   class MyClass
-  #     include Fl::Framework::Access::Access
-  #     include MyAccess
-  #   end
-  # A variation on this is to override some default checks:
-  #   class MyClass
-  #     include Fl::Framework::Access::Access
-  #     include MyAccess
+  # class MyDatum < ActiveRecord::Base
+  #   include Fl::Framework::Access::Access
   #
-  #     access_op :read, :my_read_check
+  #   has_access_control MyAccessChecker.new
+  # end
+  # ```
   #
-  #     private
+  # You can also add acces control to an existing class, using {Helper.add_access_control}:
   #
-  #     def my_write_check(op, obj, actor, context = nil)
-  #       # (overridden check for :write ...)
-  #     end
+  # ```
+  # class MyAccessChecker < Fl::Framework::Access::Checker
+  #   def access_check(permission, actor, asset, context = nil)
+  #     # here is the access check code
   #   end
-  # If you don't need to share access check algorithms, you can embed them directly in a class:
-  #   class MyClass
-  #     include Fl::Framework::Access::Access
+  # end
   #
-  #     def self.default_access_checker(op, obj, actor, context = nil)
-  #       case op.op
-  #       when Fl::Framework::Access::Grants::INDEX
-  #         nil
-  #       when Fl::Framework::Access::Grants::CREATE
-  #         :ok
-  #       when Fl::Framework::Access::Grants::READ
-  #         :ok
-  #       when Fl::Framework::Access::Grants::WRITE
-  #         _complex_write_check(op, obj, actor, context)
-  #       else
-  #         nil
-  #       end
-  #     end
-  #     
-  #     private def self._complex_write_check(op, obj, actor, context)
-  #       # (write check here ...)
-  #     end
-  #   end
-  # You can also extend the set of operations for which access checks are implemented:
-  #   module ExtendAccess
-  #     CLASS_OP = :class_op
-  #     INSTANCE_OP = :instance_op
-  #   
-  #     module ClassMethods
-  #       def default_access_checker(op, obj, actor, context = nil)
-  #         # (access check code here includes support for CLASS_OP and INSTANCE_OP ...)
-  #       end
-  #     end
-  #   
-  #     module OldInstanceMethods
-  #     end
-  #   
-  #     def self.included(base)
-  #       base.extend ClassMethods
-  #   
-  #       base.instance_eval do
-  #       end
-  #   
-  #       base.class_eval do
-  #         include OldInstanceMethods
-  #   
-  #         access_op(ExtendAccess::CLASS_OP, :default_access_checker, { context: :class })
-  #         access_op(ExtendAccess::INSTANCE_OP, :default_access_checker, { context: :instance })
-  #       end
-  #     end
-  #   end
-  #   
-  #   class ExtendAsset
-  #     include Fl::Framework::Access::Access
-  #     include ExtendAccess
-  #   end
-  # The ExtendAsset class will support access checks for the additional two operations; for example:
-  #   actor = get_actor()
-  #   if ExtendAsset.permission?(actor, ExtendAccess::CLASS_OP)
-  #     # (do something at the ExtendAsset class level)
-  #   end
+  # class MyDatum < ActiveRecord::Base
+  # end
+  #
+  # Fl::Framework::Access::Helper.add_access_control(MyDatum, MyAccessChecker.new)
+  # ```
 
   module Access
     # The methods in this module will be installed as class methods of the including class.
@@ -201,7 +119,8 @@ module Fl::Framework::Access
       # Because this method is a wrapper around {Fl::Framework::Access::Checker#access_check}, it has
       # essentially the same behavior.
       #
-      # @param permission [Symbol,String] The name of the requested permission.
+      # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The requested permission.
+      #  See {Fl::Framework::Access::Helper.permission_name}.
       # @param actor [Object] The actor requesting permissions.
       # @param context An arbitrary value containing the context in which to do the check.
       #
@@ -266,7 +185,8 @@ module Fl::Framework::Access
       # The common case is that the class access checker is used; however, if individual instances
       # have installed their own access checker, that object is used instead.
       #
-      # @param permission [Symbol,String] The name of the requested permission.
+      # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The requested permission.
+      #  See {Fl::Framework::Access::Helper.permission_name}.
       # @param actor [Object] The actor requesting permissions.
       # @param context An arbitrary value containing the context in which to do the check.
       #

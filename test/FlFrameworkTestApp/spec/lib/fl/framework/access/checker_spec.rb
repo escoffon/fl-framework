@@ -48,7 +48,7 @@ class TestAccessCheckerTwo < Fl::Framework::Access::Checker
     # not the best access check, because a 'reader only' actor will be granted write access, but
     # good enough for testing.
     
-    sl = [ sp ] | Fl::Framework::Access::Permission.grants_for_permission(sp)
+    sl = [ sp ] | Fl::Framework::Access::Permission.grantors_for_permission(sp)
     sl.each do |s|
       case s
       when Fl::Framework::Access::Permission::Edit::NAME

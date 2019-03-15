@@ -11,6 +11,10 @@ end
 Fl::Framework::Access::Helper.add_access_control(TestDatumOne, Fl::Framework::Asset::AccessChecker.new())
 Fl::Framework::Access::Helper.add_access_control(TestDatumTwo, Fl::Framework::Asset::AccessChecker.new())
 
+def g_map(gl)
+  gl.map { |g| "#{g.permission}:#{g.actor.fingerprint}:#{g.data_object.fingerprint}" }
+end
+
 RSpec.describe Fl::Framework::Asset::AccessChecker do
   let(:a1) { create(:test_actor) }
   let(:a2) { create(:test_actor) }
@@ -61,9 +65,36 @@ RSpec.describe Fl::Framework::Asset::AccessChecker do
 
   context "#configure" do
     it 'should register the custom access control methods' do
-      expect(d10.methods).to include(:grant_permission)
+      expect(d10.methods).to include(:find_grant, :grant_permission, :revoke_permission,
+                                     :create_owner_grant)
 
       expect(d10._reflections.keys).to include('grants')
+    end
+
+    it 'should support automatic creation of the :owner grant' do
+      gl = d10.grants.map { |g| g.data_object }
+      expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ d10 ]))
+      gl = d10.grants.map { |g| g.actor }
+      expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ a1 ]))
+      gl = d10.grants.map { |g| g.permission.to_sym }
+      expect(gl).to eql([ Fl::Framework::Asset::Permission::Owner::NAME ])
+    end
+
+    it 'should delete grants when asset is deleted' do
+      gl = g_map(d10.grants.map)
+      expect(gl).to match_array([ "#{Fl::Framework::Asset::Permission::Owner::NAME}:#{a1.fingerprint}:#{d10.fingerprint}" ])
+
+      ng1 = d10.grants.create(asset: d10.asset_record, actor: a2,
+                              permission: Fl::Framework::Access::Permission::Read)
+      gl = g_map(d10.grants)
+      expect(gl).to match_array([
+                                  "#{Fl::Framework::Asset::Permission::Owner::NAME}:#{a1.fingerprint}:#{d10.fingerprint}",
+                                  "#{Fl::Framework::Access::Permission::Read::NAME}:#{a2.fingerprint}:#{d10.fingerprint}"
+                                ])
+
+      expect do
+        d10.destroy
+      end.to change(Fl::Framework::Asset::AccessGrant, :count).by(-2)
     end
   end
 
@@ -74,19 +105,21 @@ RSpec.describe Fl::Framework::Asset::AccessChecker do
         xl = [ g1, g2, g3, g4, g5, g6, g7, g8 ].reverse
 
         gl = d10.grants.map { |g| g.data_object }
-        expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ d10, d10 ]))
+        expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ d10, d10, d10 ]))
         gl = d10.grants.map { |g| g.actor }
-        expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ a2, a3 ]))
+        expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ a1, a2, a3 ]))
         gl = d10.grants.map { |g| g.permission.to_sym }
-        expect(gl).to eql([ Fl::Framework::Access::Permission::Write::NAME,
+        expect(gl).to eql([ Fl::Framework::Asset::Permission::Owner::NAME,
+                            Fl::Framework::Access::Permission::Write::NAME,
                             Fl::Framework::Access::Permission::Read::NAME ])
 
         gl = d21.grants.map { |g| g.data_object }
-        expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ d21, d21 ]))
+        expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ d21, d21, d21 ]))
         gl = d21.grants.map { |g| g.actor }
-        expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ a3, a4 ]))
+        expect(obj_fingerprints(gl)).to eql(obj_fingerprints([ a2, a3, a4 ]))
         gl = d21.grants.map { |g| g.permission.to_sym }
-        expect(gl).to eql([ Fl::Framework::Access::Permission::Read::NAME,
+        expect(gl).to eql([ Fl::Framework::Asset::Permission::Owner::NAME,
+                            Fl::Framework::Access::Permission::Read::NAME,
                             Fl::Framework::Access::Permission::Read::NAME ])
       end
     end
@@ -137,7 +170,7 @@ RSpec.describe Fl::Framework::Asset::AccessChecker do
       it 'should create a new grant' do
         g = nil
         
-        expect(d10.grants.count).to eql(0)
+        expect(d10.grants.count).to eql(1)
         expect do
           g = d10.grant_permission(Fl::Framework::Access::Permission::Read::NAME, a4)
         end.to change(Fl::Framework::Asset::AccessGrant, :count).by(1)
@@ -146,7 +179,7 @@ RSpec.describe Fl::Framework::Asset::AccessChecker do
       it 'should accept a Permission object' do
         g = nil
         
-        expect(d10.grants.count).to eql(0)
+        expect(d10.grants.count).to eql(1)
         expect do
           p = Fl::Framework::Access::Permission.lookup(Fl::Framework::Access::Permission::Write::NAME)
           g = d10.grant_permission(p, a4)
@@ -156,7 +189,7 @@ RSpec.describe Fl::Framework::Asset::AccessChecker do
       it 'should accept a Permission subclass' do
         g = nil
         
-        expect(d10.grants.count).to eql(0)
+        expect(d10.grants.count).to eql(1)
         expect do
           g = d10.grant_permission(Fl::Framework::Access::Permission::Write, a4)
         end.to change(Fl::Framework::Asset::AccessGrant, :count).by(1)
@@ -165,16 +198,16 @@ RSpec.describe Fl::Framework::Asset::AccessChecker do
       it 'should be a noop for an existing grant' do
         g = nil
         
-        expect(d10.grants.count).to eql(0)
+        expect(d10.grants.count).to eql(1)
         expect do
           g = d10.grant_permission(Fl::Framework::Access::Permission::Read::NAME, a4)
         end.to change(Fl::Framework::Asset::AccessGrant, :count).by(1)
-        expect(d10.grants.count).to eql(1)
+        expect(d10.grants.count).to eql(2)
 
         expect do
           g = d10.grant_permission(Fl::Framework::Access::Permission::Read::NAME, a4)
         end.to change(Fl::Framework::Asset::AccessGrant, :count).by(0)
-        expect(d10.grants.count).to eql(1)
+        expect(d10.grants.count).to eql(2)
       end
     end
 
@@ -208,6 +241,9 @@ RSpec.describe Fl::Framework::Asset::AccessChecker do
       end
 
       it 'should be a noop for a nonexisting grant' do
+        # this causes d10 to be created and the :owner grant to be created
+        d = d10
+        
         expect do
           d10.revoke_permission(Fl::Framework::Access::Permission::Read::NAME, a4)
         end.to change(Fl::Framework::Asset::AccessGrant, :count).by(0)

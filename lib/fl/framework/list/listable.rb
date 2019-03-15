@@ -198,8 +198,17 @@ class ActiveRecord::Base
   # @return [Boolean] Returns `false`; {Fl::Framework::List::Listable::ClassMethods#is_listable} overrides
   #  the implementation to return `true`.
   
-  def listable?
+  def self.listable?
     false
+  end
+
+  # Backstop listable checker.
+  # This is just a wrapper to the class method {.listable?}.
+  #
+  # @return [Boolean] Returns the value returned by {.listable?}.
+  
+  def listable?
+    self.class.listable?
   end
 
   # Backstop list item summary extractor.

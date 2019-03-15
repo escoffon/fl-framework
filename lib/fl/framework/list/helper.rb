@@ -15,18 +15,20 @@ module Fl::Framework::List
     #   # class definition
     # end
     #
-    #
     # Fl::Framework::List::Helper.make_listable(TheClass, summary: :my_summary_method)
     # ```
     # See the documentation for {Listable::ClassMethods#is_listable}.
+    # If the class is already marked as listable, the operation is skipped.
     #
     # @param klass [Class] The class object where listable behavior is enabled.
     # @param cfg [Hash] A hash containing configuration parameters. See the documentation for
     #  {Listable::ClassMethods#is_listable}.
 
     def self.make_listable(klass, *cfg)
-      klass.send(:include, Fl::Framework::List::Listable)
-      klass.send(:is_listable, *cfg)
+      unless klass.listable?
+        klass.send(:include, Fl::Framework::List::Listable)
+        klass.send(:is_listable, *cfg)
+      end
     end
 
     # Class methods.

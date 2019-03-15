@@ -77,7 +77,7 @@ module Fl::Framework::Asset
       
       protected
 
-      # Callback after an instance is created.
+      # Callback after an instance is created: add the asset record.
       # This method registers with the asset system by creating a {Fl::Framework::Asset::AssetRecord}.
 
       def create_active_record()

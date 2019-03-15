@@ -330,6 +330,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
         id_keys = [ :type, :api_root, :url_path, :fingerprint, :id ]
         h = li1.to_hash(a1, { verbosity: :minimal })
         lo_keys = id_keys + [ :owner, :title, :value, :created_at, :updated_at ]
+        lo_keys |= [ :permissions ] if d11.has_access_control?
         expect(h[:listed_object].keys).to match_array(lo_keys)
 
         h = li1.to_hash(a1, {
@@ -341,6 +342,7 @@ RSpec.describe Fl::Framework::List::ListItem, type: :model do
                           }
                         })
         lo_keys = id_keys + [ :title, :value, :created_at, :updated_at ]
+        lo_keys |= [ :permissions ] if d11.has_access_control?
         expect(h[:listed_object].keys).to match_array(lo_keys)
         l_keys = id_keys + [ :title ]
         expect(h[:list].keys).to match_array(l_keys)

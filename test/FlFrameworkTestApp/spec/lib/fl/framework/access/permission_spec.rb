@@ -8,13 +8,6 @@ RSpec.configure do |c|
   c.include Fl::Framework::Test::AccessHelpers
 end
 
-#mp1 = TestAccess::P1.new
-#mp2 = TestAccess::P2.new
-#mp3 = TestAccess::P3.new
-#mp4 = TestAccess::P4.new
-#mp5 = TestAccess::P5.new
-#mp6 = TestAccess::P6.new
-
 RSpec.describe Fl::Framework::Access::Permission, type: :model do
   before(:example) do
     cleanup_permission_registry([ TestAccess::P1::NAME, TestAccess::P2::NAME, TestAccess::P3::NAME,
@@ -30,19 +23,26 @@ RSpec.describe Fl::Framework::Access::Permission, type: :model do
                Fl::Framework::Access::Permission::Write::NAME,
                Fl::Framework::Access::Permission::Delete::NAME,
                Fl::Framework::Access::Permission::Edit::NAME,
-               Fl::Framework::Access::Permission::Manage::NAME ]
+               Fl::Framework::Access::Permission::Manage::NAME,
+               Fl::Framework::Access::Permission::Create::NAME,
+               Fl::Framework::Asset::Permission::Owner::NAME,
+               Fl::Framework::List::Permission::ManageItems::NAME ]
         
         expect(Fl::Framework::Access::Permission.registered).to match_array(xr)
       end
 
       it "should have registered grants correctly" do
         pg = Fl::Framework::Access::Permission.permission_grantors
-        expect(pg.keys).to match_array([ :read, :write, :delete, :edit, :manage ])
+        expect(pg.keys).to match_array([ :read, :write, :delete, :edit, :manage,
+                                         :create, :manage_items, :owner ])
         expect(pg[:read]).to match_array([ :edit, :manage ])
         expect(pg[:write]).to match_array([ :edit, :manage ])
         expect(pg[:delete]).to match_array([ :manage ])
         expect(pg[:edit]).to match_array([ :manage ])
         expect(pg[:manage]).to match_array([ ])
+        expect(pg[:create]).to match_array([ ])
+        expect(pg[:manage_items]).to match_array([ ])
+        expect(pg[:owner]).to match_array([ ])
       end
 
       it "should have appropriate class name accessors" do
@@ -64,6 +64,9 @@ RSpec.describe Fl::Framework::Access::Permission, type: :model do
                Fl::Framework::Access::Permission::Delete::NAME,
                Fl::Framework::Access::Permission::Edit::NAME,
                Fl::Framework::Access::Permission::Manage::NAME,
+               Fl::Framework::Access::Permission::Create::NAME,
+               Fl::Framework::Asset::Permission::Owner::NAME,
+               Fl::Framework::List::Permission::ManageItems::NAME,
                TestAccess::P1::NAME,
                TestAccess::P2::NAME ]
         
