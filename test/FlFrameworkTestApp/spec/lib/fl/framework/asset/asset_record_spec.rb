@@ -13,7 +13,10 @@ module T
   def self.clear_asset_record(d)
     ar = Fl::Framework::Asset::AssetRecord.where('(asset_type = :at) AND (asset_id = :aid)',
                                                  at: d.class.name, aid: d.id).first
-    ar.destroy if ar
+    if ar
+      ar.asset.grants.clear if ar.asset.respond_to?(:grants)
+      ar.destroy
+    end
   end
 end
 
@@ -175,7 +178,8 @@ RSpec.describe Fl::Framework::Asset::AssetRecord, type: :model do
 
         id_keys = [ :type, :api_root, :url_path, :fingerprint, :id ]
         h = ar1.to_hash(a1, { verbosity: :minimal })
-        a_keys = id_keys + [ :owner, :title, :value, :permissions, :created_at, :updated_at ]
+        a_keys = id_keys + [ :owner, :title, :value, :created_at, :updated_at ]
+        a_keys |= [ :permissions ] if d110.has_access_control?
         expect(h[:asset].keys).to match_array(a_keys)
 
         h = ar1.to_hash(a1, {
