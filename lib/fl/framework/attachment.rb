@@ -53,19 +53,19 @@ module Fl::Framework
   end
 end
 
-require 'fl/framework/attachment/constants'
-require 'fl/framework/attachment/configuration'
-require 'fl/framework/attachment/query'
-require 'fl/framework/attachment/registration'
-require 'fl/framework/attachment/attachable'
-require 'fl/framework/attachment/common'
-require 'fl/framework/attachment/helper'
-if defined?(ActiveRecord)
-  require 'fl/framework/attachment/active_record'
-end
-if defined?(Neo4j)
-  require 'fl/framework/attachment/neo4j'
-end
+#require 'fl/framework/attachment/constants'
+#require 'fl/framework/attachment/configuration'
+#require 'fl/framework/attachment/query'
+#require 'fl/framework/attachment/registration'
+#require 'fl/framework/attachment/attachable'
+#require 'fl/framework/attachment/common'
+#require 'fl/framework/attachment/helper'
+#if defined?(ActiveRecord)
+#  require 'fl/framework/attachment/active_record'
+#end
+#if defined?(Neo4j)
+#  require 'fl/framework/attachment/neo4j'
+#end
 if defined?(ActiveStorage)
   require 'fl/framework/attachment/active_storage'
 end

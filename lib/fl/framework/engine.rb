@@ -40,7 +40,7 @@ module Fl
         require 'fl/framework/query'
         require 'fl/framework/access'
 #        require 'fl/framework/comment'
-#        require 'fl/framework/attachment'
+        require 'fl/framework/attachment'
         require 'fl/framework/service'
         require 'fl/framework/controller'
         require 'fl/framework/test'
