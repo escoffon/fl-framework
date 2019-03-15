@@ -106,7 +106,7 @@ let FlFrameworkListAPIService = FlClassManager.make_class({
 
 	/**
 	 * @ngdoc method
-	 * @name OpoAdvisorSessionAPIService#url_path_for
+	 * @name FlFrameworkListAPIService#url_path_for
 	 * @description Overrides the base implementation to add support for the `add_object` action.
 	 *  It forwards to the superclass for the standard Rails actions `index`, `create`, `show`,
 	 *  `update`, and `destroy`.
