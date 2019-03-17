@@ -7,5 +7,13 @@ class CreateTestActors < ActiveRecord::Migration[5.2]
 
       t.timestamps
     end
+
+    # Another actor to test actor support
+    
+    create_table :test_actor_twos do |t|
+      t.string		:name
+
+      t.timestamps
+    end
   end
 end

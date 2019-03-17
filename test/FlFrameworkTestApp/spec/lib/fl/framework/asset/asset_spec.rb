@@ -11,13 +11,25 @@ RSpec.describe Fl::Framework::Asset::Asset, type: :model do
   let(:a2) { create(:test_actor, name: 'actor.2') }
   let(:d10) { build(:test_datum_one, value: 10, owner: a1) }
   let(:d20) { build(:test_datum_two, value: 'v20', owner: a1) }
+  let(:d40) { build(:test_datum_four, value: 'v40', owner: a1) }
 
   describe '#is_asset' do
     it 'should register asset methods' do
+      expect(TestActor.methods).to include(:asset?)
+      expect(TestActor.instance_methods).to include(:asset?)
       expect(TestDatumOne.methods).to include(:is_asset, :asset?)
       expect(TestDatumOne.instance_methods).to include(:asset?)
+      expect(TestDatumFour.methods).to include(:asset?)
+      expect(TestDatumFour.instance_methods).to include(:asset?)
 
       expect(d10.asset?).to eql(true)
+      expect(d20.asset?).to eql(true)
+      expect(d40.asset?).to eql(false)
+
+      expect(TestActor.asset?).to eql(false)
+      expect(TestDatumOne.asset?).to eql(true)
+      expect(TestDatumTwo.asset?).to eql(true)
+      expect(TestDatumFour.asset?).to eql(false)
     end
 
     it 'should register a hook to create the asset record' do

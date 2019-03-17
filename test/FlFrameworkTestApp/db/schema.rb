@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_03_07_175045) do
+ActiveRecord::Schema.define(version: 2019_03_16_200303) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -33,6 +33,34 @@ ActiveRecord::Schema.define(version: 2019_03_07_175045) do
     t.index ["data_object_type", "data_object_id"], name: "fl_fmwk_acl_grants_data_idx"
     t.index ["data_object_type"], name: "fl_fmwk_acl_grants_data_type_idx"
     t.index ["permission"], name: "fl_fmwk_acl_grants_perm_idx"
+  end
+
+  create_table "fl_framework_actor_group_members", force: :cascade do |t|
+    t.string "title"
+    t.text "note"
+    t.bigint "group_id"
+    t.string "actor_type"
+    t.bigint "actor_id"
+    t.string "actor_fingerprint"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_fingerprint"], name: "fl_fmwk_grp_memb_actor_fp_idx"
+    t.index ["actor_type", "actor_id"], name: "fl_fmwk_grp_memb_actor_idx"
+    t.index ["group_id"], name: "fl_fmwk_grp_memb_group_idx"
+  end
+
+  create_table "fl_framework_actor_groups", force: :cascade do |t|
+    t.string "name"
+    t.text "note"
+    t.string "owner_type"
+    t.bigint "owner_id"
+    t.string "owner_fingerprint"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "lower((name)::text)", name: "fl_fmwk_act_grp_name_u_idx", unique: true
+    t.index ["name"], name: "fl_fmwk_act_grp_name_idx"
+    t.index ["owner_fingerprint"], name: "fl_fmwk_act_grp_owner_fp_idx"
+    t.index ["owner_type", "owner_id"], name: "fl_fmwk_act_grp_owner_idx"
   end
 
   create_table "fl_framework_assets", force: :cascade do |t|
@@ -96,6 +124,12 @@ ActiveRecord::Schema.define(version: 2019_03_07_175045) do
     t.datetime "updated_at", null: false
     t.index ["owner_fingerprint"], name: "fl_fmwk_list_owner_fp_idx"
     t.index ["owner_type", "owner_id"], name: "fl_fmwk_list_owner_idx"
+  end
+
+  create_table "test_actor_twos", force: :cascade do |t|
+    t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "test_actors", force: :cascade do |t|

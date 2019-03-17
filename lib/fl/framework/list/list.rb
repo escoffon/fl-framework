@@ -232,7 +232,7 @@ module Fl::Framework::List
     #
     # @param reload [Boolean] Set to `true` to reload the {#list_items} association.
     #
-    # @return [Array<Fl::Framework::List::ListItem>] Returns an array containing the objects in the list;
+    # @return [Array] Returns an array containing the objects in the list;
     #  maps over the array returned
     #  by the {#list_items} association, extracting their **list_object** attribute.
 

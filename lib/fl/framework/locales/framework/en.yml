@@ -4,6 +4,7 @@ en:
   date:
     formats:
       list_title: 'Created %m/%d/%Y'
+      actor_group_name: 'Created %m/%d/%Y'
   
   fl:
     framework:
@@ -114,3 +115,20 @@ en:
         model:
           validate:
             unknown_permission: "unknown permission '%{permission}'"
+
+      actor_group:
+        model:
+          normalization_failure: "Some objects could not be loaded into agroup members"
+          duplicate_name: "Group name is taken: '%{name}'"
+          different_group: "Group member %{item} cannot be reassigned to group {group}"
+          validate:
+            inconsistent_group: "Group member '%{group_member}' is not associated with group '%{group}'"
+        controller:
+          destroy:
+            deleted: "deleted group %{fingerprint} (%{name})"
+
+      actor_group_member:
+        model:
+          not_actor: "The object '%{actor}' is not an actor"
+          already_in_group: "The actor '%{actor}' is already in group '%{group}'"
+          bad_actor: "Cannot convert '%{actor}' to an actor"

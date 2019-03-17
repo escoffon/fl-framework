@@ -1,19 +1,10 @@
-# This class is marked as an actor
+# This class is not marked as an actor to test enabling the feature off-class
 
-class TestActor < ApplicationRecord
+class TestActorTwo < ApplicationRecord
   include Fl::Framework::Core::ModelHash
-  include Fl::Framework::Actor::Actor
-
-  is_actor title: :my_name
   
   validates :name, presence: true
 
-  # This is for testing the actor API
-
-  def my_name()
-    self.name
-  end
-  
   protected
   
   def to_hash_options_for_verbosity(actor, verbosity, opts)
