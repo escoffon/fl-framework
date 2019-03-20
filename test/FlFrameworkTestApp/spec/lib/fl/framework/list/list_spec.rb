@@ -6,20 +6,6 @@ RSpec.configure do |c|
   c.include Fl::Framework::Test::ObjectHelpers
 end
 
-class MyListItemOne < Fl::Framework::List::ListItem
-  SKIP_ATTRS = [ :list, :listed_object, :owner, :name ]
-
-  attr_reader :additional_args
-  
-  def initialize(attrs)
-    @additional_args = { }
-    
-    attrs.each do |k, v|
-      @additional_args[k] = attrs.delete(k) unless SKIP_ATTRS.include?(k.to_sym)
-    end
-  end
-end
-
 RSpec.describe Fl::Framework::List::List, type: :model do
   let(:a1) { create(:test_actor) }
   let(:a2) { create(:test_actor) }

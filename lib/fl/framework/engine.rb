@@ -51,6 +51,7 @@ module Fl
 
         require 'fl/framework/list'
         require 'fl/framework/asset'
+        require 'fl/framework/actor'
         
         require 'fl/google'
 

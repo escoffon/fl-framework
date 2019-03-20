@@ -29,16 +29,40 @@ class ActiveRecord::Base
     [ c, id ]
   end
 
-  # Generate a "fingerprint" for a given object.
-  # A fingerprint is a string that contains enough information to find the object from the database.
-  # It has the form *cname*/*id*, where *cname* is the class name, and *id* the object identifier.
+  # @overload fingerprint(obj)
+  #  Generate a "fingerprint" for a given object.
+  #  A fingerprint is a string that contains enough information to find the object from the database.
+  #  It has the form *cname*/*id*, where *cname* is the class name, and *id* the object identifier.
+  #  @param obj [ActiveRecord::Base] The object whose fingerprint to generate.
+  #  @return [String] Returns a string containing the class name and object identifier, as described above.
   #
-  # @param obj [ActiveRecord::Base] The object whose fingerprint to generate.
+  # @overload fingerprint(klass, id)
+  #  Generate a "fingerprint" from a class/identifier pair. See above for a description of fingerprints.
+  #  @param klass [Class] The class to use (this should be a subclass of `ActiveRecord::Base`).
+  #  @param id [String,Integer] the object identifier to use.
+  #  @return [String] Returns a string containing the class name and object identifier, as described above.
   #
-  # @return [String] Returns a string containing the class name and object identifier, as described above.
+  # @overload fingerprint(id)
+  #  Generate a "fingerprint" from an identifier. This a single argument version where the *id*
+  #  argument looks like an object identifier. The class name is
+  #  obtained from `self`, so that calling `MyDatum.fingerprint(10)` returns `MyDatum/10`, and
+  #  `OtherDatum.fingerprint(10)` returns `OtherDatum/10`.
+  #  See above for a description of fingerprints.
+  #  @param id [String,Integer] the object identifier to use.
+  #  @return [String] Returns a string containing the class name and object identifier, as described above.
 
-  def self.fingerprint(obj)
-    "#{obj.class.name}/#{obj.id}"
+  def self.fingerprint(*args)
+    if args.count == 1
+      obj = args[0]
+      if (obj.is_a?(String) && (obj =~ /^[0-9]+$/)) || obj.is_a?(Integer)
+        "#{self.name}/#{obj}"
+      else
+        "#{obj.class.name}/#{obj.id}"
+      end
+    else
+      klass, id = args
+      "#{klass.name}/#{id}"
+    end
   end
 
   # Generate a "fingerprint" for `self`.

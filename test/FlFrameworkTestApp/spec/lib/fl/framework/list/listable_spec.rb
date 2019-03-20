@@ -21,12 +21,23 @@ RSpec.describe Fl::Framework::List::Listable, type: :model do
       expect(d10.methods).to include(:listable?)
       expect(d20.methods).to include(:listable?)
       expect(d30.methods).to include(:listable?)
+
+      expect(TestActor.methods).to include(:listable?)
+      expect(TestActorTwo.methods).to include(:listable?)
+      expect(TestDatumOne.methods).to include(:listable?)
+      expect(TestDatumTwo.methods).to include(:listable?)
     end
 
     it 'should return true for classes marked listable' do
       expect(d10.listable?).to eql(true)
       expect(d20.listable?).to eql(true)
       expect(d30.listable?).to eql(false)
+
+      expect(TestActor.listable?).to eql(false)
+      expect(TestActorTwo.listable?).to eql(false)
+      expect(TestDatumOne.listable?).to eql(true)
+      expect(TestDatumTwo.listable?).to eql(true)
+      expect(TestDatumThree.listable?).to eql(false)
     end
   end
   
@@ -44,7 +55,7 @@ RSpec.describe Fl::Framework::List::Listable, type: :model do
     end
   end
   
-  describe '#containers' do
+  describe '#listable_containers' do
     let(:d11) { create(:test_datum_one, owner: a2, value: 11) }
     let(:d21) { create(:test_datum_two, owner: a1, value: 'v21') }
 
@@ -52,13 +63,13 @@ RSpec.describe Fl::Framework::List::Listable, type: :model do
       l1 = create(:list, owner: a1, objects: [ [ d10, a1 ], [ d20, a2 ] ])
       l2 = create(:list, owner: a2, objects: [ [ d20, a1 ] ])
 
-      d10_c = d10.containers
+      d10_c = d10.listable_containers
       d10_l = d10_c.map { |li| li.list.fingerprint }
       expect(d10_l).to contain_exactly(l1.fingerprint)
       d10_d = d10_c.map { |li| li.listed_object.fingerprint }
       expect(d10_d).to contain_exactly(d10.fingerprint)
 
-      d20_c = d20.containers
+      d20_c = d20.listable_containers
       d20_l = d20_c.map { |li| li.list.fingerprint }
       expect(d20_l).to contain_exactly(l1.fingerprint, l2.fingerprint)
       d20_d = d20_c.map { |li| li.listed_object.fingerprint }
@@ -106,15 +117,15 @@ RSpec.describe Fl::Framework::List::Listable, type: :model do
 
         expect(obj_fingerprints(d10.lists)).to eql([ ])
         
-        li = d10.add_to_list(l2, a1)
-        expect(li).to be_an_instance_of(Fl::Framework::List::ListItem)
-        expect(li.list.fingerprint).to eql(l2.fingerprint)
-        expect(li.listed_object.fingerprint).to eql(d10.fingerprint)
-        expect(li.owner.fingerprint).to eql(a1.fingerprint)
+        li1 = d10.add_to_list(l2, a1)
+        expect(li1).to be_an_instance_of(Fl::Framework::List::ListItem)
+        expect(li1.list.fingerprint).to eql(l2.fingerprint)
+        expect(li1.listed_object.fingerprint).to eql(d10.fingerprint)
+        expect(li1.owner.fingerprint).to eql(a1.fingerprint)
         expect(obj_fingerprints(d10.lists(true))).to contain_exactly(l2.fingerprint)
 
-        li = d10.add_to_list(l2)
-        expect(li).to be_nil
+        li2 = d10.add_to_list(l2)
+        expect(li2.fingerprint).to eql(li1.fingerprint)
         expect(obj_fingerprints(d10.lists(true))).to contain_exactly(l2.fingerprint)
       end
 

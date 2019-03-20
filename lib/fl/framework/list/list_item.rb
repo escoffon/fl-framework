@@ -407,7 +407,7 @@ module Fl::Framework::List
     # method for convenience.
     #
     # @param list [Fl::Framework::List::List, String] The list for which to get list items; the value
-    #  is either an onject, or a string containing the listable's fingerprint.
+    #  is either an object, or a string containing the listable's fingerprint.
     # @param opts [Hash] Additional options for the query; these are merged with **:only_lists**
     #  and passed to {.build_query}.
     #
@@ -430,7 +430,7 @@ module Fl::Framework::List
     # ```
     #
     # @param listable [Object, String] The listable object for which to get list items; the value is either
-    #  an onject, or a string containing the listable's fingerprint.
+    #  an object, or a string containing the listable's fingerprint.
     # @param opts [Hash] Additional options for the query; these are merged with **:only_listables**
     #  and passed to {.build_query}.
     #
@@ -466,7 +466,7 @@ module Fl::Framework::List
     # @param list [Fl::Framework::List::List, String] The list to search; a string value is assumed to be
     #  a fingerprint.
     #
-    # @return [Object] If *listable* is present in *list*, returns *listable*; otherwise, returns `nil`.
+    # @return [Object] If *listable* is present in *list*, returns the listable; otherwise, returns `nil`.
 
     def self.find_listable_in_list(listable, list)
       li = query_for_listable_in_list(listable, list).first

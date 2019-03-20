@@ -84,7 +84,6 @@ RSpec.describe "Fl::Framework::Lists", type: :request do
         expect(obj_fingerprints(r['lists'])).to eql(obj_fingerprints(x))
         expect(r['_pg']['_c']).to eql(x.count)
         expect(r['_pg']['_p']).to eql(2)
-
         
         get index_url, params: { _q: { only_owners: [ a1.fingerprint, a3.fingerprint ] } }
         expect(response).to be_successful
@@ -469,8 +468,8 @@ RSpec.describe "Fl::Framework::Lists", type: :request do
           name: 'd30'
         }
 
-        post add_object_url(0), params: { fl_framework_list: add_params }
-        expect(response).to have_http_status(:not_found)
+        post add_object_url(l1), params: { fl_framework_list: add_params }
+        expect(response).to have_http_status(:unprocessable_entity)
         r = JSON.parse(response.body)
         expect(r).to be_a(Hash)
         expect(r).to include('_error')

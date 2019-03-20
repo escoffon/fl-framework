@@ -1,11 +1,11 @@
-require 'fl/framework/list'
+require 'fl/framework/actor'
 require 'fl/framework/service/base'
 
-module Fl::Framework::Service
-  # Service object for lists.
+module Fl::Framework::Service::Actor
+  # Service object for actor groups.
 
-  class List < Fl::Framework::Service::Base
-    self.model_class = Fl::Framework::List::List
+  class Group < Fl::Framework::Service::Base
+    self.model_class = Fl::Framework::Actor::Group
 
     # Get create parameters.
     #
@@ -15,8 +15,7 @@ module Fl::Framework::Service
     # @return [ActionController::Parameters] Returns the create parameters.
 
     def create_params(p = nil)
-      strong_params(p).require(:fl_framework_list).permit(:title, :caption, :owner, :default_readony_state,
-                                                          :list_display_preferences)
+      strong_params(p).require(:fl_framework_actor_group).permit(:name, :note, :owner, { actors: [ ] })
     end
 
     # Get update parameters.
@@ -27,8 +26,7 @@ module Fl::Framework::Service
     # @return [ActionController::Parameters] Returns the update parameters.
 
     def update_params(p = nil)
-      strong_params(p).require(:fl_framework_list).permit(:title, :caption, :owner, :default_readony_state,
-                                                          :list_display_preferences)
+      strong_params(p).require(:fl_framework_actor_group).permit(:name, :note, :owner, { actors: [ ] })
     end
 
     # Get `to_hash` parameters.
@@ -43,15 +41,15 @@ module Fl::Framework::Service
       super(p)
     end
 
-    # Add an object to the list.
-    # Calls {Fl::Framework::List::List#add_object} and returns the added list item.
+    # Add an actor to the group.
+    # Calls {Fl::Framework::Actor::Group#add_actor} and returns the added group member.
     # If the operation fails, it sets the status to {Fl::Framework::Service::UNPROCESSABLE_ENTITY}
     # and loads a message and the **:details** key in the error status from the object's **errors** 
     # The target for the `add_object` method is obtained by a lookup using the **:id** submission parameter.
     #
     # The method calls {#allow_op?} for `opts[:permission]` to confirm that the
     # service's *actor* has permission to add an object (it requests the
-    # {Fl::Framework::List::Permission::ManageItems} permission).
+    # {Fl::Framework::Actor::Permission::ManageMembers}) permission).
     # If the permission is not granted, `nil` is returned.
     #
     # @param opts [Hash] Options to the method.
@@ -59,7 +57,7 @@ module Fl::Framework::Service
     #  identifier.
     #  Defaults to **:id**.
     # @option opts [Hash,ActionController::Parameters] :params The parameters to pass to the object's
-    #  initializer. If not present or `nil`, use the value returned by {#add_object_params}.
+    #  initializer. If not present or `nil`, use the value returned by {#add_actor_params}.
     # @option opts [Boolean,Hash] :captcha If this option is present and is either `true` or a hash,
     #  the method does a CAPTCHA validation using an appropriate subclass of {Fl::CAPTCHA::Base}
     #  (typically {Fl::Google::RECAPTCHA}, which implements
@@ -68,7 +66,7 @@ module Fl::Framework::Service
     # @option opts [Symbol,String,Fl::Framework::Access::Permission,Class] :permission The permission
     #  to request in order to complete the operation.
     #  See {Fl::Framework::Access::Helper.permission_name}.
-    #  Defaults to {Fl::Framework::List::Permission::ManageItems::NAME}.
+    #  Defaults to {Fl::Framework::Actor::Permission::ManageMembers::NAME}.
     # @option opts [Object] :context The context to pass to the access checker method {#class_allow_op?}.
     #  The special value **:params** (a Symbol named **params**) indicates that the create parameters are
     #  to be passed as the context.
@@ -76,17 +74,17 @@ module Fl::Framework::Service
     #
     # @return [Array] Returns an array containing two elements:
     #
-    #  0. The target list object (an instance of {Fl::Framework::List::List}).
-    #  1. The list item returned by the `add_object` call; this is an instance of
-    #     {Fl::Framework::List::ListItem}.
+    #  0. The target group object (an instance of {Fl::Framework::Actor::Group}).
+    #  1. The group member returned by the `add_actor` call; this is an instance of
+    #     {Fl::Framework::Actor::GroupMember}.
 
-    def add_object(opts = {})
+    def add_actor(opts = {})
       list = nil
       li = nil
       
       begin
-        p = (opts[:params]) ? opts[:params].to_h : add_object_params(self.params).to_h
-        op = (opts[:permission]) ? opts[:permission] : Fl::Framework::List::Permission::ManageItems::NAME
+        p = (opts[:params]) ? opts[:params].to_h : add_actor_params(self.params).to_h
+        op = (opts[:permission]) ? opts[:permission] : Fl::Framework::Actor::Permission::ManageMembers::NAME
         #ctx = if opts.has_key?(:context)
         #        (opts[:context] == :params) ? p : opts[:context]
         #      else
@@ -95,28 +93,28 @@ module Fl::Framework::Service
         #      end
         idname = (opts[:idname]) ? opts[:idname].to_sym : :id
 
-        list = get_and_check(op, idname)
-        if list && success?
+        group = get_and_check(op, idname)
+        if group && success?
           rs = verify_captcha(opts[:captcha], p)
           if rs['success']
-            li = list.add_object(p[:listed_object], p[:owner], p[:name])
+            gm = group.add_actor(p[:actor], p[:title], p[:note])
           else
-            li = nil
+            gm = nil
           end
         else
-          li = nil
+          gm = nil
         end
       rescue => x
         set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY, x.message)
       end
 
 
-      [ list, li ]
+      [ group, gm ]
     end
 
     protected
 
-    # Build a query to list instances of Fl::Framework::List::List.
+    # Build a query to list instances of Fl::Framework::Actor::Group.
     # This method makes a call to the class method `build_query`, which you will have to define.
     #
     # @param query_opts [Hash] A hash of query options.
@@ -125,16 +123,16 @@ module Fl::Framework::Service
     #  on error.
 
     def index_query(query_opts = {})
-      Fl::Framework::List::List.build_query(query_opts)
+      Fl::Framework::Actor::Group.build_query(query_opts)
     end
 
     private
   
-    def add_object_params(p = nil)
-      pp = strong_params(p).fetch(:fl_framework_list, {}).permit(:listed_object, :owner, :name)
+    def add_actor_params(p = nil)
+      pp = strong_params(p).fetch(:fl_framework_actor_group, {}).permit(:actor, :title, :note)
 
-      # we execute this statement to trigger an exception if :listed_object is missing
-      rp = pp.require(:listed_object)
+      # we execute this statement to trigger an exception if :actor is missing
+      rp = pp.require(:actor)
       
       pp
     end
