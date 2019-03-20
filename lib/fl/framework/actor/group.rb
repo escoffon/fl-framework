@@ -87,7 +87,7 @@ module Fl::Framework::Actor
     # {Fl::Framework::Actor::GroupMember} instances.
     # @return [Association] the members.
 
-    has_many :members, autosave: true, class_name: 'Fl::Framework::Actor::GroupMember'
+    has_many :members, autosave: true, class_name: 'Fl::Framework::Actor::GroupMember', dependent: :destroy
 
     validates :name, :length => { :minimum => 1, :maximum => 200 }
     validate :validate_unique_name
@@ -474,10 +474,10 @@ module Fl::Framework::Actor
       self.members.each_with_index do |gm, idx|
         if !gm.actor.respond_to?(:is_actor?) || !gm.actor.is_actor?
           errors.add(:members, I18n.tx('fl.framework.actor_group_member.model.not_actor',
-                                       actor: gm.actor.to_s))
+                                       actor: gm.actor.fingerprint))
         elsif self.persisted? && !gm.group.id.nil? && (gm.group.id != self.id)
           errors.add(:members, I18n.tx('fl.framework.actor_group.model.validate.inconsistent_group',
-                                       group_member: gm.to_s, group: self.to_s))
+                                       group_member: gm.fingerprint, group: self.fingerprint))
         end
       end
     end

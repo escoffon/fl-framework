@@ -117,17 +117,19 @@ module Fl::Framework::Actor
     # is converted to a {Fl::Framework::Core::Icalendar::Datetime} internally).
     #
     # @param opts [Hash] A Hash containing configuration options for the query.
-    # @option opts [Array<Fl::Framework::Actor::Group,Integer,String>, Fl::Framework::Actor::Gropu, Integer, String] :only_groups Limit the returned values to group members whose `group` attribute is in the option's
+    # @option opts [Array<Fl::Framework::Actor::Group,Integer,String>, Fl::Framework::Actor::Group, Integer, String] :only_groups Limit the returned values to group members whose `group` attribute is in the option's
     #  value (technically, whose `group_id` attribute is in the list of identifiers derived from the option's
     #  value).
-    #  The elements in an array value are {Fl::Framework::Actor::Group} instances, proup identifiers, or
-    #  object fingerprints.
+    #  The elements in an array value are {Fl::Framework::Actor::Group} instances, group identifiers, or
+    #  object fingerprints (string values are interpreted as fingerprints or object identifier, depending
+    #  on their contents).
     #  If this option is not present, all group members are selected.
-    # @option opts [Array<Fl::Framework::Actor::Group,Integer,String>, Fl::Framework::Actor::Gropu, Integer, String] :except_groups Limit the returned values to group members whose `group` attribute is not in the option's
+    # @option opts [Array<Fl::Framework::Actor::Group,Integer,String>, Fl::Framework::Actor::Group, Integer, String] :except_groups Limit the returned values to group members whose `group` attribute is not in the option's
     #  value (technically, whose `group_id` attribute is not in the list of identifiers derived from the option's
     #  value).
-    #  The elements in an array value are {Fl::Framework::Actor::Group} instances, proup identifiers, or
-    #  object fingerprints.
+    #  The elements in an array value are {Fl::Framework::Actor::Group} instances, group identifiers, or
+    #  object fingerprints (string values are interpreted as fingerprints or object identifier, depending
+    #  on their contents).
     #  If this option is not present, all group members are selected.
     # @option opts [Array<Object,String>, Object, String] :except_actors Limit the returned values to group
     #  members whose `actor` attribute is not in the option's value
@@ -154,6 +156,9 @@ module Fl::Framework::Actor
     # @option opts [Symbol, Array<Symbol>, Hash] :includes An array of symbols (or a single symbol),
     #  or a hash, to pass to the +includes+ method
     #  of the relation; see the guide on the ActiveRecord query interface about this method.
+    #  The value defaults to `[ :group, :actor ]`, so that by default the {#group} and {#actor}
+    #  association are eager loaded; we do this because there is a high probability that the caller
+    #  will attempt to access either or both objects after the query.
     #
     # Note that *:limit*, *:offset*, and *:includes* are convenience options, since they can be
     # added later by making calls to +limit+, +offset+, and +includes+ respectively, on the
@@ -169,6 +174,8 @@ module Fl::Framework::Actor
       if opts[:includes]
         i = (opts[:includes].is_a?(Array) || opts[:includes].is_a?(Hash)) ? opts[:includes] : [ opts[:includes] ]
         q = q.includes(i)
+      else
+        q = q.includes([ :group, :actor ])
       end
 
       g_lists = _partition_group_lists(opts)
@@ -570,7 +577,7 @@ module Fl::Framework::Actor
     end
 
     def populate_title()
-      self.title = self.actor.group_member_title() if self.title.nil?
+      self.title = "#{self.group.name} - #{self.actor.group_member_title()}" if self.title.nil?
     end
 
     def check_group_member()
@@ -613,8 +620,12 @@ module Fl::Framework::Actor
         when Fl::Framework::Actor::Group
           acc << u.id
         when String
-          c, id = ActiveRecord::Base.split_fingerprint(u, 'Fl::Framework::Actor::Group')
-          acc << id.to_i unless id.nil?
+          if u =~ /^[0-9]+$/
+            acc << u.to_i
+          else
+            c, id = ActiveRecord::Base.split_fingerprint(u, 'Fl::Framework::Actor::Group')
+            acc << id.to_i unless id.nil?
+          end
         end
 
         acc

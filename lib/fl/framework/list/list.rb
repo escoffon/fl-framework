@@ -563,10 +563,10 @@ module Fl::Framework::List
       self.list_items.each_with_index do |li, idx|
         if !li.listed_object.respond_to?(:listable?) || !li.listed_object.listable?
           errors.add(:objects, I18n.tx('fl.framework.list_item.model.not_listable',
-                                       listed_object: li.listed_object.to_s))
+                                       listed_object: li.listed_object.fingerprint))
         elsif self.persisted? && !li.list.id.nil? && (li.list.id != self.id)
           errors.add(:objects, I18n.tx('fl.framework.list.model.validate.inconsistent_list',
-                                       list_item: li.to_s, list: self.to_s))
+                                       list_item: li.fingerprint, list: self.fingerprint))
         end
 
         li.sort_order = idx

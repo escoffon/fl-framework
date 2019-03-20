@@ -14,4 +14,16 @@ Fl::Framework::Engine.routes.draw do
 
   resources :list_items, only: [ :index ], controller: 'list_items' do
   end
+
+  namespace :actor do
+    resources :groups do
+      member do
+        post 'add_actor'
+      end
+      resources :group_members, shallow: true, controller: 'group_members'
+    end
+
+    resources :group_members, only: [ :index ], controller: 'group_members' do
+    end
+  end
 end

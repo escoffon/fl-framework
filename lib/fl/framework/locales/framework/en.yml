@@ -68,6 +68,13 @@ en:
         list_item:
           not_found: "no list item with identifier %{id}"
           creation_failure: 'failed to create a list item'
+        actor:
+          group:
+            not_found: "no group with identifier %{id}"
+            creation_failure: 'failed to create a group'
+          group_member:
+            not_found: "no group member with identifier %{id}"
+            creation_failure: 'failed to create a group member'
 
       captcha:
         no-captcha: 'The request does not contain the CAPTCHA key %{key}'
@@ -132,3 +139,6 @@ en:
           not_actor: "The object '%{actor}' is not an actor"
           already_in_group: "The actor '%{actor}' is already in group '%{group}'"
           bad_actor: "Cannot convert '%{actor}' to an actor"
+        controller:
+          destroy:
+            deleted: "deleted group member %{fingerprint} (%{title})"
