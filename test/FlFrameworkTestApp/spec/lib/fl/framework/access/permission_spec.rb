@@ -26,22 +26,31 @@ RSpec.describe Fl::Framework::Access::Permission, type: :model do
                Fl::Framework::Access::Permission::Manage::NAME,
                Fl::Framework::Access::Permission::Create::NAME,
                Fl::Framework::Asset::Permission::Owner::NAME,
-               Fl::Framework::List::Permission::ManageItems::NAME ]
+               Fl::Framework::List::Permission::ManageItems::NAME,
+               Fl::Framework::Actor::Permission::ManageMembers::NAME ]
         
         expect(Fl::Framework::Access::Permission.registered).to match_array(xr)
       end
 
       it "should have registered grants correctly" do
         pg = Fl::Framework::Access::Permission.permission_grantors
-        expect(pg.keys).to match_array([ :read, :write, :delete, :edit, :manage,
-                                         :create, :manage_items, :owner ])
+        expect(pg.keys).to match_array([ Fl::Framework::Access::Permission::Read::NAME,
+                                         Fl::Framework::Access::Permission::Write::NAME,
+                                         Fl::Framework::Access::Permission::Delete::NAME,
+                                         Fl::Framework::Access::Permission::Edit::NAME,
+                                         Fl::Framework::Access::Permission::Manage::NAME,
+                                         Fl::Framework::Access::Permission::Create::NAME,
+                                         Fl::Framework::Asset::Permission::Owner::NAME,
+                                         Fl::Framework::List::Permission::ManageItems::NAME,
+                                         Fl::Framework::Actor::Permission::ManageMembers::NAME ])
         expect(pg[:read]).to match_array([ :edit, :manage ])
         expect(pg[:write]).to match_array([ :edit, :manage ])
         expect(pg[:delete]).to match_array([ :manage ])
         expect(pg[:edit]).to match_array([ :manage ])
         expect(pg[:manage]).to match_array([ ])
         expect(pg[:create]).to match_array([ ])
-        expect(pg[:manage_items]).to match_array([ ])
+        expect(pg[:manage_list_items]).to match_array([ ])
+        expect(pg[:manage_actor_group_members]).to match_array([ ])
         expect(pg[:owner]).to match_array([ ])
       end
 
@@ -67,6 +76,7 @@ RSpec.describe Fl::Framework::Access::Permission, type: :model do
                Fl::Framework::Access::Permission::Create::NAME,
                Fl::Framework::Asset::Permission::Owner::NAME,
                Fl::Framework::List::Permission::ManageItems::NAME,
+               Fl::Framework::Actor::Permission::ManageMembers::NAME,
                TestAccess::P1::NAME,
                TestAccess::P2::NAME ]
         

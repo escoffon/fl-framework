@@ -64,7 +64,7 @@ RSpec.describe Fl::Framework::Actor::GroupMember, type: :model do
     it 'should initialize :title if necessary' do
       gm1 = Fl::Framework::Actor::GroupMember.create(group: g10.fingerprint, actor: a10.fingerprint)
       expect(gm1.valid?).to eq(true)
-      expect(gm1.title).to eql(a10.my_name)
+      expect(gm1.title).to eql("#{g10.name} - #{a10.my_name}")
 
       gm1 = Fl::Framework::Actor::GroupMember.create(group: g10, actor: a11, title: 'explicit title')
       expect(gm1.valid?).to eq(true)
@@ -321,7 +321,7 @@ RSpec.describe Fl::Framework::Actor::GroupMember, type: :model do
 
       q = Fl::Framework::Actor::GroupMember.build_query(only_groups: g100, order: 'title')
       ql = q.map { |li| li.actor }
-      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ a10, a13, a15, a12 ]))
+      expect(obj_fingerprints(ql)).to eql(obj_fingerprints([ a12, a10, a13, a15 ]))
     end
   end
 

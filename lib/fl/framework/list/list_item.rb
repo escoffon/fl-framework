@@ -299,9 +299,9 @@ module Fl::Framework::List
         q = q.includes(i)
       end
 
-      l_lists = _partition_list_lists(opts)
-      o_lists = _partition_owner_lists(opts)
-      p_lists = _partition_listable_lists(opts)
+      l_lists = partition_lists_of_references(opts, 'lists', Fl::Framework::List::List)
+      o_lists = partition_lists_of_polymorphic_references(opts, 'owners')
+      p_lists = partition_lists_of_polymorphic_references(opts, 'listables')
 
       # if :only_owners is nil, and :except_owners is also nil, the two options will create an empty set,
       # so we can short circuit here.
@@ -930,107 +930,6 @@ module Fl::Framework::List
 
         @bump_list_update_time = false
       end
-    end
-
-    private
-  
-    def self._convert_list_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when Integer
-          acc << u
-        when Fl::Framework::List::List
-          acc << u.id
-        when String
-          c, id = ActiveRecord::Base.split_fingerprint(u, 'Fl::Framework::List::List')
-          acc << id.to_i unless id.nil?
-        end
-
-        acc
-      end
-    end
-
-    def self._partition_list_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_lists)
-        if opts[:only_lists].nil?
-          rv[:only_lists] = nil
-        else
-          only_l = (opts[:only_lists].is_a?(Array)) ? opts[:only_lists] : [ opts[:only_lists] ]
-          rv[:only_lists] = _convert_list_list(only_l)
-        end
-      end
-
-      if opts.has_key?(:except_lists)
-        if opts[:except_lists].nil?
-          rv[:except_lists] = nil
-        else
-          x_l = (opts[:except_lists].is_a?(Array)) ? opts[:except_lists] : [ opts[:except_lists] ]
-          except_lists = _convert_list_list(x_l)
-
-          # if there is a :only_lists, then we need to remove the :except_lists members from it.
-          # otherwise, we return :except_lists
-
-          if rv[:only_lists].is_a?(Array)
-            rv[:only_lists] = rv[:only_lists] - except_lists
-          else
-            rv[:except_lists] = except_lists
-          end
-        end
-      end
-
-      rv
-    end
-
-    def self._convert_listable_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when ActiveRecord::Base
-          acc << "#{u.class.name}/#{u.id}"
-        when String
-          # Technically, we could get the class from the name, check that it exists and that it is
-          # a subclass of ActiveRecord::Base, but for the time being we don't
-          
-          c, id = ActiveRecord::Base.split_fingerprint(u)
-          acc << u unless c.nil? || id.nil?
-        end
-
-        acc
-      end
-    end
-    
-    def self._partition_listable_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_listables)
-        if opts[:only_listables].nil?
-          rv[:only_listables] = nil
-        else
-          only_o = (opts[:only_listables].is_a?(Array)) ? opts[:only_listables] : [ opts[:only_listables] ]
-          rv[:only_listables] = _convert_listable_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_listables)
-        if opts[:except_listables].nil?
-          rv[:except_listables] = nil
-        else
-          x_o = (opts[:except_listables].is_a?(Array)) ? opts[:except_listables] : [ opts[:except_listables] ]
-          except_listables = _convert_listable_list(x_o)
-
-          # if there is a :only_listables, then we need to remove the :except_listables members from it.
-          # otherwise, we return :except_listables
-
-          if rv[:only_listables].is_a?(Array)
-            rv[:only_listables] = rv[:only_listables] - except_listables
-          else
-            rv[:except_listables] = except_listables
-          end
-        end
-      end
-
-      rv
     end
   end
 end

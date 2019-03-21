@@ -172,9 +172,20 @@ module Fl::Framework::Asset
           end
       q = q.includes(i)
 
-      o_lists = _partition_owner_lists(opts)
-      a_lists = _partition_asset_type_lists(opts)
+      o_lists = partition_lists_of_polymorphic_references(opts, 'owners')
+      a_lists = partition_filter_lists(opts, 'asset_types') do |tl|
+        tl.reduce([ ]) do |acc, t|
+          case t
+          when Class
+            acc << t.name unless acc.include?(t.name)
+          when String
+            acc << t unless acc.include?(t)
+          end
 
+          acc
+        end
+      end
+      
       # if :only_owners is nil, and :except_owners is also nil, the two options will create an empty set,
       # so we can short circuit here.
       # and similarly for :only_asset_types and :except_asset_types
@@ -364,102 +375,6 @@ module Fl::Framework::Asset
     
     def set_fingerprints()
       self.owner_fingerprint = self.owner.fingerprint if self.owner
-    end
-
-    def self._convert_owner_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when ActiveRecord::Base
-          acc << "#{u.class.name}/#{u.id}"
-        when String
-          # Technically, we could get the class from the name, check that it exists and that it is
-          # a subclass of ActiveRecord::Base, but for the time being we don't
-          
-          c, id = ActiveRecord::Base.split_fingerprint(u)
-          acc << u unless c.nil? || id.nil?
-        end
-
-        acc
-      end
-    end
-    
-    def self._partition_owner_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_owners)
-        if opts[:only_owners].nil?
-          rv[:only_owners] = nil
-        else
-          only_o = (opts[:only_owners].is_a?(Array)) ? opts[:only_owners] : [ opts[:only_owners] ]
-          rv[:only_owners] = _convert_owner_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_owners)
-        if opts[:except_owners].nil?
-          rv[:except_owners] = nil
-        else
-          x_o = (opts[:except_owners].is_a?(Array)) ? opts[:except_owners] : [ opts[:except_owners] ]
-          except_owners = _convert_owner_list(x_o)
-
-          # if there is a :only_owners, then we need to remove the :except_owners members from it.
-          # otherwise, we return :except_owners
-
-          if rv[:only_owners].is_a?(Array)
-            rv[:only_owners] = rv[:only_owners] - except_owners
-          else
-            rv[:except_owners] = except_owners
-          end
-        end
-      end
-
-      rv
-    end
-
-    def self._convert_asset_type_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when Class
-          acc << u.name unless acc.include?(u.name)
-        when String
-          acc << u unless acc.include?(u)
-        end
-
-        acc
-      end
-    end
-    
-    def self._partition_asset_type_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_asset_types)
-        if opts[:only_asset_types].nil?
-          rv[:only_asset_types] = nil
-        else
-          only_o = (opts[:only_asset_types].is_a?(Array)) ? opts[:only_asset_types] : [ opts[:only_asset_types] ]
-          rv[:only_asset_types] = _convert_asset_type_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_asset_types)
-        if opts[:except_asset_types].nil?
-          rv[:except_asset_types] = nil
-        else
-          x_o = (opts[:except_asset_types].is_a?(Array)) ? opts[:except_asset_types] : [ opts[:except_asset_types] ]
-          except_asset_types = _convert_asset_type_list(x_o)
-
-          # if there is a :only_asset_types, then we need to remove the :except_asset_types members from it.
-          # otherwise, we return :except_asset_types
-
-          if rv[:only_asset_types].is_a?(Array)
-            rv[:only_asset_types] = rv[:only_asset_types] - except_asset_types
-          else
-            rv[:except_asset_types] = except_asset_types
-          end
-        end
-      end
-
-      rv
     end
   end
 end
