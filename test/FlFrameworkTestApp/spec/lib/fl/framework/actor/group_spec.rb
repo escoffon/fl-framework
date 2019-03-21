@@ -92,9 +92,9 @@ RSpec.describe Fl::Framework::Actor::Group, type: :model do
 
         al = g1.members.map { |gm| "#{gm.actor.fingerprint}-#{gm.title}" }
         expect(al).to match_array([
-                                    "#{a10.fingerprint}-#{a10.my_name}",
-                                    "#{a12.fingerprint}-#{a12.my_name}",
-                                    "#{a14.fingerprint}-#{a14.my_name}",
+                                    "#{a10.fingerprint}-#{g1.name} - #{a10.my_name}",
+                                    "#{a12.fingerprint}-#{g1.name} - #{a12.my_name}",
+                                    "#{a14.fingerprint}-#{g1.name} - #{a14.my_name}",
                                     "#{a11.fingerprint}-a11:title"
                                   ])
       end

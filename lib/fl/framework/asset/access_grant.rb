@@ -182,10 +182,20 @@ module Fl::Framework::Asset
         q = q.includes(:actor, :data_object)
       end
 
-      a_lists = _partition_actor_lists(opts)
-      d_lists = _partition_datum_lists(opts)
-      p_lists = _partition_permission_lists(opts)
-      t_lists = _partition_type_lists(opts)
+      a_lists = partition_lists_of_polymorphic_references(opts, 'actors')
+      d_lists = partition_lists_of_polymorphic_references(opts, 'data')
+      p_lists = partition_filter_lists(opts, 'permissions') do |pl|
+        pl.map { |p| Fl::Framework::Access::Helper.permission_name(p) }
+      end
+      t_lists = partition_filter_lists(opts, 'types') do |dl|
+        dl.map do |d|
+          if d.is_a?(Class)
+            d.name
+          else
+            d.to_s
+          end
+        end
+      end
 
       # if :only_actors is nil, and :except_actors is also nil, the two options will create an empty set,
       # so we can short circuit here.
@@ -463,186 +473,6 @@ module Fl::Framework::Asset
       
       self.actor_fingerprint = self.actor.fingerprint if self.actor
       self.data_object_fingerprint = self.data_object.fingerprint if self.data_object
-    end
-
-    def self._convert_actor_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when ActiveRecord::Base
-          acc << u.fingerprint
-        when String
-          # Technically, we could get the class from the name, check that it exists and that it is
-          # a subclass of ActiveRecord::Base, but for the time being we don't
-            
-          c, id = ActiveRecord::Base.split_fingerprint(u)
-          acc << u unless c.nil? || id.nil?
-        end
-
-        acc
-      end
-    end
-
-    def self._partition_actor_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_actors)
-        if opts[:only_actors].nil?
-          rv[:only_actors] = nil
-        else
-          only_o = (opts[:only_actors].is_a?(Array)) ? opts[:only_actors] : [ opts[:only_actors] ]
-          rv[:only_actors] = _convert_actor_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_actors)
-        if opts[:except_actors].nil?
-          rv[:except_actors] = nil
-        else
-          x_o = (opts[:except_actors].is_a?(Array)) ? opts[:except_actors] : [ opts[:except_actors] ]
-          except_actors = _convert_actor_list(x_o)
-
-          # if there is a :only_actors, then we need to remove the :except_actors members from it.
-          # otherwise, we return :except_actors
-
-          if rv[:only_actors].is_a?(Array)
-            rv[:only_actors] = rv[:only_actors] - except_actors
-          else
-            rv[:except_actors] = except_actors
-          end
-        end
-      end
-
-      rv
-    end
-
-    def self._convert_datum_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when ActiveRecord::Base
-          acc << u.fingerprint
-        when String
-          # Technically, we could get the class from the name, check that it exists and that it is
-          # a subclass of ActiveRecord::Base, but for the time being we don't
-            
-          c, id = ActiveRecord::Base.split_fingerprint(u)
-          acc << u unless c.nil? || id.nil?
-        end
-
-        acc
-      end
-    end
-
-    def self._partition_datum_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_data)
-        if opts[:only_data].nil?
-          rv[:only_data] = nil
-        else
-          only_o = (opts[:only_data].is_a?(Array)) ? opts[:only_data] : [ opts[:only_data] ]
-          rv[:only_data] = _convert_datum_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_data)
-        if opts[:except_data].nil?
-          rv[:except_data] = nil
-        else
-          x_o = (opts[:except_data].is_a?(Array)) ? opts[:except_data] : [ opts[:except_data] ]
-          except_data = _convert_datum_list(x_o)
-
-          # if there is a :only_data, then we need to remove the :except_data members from it.
-          # otherwise, we return :except_data
-
-          if rv[:only_data].is_a?(Array)
-            rv[:only_data] = rv[:only_data] - except_data
-          else
-            rv[:except_data] = except_data
-          end
-        end
-      end
-
-      rv
-    end
-
-    def self._convert_permission_list(ul)
-      ul.map { |u| Fl::Framework::Access::Helper.permission_name(u) }
-    end
-
-    def self._partition_permission_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_permissions)
-        if opts[:only_permissions].nil?
-          rv[:only_permissions] = nil
-        else
-          only_o = (opts[:only_permissions].is_a?(Array)) ? opts[:only_permissions] : [ opts[:only_permissions] ]
-          rv[:only_permissions] = _convert_permission_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_permissions)
-        if opts[:except_permissions].nil?
-          rv[:except_permissions] = nil
-        else
-          x_o = (opts[:except_permissions].is_a?(Array)) ? opts[:except_permissions] : [ opts[:except_permissions] ]
-          except_permissions = _convert_permission_list(x_o)
-
-          # if there is a :only_permissions, then we need to remove the :except_permissions members from it.
-          # otherwise, we return :except_permissions
-
-          if rv[:only_permissions].is_a?(Array)
-            rv[:only_permissions] = rv[:only_permissions] - except_permissions
-          else
-            rv[:except_permissions] = except_permissions
-          end
-        end
-      end
-
-      rv
-    end
-
-    def self._convert_type_list(ul)
-      ul.map do |u|
-        if u.is_a?(Class)
-          u.name
-        else
-          u.to_s
-        end
-      end
-    end
-
-    def self._partition_type_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_types)
-        if opts[:only_types].nil?
-          rv[:only_types] = nil
-        else
-          only_o = (opts[:only_types].is_a?(Array)) ? opts[:only_types] : [ opts[:only_types] ]
-          rv[:only_types] = _convert_type_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_types)
-        if opts[:except_types].nil?
-          rv[:except_types] = nil
-        else
-          x_o = (opts[:except_types].is_a?(Array)) ? opts[:except_types] : [ opts[:except_types] ]
-          except_types = _convert_type_list(x_o)
-
-          # if there is a :only_types, then we need to remove the :except_types members from it.
-          # otherwise, we return :except_types
-
-          if rv[:only_types].is_a?(Array)
-            rv[:only_types] = rv[:only_types] - except_types
-          else
-            rv[:except_types] = except_types
-          end
-        end
-      end
-
-      rv
     end
   end
 end

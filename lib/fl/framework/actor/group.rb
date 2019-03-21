@@ -64,7 +64,6 @@ module Fl::Framework::Actor
     extend Fl::Framework::Query
     include Fl::Framework::Actor::Actor
     include Fl::Framework::Actor::Helper
-    include Fl::Framework::List::Helper
     
     self.table_name = 'fl_framework_actor_groups'
     
@@ -273,7 +272,7 @@ module Fl::Framework::Actor
         q = q.includes(i)
       end
 
-      o_lists = _partition_owner_lists(opts)
+      o_lists = partition_lists_of_polymorphic_references(opts, 'owners')
 
       # if :only_owners is nil, and :except_owners is also nil, the two options will create an empty set,
       # so we can short circuit here.

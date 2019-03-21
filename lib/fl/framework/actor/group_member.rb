@@ -178,8 +178,8 @@ module Fl::Framework::Actor
         q = q.includes([ :group, :actor ])
       end
 
-      g_lists = _partition_group_lists(opts)
-      a_lists = _partition_actor_lists(opts)
+      g_lists = partition_lists_of_references(opts, 'groups', Fl::Framework::Actor::Group)
+      a_lists = partition_lists_of_polymorphic_references(opts, 'actors')
 
       # if :only_groups is nil, and :except_groups is also nil, the two options will create an empty set,
       # so we can short circuit here.
@@ -608,111 +608,6 @@ module Fl::Framework::Actor
 
         @bump_group_update_time = false
       end
-    end
-
-    private
-  
-    def self._convert_group_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when Integer
-          acc << u
-        when Fl::Framework::Actor::Group
-          acc << u.id
-        when String
-          if u =~ /^[0-9]+$/
-            acc << u.to_i
-          else
-            c, id = ActiveRecord::Base.split_fingerprint(u, 'Fl::Framework::Actor::Group')
-            acc << id.to_i unless id.nil?
-          end
-        end
-
-        acc
-      end
-    end
-
-    def self._partition_group_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_groups)
-        if opts[:only_groups].nil?
-          rv[:only_groups] = nil
-        else
-          only_l = (opts[:only_groups].is_a?(Array)) ? opts[:only_groups] : [ opts[:only_groups] ]
-          rv[:only_groups] = _convert_group_list(only_l)
-        end
-      end
-
-      if opts.has_key?(:except_groups)
-        if opts[:except_groups].nil?
-          rv[:except_groups] = nil
-        else
-          x_l = (opts[:except_groups].is_a?(Array)) ? opts[:except_groups] : [ opts[:except_groups] ]
-          except_groups = _convert_group_list(x_l)
-
-          # if there is a :only_groups, then we need to remove the :except_groups members from it.
-          # otherwise, we return :except_groups
-
-          if rv[:only_groups].is_a?(Array)
-            rv[:only_groups] = rv[:only_groups] - except_groups
-          else
-            rv[:except_groups] = except_groups
-          end
-        end
-      end
-
-      rv
-    end
-
-    def self._convert_actor_list(ul)
-      ul.reduce([ ]) do |acc, u|
-        case u
-        when ActiveRecord::Base
-          acc << "#{u.class.name}/#{u.id}"
-        when String
-          # Technically, we could get the class from the name, check that it exists and that it is
-          # a subclass of ActiveRecord::Base, but for the time being we don't
-          
-          c, id = ActiveRecord::Base.split_fingerprint(u)
-          acc << u unless c.nil? || id.nil?
-        end
-
-        acc
-      end
-    end
-    
-    def self._partition_actor_lists(opts)
-      rv = { }
-
-      if opts.has_key?(:only_actors)
-        if opts[:only_actors].nil?
-          rv[:only_actors] = nil
-        else
-          only_o = (opts[:only_actors].is_a?(Array)) ? opts[:only_actors] : [ opts[:only_actors] ]
-          rv[:only_actors] = _convert_actor_list(only_o)
-        end
-      end
-
-      if opts.has_key?(:except_actors)
-        if opts[:except_actors].nil?
-          rv[:except_actors] = nil
-        else
-          x_o = (opts[:except_actors].is_a?(Array)) ? opts[:except_actors] : [ opts[:except_actors] ]
-          except_actors = _convert_actor_list(x_o)
-
-          # if there is a :only_actors, then we need to remove the :except_actors members from it.
-          # otherwise, we return :except_actors
-
-          if rv[:only_actors].is_a?(Array)
-            rv[:only_actors] = rv[:only_actors] - except_actors
-          else
-            rv[:except_actors] = except_actors
-          end
-        end
-      end
-
-      rv
     end
   end
 end
