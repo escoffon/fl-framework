@@ -32,8 +32,8 @@ module Fl::Framework::List
       # Initializer.
       #
       # @param msg [String] An error message.
-      # @param olist [Array] An arry that contains the list of objects that triggered the error.
-      #  Any sring elements are added to the error list.
+      # @param olist [Array] An array that contains the list of objects that triggered the error.
+      #  Any string elements are added to the error list.
       
       def initialize(msg = '', olist = [])
         super(msg)
@@ -405,17 +405,17 @@ module Fl::Framework::List
       q
     end
   
-    # Execute a query to fetch the number of list items for a given set of query options.
-    # The number returned is subject to the configuration options +opts+; for example,
-    # if <tt>opts[:only_lists]</tt> is defined, the return value is the number of list items whose
-    # list identifiers are in the option.
+    # Execute a query to fetch the number of lists for a given set of query options.
+    # The number returned is subject to the configuration options *opts*; for example,
+    # if <tt>opts[:only_owner]</tt> is defined, the return value is the number of lists whose
+    # owners are in the option.
     #
     # @param opts [Hash] A Hash containing configuration options for the query.
     #  See the documentation for {.build_query}.
     #
-    # @return [Integer] Returns the number of list items that would be returned by the query.
+    # @return [Integer] Returns the number of lists that would be returned by the query.
 
-    def self.count_list_items(opts = {})
+    def self.count_lists(opts = {})
       q = build_query(opts)
       (q.nil?) ? 0 : q.count
     end

@@ -86,6 +86,10 @@ module Fl::Framework::List
     # A polymorphic `belongs_to` association linking to the entity that last modified the item's state.
     # @return [Association] the updater.
 
+    # @!attribute [rw] state_note
+    # The note associated with the last state change.
+    # @return [String] the state note.
+
     belongs_to :state_updated_by, polymorphic: true, optional: true
 
     validate :object_must_be_listable
@@ -555,7 +559,7 @@ module Fl::Framework::List
     # This method converts *o* to a {Fl::Framework::List::ListItem} if necessary.
     # The object to resolve, *o*, can be one of the following:
     #
-    # 1. Instances of {Fl::Framework::List::ListItem], which are kept as-is.
+    # 1. Instances of {Fl::Framework::List::ListItem}, which are kept as-is.
     #    However, the method enforces that *o* is in list *list*.
     # 2. Subclasses of {ActiveRecord::Base} that respond to the `listable?` method and return `true`
     #    (and are, therefore, listable).

@@ -93,7 +93,7 @@ en:
         model:
           not_listable: "The object '%{listed_object}' is not a listable"
           bad_listed_object: "Cannot convert '%{listed_object}' to an object"
-          different_list: "List item %{item} cannot be reassigned to list {list}"
+          different_list: "List item %{item} cannot be reassigned to list '%{list}'"
           already_in_list: "The object '%{listed_object}' is already in list '%{list}'"
           validate:
             invalid_state: "Invalid list item state: %{value}"
