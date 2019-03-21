@@ -55,14 +55,13 @@ module Fl::Framework
     #  timestamp embedded in the complete name.
     
     def create_migration_file(migration_dir, name)
-      now = Time.new
-      ts = now.strftime('%Y%m%d%H%M%S')
+      out_dir = File.join(destination_root, 'db', 'migrate')
+      ts = generate_timestamp(out_dir)
       
       in_name, in_file = find_migration_file(migration_dir, name)
       if in_name.nil?
         say_status('error', 'could not find the template migration file')
       else
-        out_dir = File.join(destination_root, 'db', 'migrate')
         out_name, out_file = find_migration_file(out_dir, "#{name}.fl_framework")
         if out_name
           say_status('warn', "migration file exists: #{File.basename(out_file)}")
@@ -101,6 +100,38 @@ module Fl::Framework
       Dir.chdir(curdir)
 
       [ name, infile ]
+    end
+
+    # Generate a migration timestamp in a target directory.
+    # This method starts with a timestamp corresponding to the current time; it then scans the target
+    # directry to ensure that the timestamp is not already in use, and if so bumps it by one second and
+    # then tries again.
+    # It is necessary to do this when a generator creates multiple migration files: in this case, it is
+    # possible (even likely!) that the files would be all created during the same second, and therefore
+    # with the same timestamp.
+    #
+    # @param d [String] The path to the directory to search.
+    #
+    # @return [String] Returns the timestamp.
+    
+    def generate_timestamp(d)
+      now = Time.new
+      ts = now.strftime('%Y%m%d%H%M%S')
+
+      curdir = Dir.getwd
+      Dir.chdir(d)
+
+      while true
+        ts_m = ts + '_'
+        match = Dir.glob('*.rb').find { |fn| fn.start_with?(ts_m) }
+        if match.nil?
+          Dir.chdir(curdir)
+          return ts
+        end
+        
+        now += 1.second
+        ts = now.strftime('%Y%m%d%H%M%S')
+      end
     end
   end
 end
