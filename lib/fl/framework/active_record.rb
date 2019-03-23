@@ -26,7 +26,7 @@ class ActiveRecord::Base
       end
     end
     
-    [ c, id ]
+    [ c, id.to_i ]
   end
 
   # @overload fingerprint(obj)
