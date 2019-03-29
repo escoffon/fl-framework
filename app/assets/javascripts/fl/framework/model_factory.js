@@ -15,7 +15,7 @@
 
 const _ = require('lodash');
 const jscache = require('js-cache');
-const { FlExtensions, FlClassManager } = require('fl/framework/object_system');
+const { FlExtensions, FlClassManager } = require('./object_system');
 
 /**
  * @ngdoc type

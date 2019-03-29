@@ -1,5 +1,5 @@
-const objs = require('fl/framework/object_system');
-const mfac = require('fl/framework/model_factory');
+const objs = require('./object_system');
+const mfac = require('./model_factory');
 
 /**
  * @ngdoc module

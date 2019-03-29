@@ -1,3 +1,3 @@
-const fl = require('fl/framework/fl');
+const fl = require('./fl');
 
 module.exports = fl;

@@ -7,10 +7,10 @@
  */
 
 const _ = require('lodash');
-const { FlExtensions, FlClassManager } = require('fl/framework/object_system');
+const { FlExtensions, FlClassManager } = require('./object_system');
 const {
     FlModelBase, FlModelCache, FlModelFactory, FlGlobalModelFactory
-} = require('fl/framework/model_factory');
+} = require('./model_factory');
 
 /**
  * @ngdoc type
