@@ -7,16 +7,16 @@
  */
 
 const _ = require('lodash');
-const { FlExtensions, FlClassManager } = require('fl/framework/object_system');
+const { FlExtensions, FlClassManager } = require('./object_system');
 const {
     FlModelBase, FlModelCache, FlModelFactory, FlGlobalModelFactory
-} = require('fl/framework/model_factory');
+} = require('./model_factory');
 const {
     FlAPIService, FlAPIServiceRegistry, FlGlobalAPIServiceRegistry
-} = require('fl/framework/api_services');
+} = require('./api_services');
 
 // This is imported so that webpack pulls in the sources, or we run the risk of not loading it
-const { FlFrameworkListList, FlFrameworkListListItem } = require('fl/framework/list_models');
+const { FlFrameworkListList, FlFrameworkListListItem } = require('./list_models');
 
 const LIST_API_CFG = {
     root_url_template: '/fl/framework/lists',
@@ -97,7 +97,7 @@ let FlFrameworkListAPIService = FlClassManager.make_class({
 
 	    return this.post(this.url_path_for('add_object', id), this._wrap_data(api_data), config)
 		.then(function(r) {
-		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
+		    return Promise.resolve(self.modelFactory.create(self.response_data(r)));
 		})
 		.catch(function(e) {
 		    return Promise.reject(_.isObject(e.response) ? e.response : e);

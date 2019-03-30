@@ -9,10 +9,10 @@
 
 const _ = require('lodash');
 const axios = require('axios');
-const { FlExtensions, FlClassManager } = require('fl/framework/object_system');
+const { FlExtensions, FlClassManager } = require('./object_system');
 const {
     FlModelBase, FlModelCache, FlModelFactory, FlGlobalModelFactory
-} = require('fl/framework/model_factory');
+} = require('./model_factory');
 
 const DEFAULT_SRV_CFG = {
     xsrfCookieName: 'XSRF-TOKEN',
@@ -137,6 +137,41 @@ const DEFAULT_SRV_CFG = {
  * On error, the response returns an status code in the 400 or 500 range, and the body is a JSON
  * representation of the error.
  *
+ * ##### Host (base) URLs
+ *
+ * The **root_url_template** in the configuration (and **shallow_root_url_template**) are slightly
+ * misnamed, as they contain just the path component of the complete URL.
+ * This is as it should be, because the API signature should not include the server address (because
+ * the same API could be running on different servers).
+ *
+ * In a browser environment, the current page's server address is used if one is not provided, but in
+ * other environments (for example, React native) there is no notion of a "current page" or
+ * "currrent server address." In this latter case, the API user must specify an absolute URL; the
+ * mechanism for doing so is to pass a **baseURL** option in the server configuration object argument
+ * in the constructor or in the network call methods like {@sref FlAPIService#get} and
+ * {@sref FlAPIService#index}.
+ * For example, to create a service instance that communicates with the server
+ * at `http://srv.example.com:80`, pass the **baseURL** argument in the constructor:
+ * ```
+ * function get_data_promise() {
+ *   let srv = new MyAPIService({ baseURL : 'http://srv.example.com:80' });
+ *
+ *   return srv.index();
+ * }
+ * ```
+ * Alternatively, you can customize the base URL for each function call:
+ * ```
+ * function get_data_promise(baseURL) {
+ *   let srv = new MyAPIService();
+ *
+ *   return srv.index(null, { baseURL : baseURL })
+ * };
+ * ```
+ * (This last examples is a bit contrived, but you get the idea.)
+ * Either approach is acceptable, although placing the base URL in the constructor might be a bit
+ * cleaner. On the other hand, if you have a long lived service object that needs to switch target
+ * servers, the per-call customization is what you want.
+ *
  * ##### The status object
  *
  * The status object as returned by the methods contains the following properties:
@@ -202,6 +237,7 @@ const DEFAULT_SRV_CFG = {
  * ```
  * const LIST_ITEM_API_CFG = {
  *   root_url_template: '/lists/${list.id}/list_items',
+ *   shallow_root_url_template: '/list_items',
  *   namespace: 'list_item',
  *   data_names: [ 'list_item', 'list_items' ]
  * };
@@ -217,7 +253,9 @@ const DEFAULT_SRV_CFG = {
  * ```
  * Note how the root URL template contains the directive `${list.id}`, and how the constructor takes
  * the list object that provides the nesting resource; this list object is saved in the **this.list**
- * property.
+ * property. Individual list items are accessed via the `/list_items` URL; for example, the URL for the
+ * `show` action for the list item with identifier 1234 in list `3456` is `/list_items/1234` rather
+ * than `/lists/3456/list_items/1234`.
  *
  * ##### Rails nested resources
  *
@@ -262,7 +300,8 @@ let FlAPIService = FlClassManager.make_class({
      * @description The constructor; called during `new` creation.
      *
      * @param {Object} api_cfg Configuration for the API object.
-     * @property {String} api_cfg.root_url_template The template used to generate the root URL.
+     * @property {String} api_cfg.root_url_template The template used to generate the path component
+     *  of the URL.
      *  The value may contain replacement directives of the form `${expr}`, similar to the syntax
      *  used for ES6 template literals. For example, the template `/my/${parent.id}/dependents` will
      *  generate a root URL `/my/1234/dependents`, where `1234` is the result of the expression
@@ -578,7 +617,8 @@ let FlAPIService = FlClassManager.make_class({
 	 *
 	 * @return {Promise} Returns a promise that resolves or rejects based on the return value
 	 *  from the Axios `get` method.
-	 *  The response object is also saved in the {@sref FlAPIService#response} property.
+	 *  The error and response objects are also saved in the {@sref FlAPIService#error} and 
+	 *  {@sref FlAPIService#response} properties, respectively.
 	 */
 
 	get: function(url, config) {
@@ -707,8 +747,9 @@ let FlAPIService = FlClassManager.make_class({
 	 *  is merged into the default HTTP configuration object.
 	 *
 	 * @return {Promise} Returns a promise that resolves or rejects based on the return value
-	 *  from the Axios `get` method.
-	 *  The response object is also saved in the {@sref FlAPIService#response} property.
+	 *  from the Axios `head` method.
+	 *  The error and response objects are also saved in the {@sref FlAPIService#error} and 
+	 *  {@sref FlAPIService#response} properties, respectively.
 	 */
 
 	head: function(url, config) {
@@ -739,9 +780,10 @@ let FlAPIService = FlClassManager.make_class({
 	 *
 	 * @return On success, returns a resolved promise containing the response data converted
 	 *  to an array of model objects.
-	 *  On error, returns a rejected promise containing the response.
-	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
-	 *  property.
+	 *  On error, returns a promise that rejects with the value
+	 *  from the {@sref FlAPIService#get} method.
+	 *  The error and response objects are also saved in the {@sref FlAPIService#error} and 
+	 *  {@sref FlAPIService#response} properties, respectively.
 	 */
 
 	index: function(params, config) {
@@ -750,10 +792,10 @@ let FlAPIService = FlClassManager.make_class({
 	    return this.get(this.url_path_for('index'), this._make_index_config(params, config))
 		.then(function(r) {
 		    self._set_pagination_controls(r);
-		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
+		    return Promise.resolve(self.modelFactory.create(self.response_data(r)));
 		})
 		.catch(function(e) {
-		    return Promise.reject(e.response);
+		    return Promise.reject(e);
 		});
 	},
 	
@@ -824,16 +866,17 @@ let FlAPIService = FlClassManager.make_class({
 	 *
 	 * @return On success, returns a resolved promise containing the response data converted to a
 	 *  model object.
-	 *  On error, returns a rejected promise containing the response.
-	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
-	 *  property.
+	 *  On error, returns a promise that rejects with the value
+	 *  from the {@sref FlAPIService#get} method.
+	 *  The error and response objects are also saved in the {@sref FlAPIService#error} and 
+	 *  {@sref FlAPIService#response} properties, respectively.
 	 */
 
 	show: function(id, params, config) {
 	    let self = this;
 	    return this.get(this.url_path_for('show', id), this._make_get_config(params, config))
 		.then(function(r) {
-		    let model = self._create_or_refresh_from_id(id, self._response_data(r));
+		    let model = self._create_or_refresh_from_id(id, self.response_data(r));
 
 		    if (_.isFunction(self._showDidSucceed))
 		    {
@@ -842,7 +885,7 @@ let FlAPIService = FlClassManager.make_class({
 		    return Promise.resolve(model);
 		})
 		.catch(function(e) {
-		    return Promise.reject(e.response);
+		    return Promise.reject(e);
 		});
 	},
 
@@ -867,11 +910,11 @@ let FlAPIService = FlClassManager.make_class({
 	 * @param {Object} [config] Configuration object to pass to axios.patch; this object is
 	 *  merged into the default HTTP configuration.
 	 *
-	 * @return On success, returns a promise as returned by the supported processing methods.
-	 *  On error, returns a rejected promise containing the response; it also returns a
-	 *  rejected promise if _method_ is not the name of a supported method.
-	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
-	 *  property.
+	 * @return {Promise} Returns a promise that resolves or rejects based on the return value
+	 *  from the supported Axios processing methods.
+	 *  It also returns a rejected promise if *method* is not the name of a supported method.
+	 *  The error and response objects are also saved in the {@sref FlAPIService#error} and 
+	 *  {@sref FlAPIService#response} properties, respectively.
 	 */
 
 	process: function(method, url, data, config) {
@@ -952,9 +995,10 @@ let FlAPIService = FlClassManager.make_class({
 	 *  merged into the default HTTP configuration.
 	 *
 	 * @return On success, returns a resolved promise containing the response data.
-	 *  On error, returns a rejected promise containing the response.
-	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
-	 *  property.
+	 *  On error, returns a promise that rejects with the value
+	 *  from the {@sref FlAPIService#post} method.
+	 *  The error and response objects are also saved in the {@sref FlAPIService#error} and 
+	 *  {@sref FlAPIService#response} properties, respectively.
 	 */
 
 	create: function(data, config) {
@@ -962,10 +1006,10 @@ let FlAPIService = FlClassManager.make_class({
 	    
 	    return this.post(this.url_path_for('create'), this._wrap_data(data), config)
 		.then(function(r) {
-		    return Promise.resolve(self.modelFactory.create(self._response_data(r)));
+		    return Promise.resolve(self.modelFactory.create(self.response_data(r)));
 		})
 		.catch(function(e) {
-		    return Promise.reject(e.response);
+		    return Promise.reject(e);
 		});
 	},
 
@@ -983,9 +1027,10 @@ let FlAPIService = FlClassManager.make_class({
 	 *  merged into the default HTTP configuration.
 	 *
 	 * @return On success, returns a resolved promise containing the response data.
-	 *  On error, returns a rejected promise containing the response.
-	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
-	 *  property.
+	 *  On error, returns a promise that rejects with the value
+	 *  from the {@sref FlAPIService#patch} method.
+	 *  The error and response objects are also saved in the {@sref FlAPIService#error} and 
+	 *  {@sref FlAPIService#response} properties, respectively.
 	 */
 
 	update: function(id, data, config) {
@@ -993,10 +1038,10 @@ let FlAPIService = FlClassManager.make_class({
 
 	    return this.patch(this.url_path_for('update', id), this._wrap_data(data), config)
 		.then(function(r) {
-		    return Promise.resolve(self._create_or_refresh_from_id(id, self._response_data(r)));
+		    return Promise.resolve(self._create_or_refresh_from_id(id, self.response_data(r)));
 		})
 		.catch(function(e) {
-		    return Promise.reject(e.response);
+		    return Promise.reject(e);
 		});
 	},
 
@@ -1013,9 +1058,10 @@ let FlAPIService = FlClassManager.make_class({
 	 *  merged into the default HTTP configuration.
 	 *
 	 * @return On success, returns a resolved promise containing the response data.
-	 *  On error, returns a rejected promise containing the response.
-	 *  In all cases, the response object is also saved int the {@sref FlAPIService#response}
-	 *  property.
+	 *  On error, returns a promise that rejects with the value
+	 *  from the {@sref FlAPIService#delete} method.
+	 *  The error and response objects are also saved in the {@sref FlAPIService#error} and 
+	 *  {@sref FlAPIService#response} properties, respectively.
 	 */
 
 	destroy: function(id, config) {
@@ -1025,7 +1071,7 @@ let FlAPIService = FlClassManager.make_class({
 		    return Promise.resolve(self.response_status(r));
 		})
 		.catch(function(e) {
-		    return Promise.reject(e.response);
+		    return Promise.reject(e);
 		});
 	},
 
@@ -1180,28 +1226,46 @@ let FlAPIService = FlClassManager.make_class({
 	 *  The method tries to detect the type of response: a general HTTP response,
 	 *  an API error status, or an exception raised.
 	 *
-	 * @param {Object} r The response.
+	 * @param {Object} r The response object from Axios; this object describes a failed request,
+	 *  including situations where Axios was unable to submit the request (for example, because the
+	 *  target URL is unavailable).
 	 *
 	 * @return {Object} Returns an object containing an error report:
-	 *  - *:status* The response status.
+	 *  - *:status* The response status if a response was returned by thes server.
 	 *  - *:message* A string containing an error message.
 	 */
 
 	response_error: function(r) {
 	    let err = { };
-	    if (r.status) err.status = r.status;
+	    let response = r.response;
 
-	    let rd = r.data;
-	    if (_.isObject(rd) && _.isObject(rd._error))
+	    if (_.isObject(response))
 	    {
-		err = rd._error;
+		if (response.status) err.status = response.status;
+
+		let rd = response.data;
+		if (_.isObject(rd) && _.isObject(rd._error))
+		{
+		    err = rd._error;
+		}
+		else
+		{
+		    err.message = "response error";
+		    if (_.isString(response.statusText)) err.message = response.statusText;
+		    if (_.isString(response.message)) err.message = response.message;
+
+		    if (response.stack)
+		    {
+			err.details = {
+			    stack: response.stack.split("\n")
+			};
+		    }
+		}
 	    }
-	    else
+	    else if (_.isError(r))
 	    {
-		err.message = "response error";
-		if (_.isString(r.statusText)) err.message = r.statusText;
-		if (_.isString(r.message)) err.message = r.message;
-
+		err.message = r.message;
+		err.name = r.name;
 		if (r.stack)
 		{
 		    err.details = {
@@ -1215,18 +1279,36 @@ let FlAPIService = FlClassManager.make_class({
 
 	/**
 	 * @ngdoc method
-	 * @name FlAPIService#_response_data
-	 * @description Given a (successful) response, return the response data.
-	 *  The default implementation iterates over the values in *data_names*,
+	 * @name FlAPIService#response_data
+	 * @description Given a response, return the response data.
+	 *  This method covers both successful and unsuccesful responses from the standard API.
+	 *  It first checks that *response* is defined, since some requests may have failed before the
+	 *  request is actually made (for example, if the server is down the connection is refused and
+	 *  therefore there is no response).
+	 *  It then checks if the *response.data* property is present, and looks for the two special
+	 *  properties *response.data._error* and *response.data._status* which are generated by the
+	 *  API to indicate an error or a status return; it returns their value if present.
+	 *  Finally, it iterates over the values in the **data_names** configuration property,
 	 *  looking for a property by that name in *response.data*; the first hit
 	 *  is returned.
 	 *
 	 *  Most subclasses won't need to override this method.
 	 *
-	 * @param {Object} response The response data.
+	 * @param {Object} response The response, which should contain a **data** property.
+	 *
+	 * @return {Object|undefined} Returns the response data as described above; if *response* is
+	 *  not an object, or if it does not contain the **data** property, it returns `undefined`.
 	 */
 
-	_response_data: function(response) {
+	response_data: function(response) {
+	    if (!_.isObject(response)) return undefined;
+
+	    let data = response.data;
+	    if (!_.isObject(data)) return undefined;
+	    
+	    if (!_.isUndefined(data._status)) return data._status;
+	    if (!_.isUndefined(data._error)) return data._error;
+	    
 	    let ary = this._api_cfg.data_names;
 
 	    if (ary)
@@ -1238,9 +1320,9 @@ let FlAPIService = FlClassManager.make_class({
 		for (idx=0 ; idx < len ; idx++)
 		{
 		    name = ary[idx];
-		    if (response.data[name])
+		    if (data[name])
 		    {
-			return response.data[name];
+			return data[name];
 		    }
 		}
 	    }
@@ -1791,7 +1873,7 @@ let FlAPIServiceRegistry = FlClassManager.make_class({
 	 *  This method uses the class registry to fetch the service and return a new instance.
 	 *
 	 *  The first argument, *name*, is used to look up the service constructor. All other arguments
-	 *  are passed to the constructor using spread syntax (`...args`). This supports consstructors
+	 *  are passed to the constructor using spread syntax (`...args`). This supports constructors
 	 *  with arbitrary argument lists. For example, the constructor for a nested API service typically
 	 *  accepts the resting resource and the server configuration; when using `create`, pass these two
 	 *  in the argument list:
@@ -1811,7 +1893,7 @@ let FlAPIServiceRegistry = FlClassManager.make_class({
 	 *  of the corresponding API service.
 	 */
 
-	create: function(name, cfg) {
+	create: function(name) {
 	    var info = this.service_info(name);
 	    if (info)
 	    {

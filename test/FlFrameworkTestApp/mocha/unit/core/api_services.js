@@ -834,7 +834,7 @@ describe('fl.api_services module', function() {
 			return Promise.reject('should not have reached this');
 		    })
 		    .catch(function(r) {
-			expect(r.status).to.eq(404);
+			expect(r.response.status).to.eq(404);
 			let err = srv.response_error(r);
 			expect(err.status).to.eq('not_found');
 			
@@ -1039,7 +1039,7 @@ describe('fl.api_services module', function() {
 			return Promise.reject('should not have reached this');
 		    })
 		    .catch(function(r) {
-			expect(r.status).to.eq(404);
+			expect(r.response.status).to.eq(404);
 			let err = srv.response_error(r);
 			expect(err.status).to.eq('not_found');
 			
@@ -1132,12 +1132,18 @@ describe('fl.api_services module', function() {
 	context('response_error', function() {
 	    it('should extract standard API data', function() {
 		let srv = new FlAPIService(API_CFG);
-		let err = srv.response_error({ status: 'test_status', data: {
-		    _error: {
-			status: 'error_status',
-			message: 'error_message',
-			details: 'error_details'
-		    }}});
+		let err = srv.response_error({
+		    response: {
+			status: 'test_status',
+			data: {
+			    _error: {
+				status: 'error_status',
+				message: 'error_message',
+				details: 'error_details'
+			    }
+			}
+		    }
+		});
 
 		expect(err).to.include({
 		    status: 'error_status', message: 'error_message', details: 'error_details'
@@ -1146,12 +1152,17 @@ describe('fl.api_services module', function() {
 
 	    it('should extract (almost) standard API data', function() {
 		let srv = new FlAPIService(API_CFG);
-		let err = srv.response_error({ data: {
-		    _error: {
-			status: 'error_status',
-			message: 'error_message',
-			details: 'error_details'
-		    }}});
+		let err = srv.response_error({
+		    response: {
+			data: {
+			    _error: {
+				status: 'error_status',
+				message: 'error_message',
+				details: 'error_details'
+			    }
+			}
+		    }
+		});
 
 		expect(err).to.include({
 		    status: 'error_status', message: 'error_message', details: 'error_details'
@@ -1160,7 +1171,9 @@ describe('fl.api_services module', function() {
 
 	    it('should extract with missing data', function() {
 		let srv = new FlAPIService(API_CFG);
-		let err = srv.response_error({ status: 'test_status', message: 'test_message' });
+		let err = srv.response_error({
+		    response: { status: 'test_status', message: 'test_message' }
+		});
 
 		expect(err).to.include({
 		    status: 'test_status', message: 'test_message'
@@ -1169,8 +1182,9 @@ describe('fl.api_services module', function() {
 
 	    it('should extract with incomplete data', function() {
 		let srv = new FlAPIService(API_CFG);
-		let err = srv.response_error({ status: 'test_status', message: 'test_message', data: {
-		}});
+		let err = srv.response_error({
+		    response: { status: 'test_status', message: 'test_message', data: { }}
+		});
 
 		expect(err).to.include({
 		    status: 'test_status', message: 'test_message'
@@ -1180,13 +1194,15 @@ describe('fl.api_services module', function() {
 	    it('should extract with correct priorities', function() {
 		let srv = new FlAPIService(API_CFG);
 		let err = srv.response_error({
-		    status: 'test_status',
-		    message: 'test_message',
-		    data: {
-			_error: {
-			    status: 'error_status',
-			    message: 'error_message',
-			    details: 'error_details'
+		    response: {
+			status: 'test_status',
+			message: 'test_message',
+			data: {
+			    _error: {
+				status: 'error_status',
+				message: 'error_message',
+				details: 'error_details'
+			    }
 			}
 		    }
 		});
@@ -1539,7 +1555,7 @@ describe('fl.api_services module', function() {
 			return Promise.reject('should not have reached this');
 		    })
 		    .catch(function(r) {
-			expect(r.status).to.eq(404);
+			expect(r.response.status).to.eq(404);
 			let err = srv.response_error(r);
 			expect(err.status).to.eq('not_found');
 			
