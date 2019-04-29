@@ -5,6 +5,45 @@ module Fl::Framework
   module Query
     protected
 
+    # Normalize a boolean query flag.
+    # This method accepts a flag value in multiple formats, and converts it to `true` or `false`.
+    #
+    # @param f [Boolean,Numeric,String,nil] The flag value. If a boolean, it is returned as is.
+    #  If a numeric value, it returns `true` if f != 0, and `false` otherwise; therefore, a numeric
+    #  value has the same semantics as numeric to boolean conversion in C.
+    #  If a string value, and the string is made up wholly of digits, the value is converted to an
+    #  integer and processed as for numeric values.
+    #  Otherwise, the strings `true`, `t`, `yes`, and `y` are converted to `true`, and `false`, `f`,
+    #  `no`, and `n` are converted to `false`. A `nil` value is converted to `false`.
+    #  Any other value is also converted to `false`.
+    #
+    # @return [Boolean] Returns a boolean value as outlined above.
+    
+    def boolean_query_flag(f)
+      case f
+      when TrueClass, FalseClass
+        f
+      when Numeric
+        f != 0
+      when String
+        if f =~ /^[0-9]+$/
+          f.to_i != 0
+        elsif f =~ /^t(rue)?$/i
+          true
+        elsif f =~ /^f(alse)?$/i
+          false
+        elsif f =~ /^y(es)?$/i
+          true
+        elsif f =~ /^n(o)?$/i
+          false
+        end
+      when NilClass
+        false
+      else
+        false
+      end
+    end
+
     # Converts a list of references to a list of object identifiers.
     # This method takes an array containing references to objects of a single class, and returns
     # an array of object identifiers for all the converted references.
