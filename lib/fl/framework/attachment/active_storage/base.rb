@@ -280,12 +280,12 @@ module Fl::Framework::Attachment::ActiveStorage
       base.instance_eval do
       end
 
+      base.instance_variable_set(:@_attachment_options, { })
+      base.instance_variable_set(:@_attachment_styles, { })
+
       base.class_eval do
-        @@attachment_options = { }
-        @@attachment_styles = { }
-        
         def self.attachment_options(aname = nil)
-          return @@attachment_options if aname.nil?
+          return @_attachment_options if aname.nil?
 
           ak = case aname
                when ActiveStorage::Attached::One
@@ -297,11 +297,11 @@ module Fl::Framework::Attachment::ActiveStorage
                else
                  aname
                end
-          @@attachment_options[ak] || { }
+          @_attachment_options[ak] || { }
         end
         
         def self.attachment_styles(aname = nil)
-          return @@attachment_styles if aname.nil?
+          return @_attachment_styles if aname.nil?
 
           ak = case aname
                when ActiveStorage::Attached::One
@@ -313,7 +313,7 @@ module Fl::Framework::Attachment::ActiveStorage
                else
                  aname
                end
-          s = @@attachment_styles[ak]
+          s = @_attachment_styles[ak]
           case s
           when Hash
             s

@@ -65,6 +65,19 @@ module Fl::Framework::Attachment::ActiveStorage
     # Any styles not supported by the attachment are filtered out, except that `:all`
     # is converted to all the supported styles.
     #
+    # This method looks up the styles listed in *styles* as follows. If *styles* is a symbol, it is
+    # converted to a one-element array; if it is a string, it is assumed to be a comma-separated list
+    # of style names, and is converted to an array of style names; if it is an array, it is left as is.
+    # The method then iterates over the contents of the array. If the element is a symbol, it is looked
+    # up in the known styles for *attachment*; if one is found, it is added to the return value.
+    # Otherwise, if the value is a hash, it must contain a **:name** key that will be used to place the
+    # hash in the return value.
+    #
+    # Note that style names that are not in the attachment's known styles are not placed in the return
+    # value. If you want to define a custom variant, use the hash format of the element and don't forget
+    # the **:name** key. The only exceptions to this rule are the two style names **:original** and
+    # **:blob**, which are allowed event though they may not be in the known styles.
+    #
     # @param attachment [ActiveStorage::Attached::One] The attachment proxy; this is the value of the
     #  attachment attribute registered with `has_one_attached`.
     # @param styles [Array, String, Symbol] The list of styles to return.
@@ -73,10 +86,11 @@ module Fl::Framework::Attachment::ActiveStorage
     #  for a variant.
     #  The symbol `:all` indicates that all supported styles should be returned.
     #
-    # @return [Array<Symbol,Hash>] Returns an array where each element is either the name of a valid
-    #  style, or a hash containing variant parameters.
+    # @return [Hash] Returns a hash where the keys are style names, and the values are hashes containing
+    #  the variant parameters.
 
     def self.to_hash_attachment_styles(attachment, styles = :all)
+      implicit_styles = [ :original, :blob ]
       known_styles = attachment.record.class.attachment_styles(attachment.name)
       sl = case styles
            when String
@@ -99,22 +113,20 @@ module Fl::Framework::Attachment::ActiveStorage
            end
 
       has_original = false
-      rv = sl.reduce([ ]) do |acc, sn|
+      rv = sl.reduce({ }) do |acc, sn|
         if sn.is_a?(Symbol)
           if known_styles.has_key?(sn)
-            acc.push(sn)
-            has_original = true if sn == :original
+            acc[sn] = known_styles[sn]
+          elsif implicit_styles.include?(sn)
+            acc[sn] = { }
           end
-        else
-          acc.push(sn)
+        elsif sn.has_key?(:name)
+          n = sn[:name].to_sym
+          acc[n] = sn
         end
         acc
       end
       
-      # add original, unless it is already there. This lets clients define their own :original parameters
-
-      rv.push(:original) unless has_original
-
       rv
     end
 
@@ -126,10 +138,7 @@ module Fl::Framework::Attachment::ActiveStorage
     #  this is the value of the attachment attribute registered with `has_one_attached`
     #  or `has_many_attached`.
     # @param styles [Array, String, Symbol] The list of styles to return.
-    #  A string value is a comma-separated list of style names.
-    #  Each element of the array value is either a style name, or a hash containing processing parameters
-    #  for a variant.
-    #  The symbol `:all` indicates that all supported styles should be returned.
+    #  See {.to_hash_attachment_styles} for a description of how this argument is processed.
     #
     # @return [Hash,nil] If *attachment* is not currently attached, returns `nil`.
     #  Otherwise, returns a hash containing the following keys:
@@ -167,7 +176,10 @@ module Fl::Framework::Attachment::ActiveStorage
     # {.to_hash_active_storage_attachment}.
     #
     # @param attachment [Attachment] The attachment.
-    # @param styles [Array] The list of styles to return.
+    # @param styles [Hash] The list of styles to return; the value is a hash where keys are symbols
+    #  containing the style names, and values are hashes containing the configuration for the variant
+    #  corresponding to the style.
+    #  See {.to_hash_attachment_styles} for a description of how this argument is generated.
     #  The `:original` style contains the URL to the original file, but processed according to the
     #  variant parameters specified by the `:original` style.
     #  The `:blob` style contains the URL to the original file, as obtained from the blob; no style
@@ -188,7 +200,8 @@ module Fl::Framework::Attachment::ActiveStorage
       record = attachment.record
       aname = attachment.name.to_sym
 
-      variants = styles.reduce([ ]) do |acc, s|
+      variants = styles.reduce([ ]) do |acc, skv|
+        s, p = skv
         if s == :blob
           acc << {
             style: :blob,
@@ -201,8 +214,7 @@ module Fl::Framework::Attachment::ActiveStorage
             params: { },
             url: blob_path(attachment.blob)
           }
-        else
-          p = record.attachment_style(aname, s)
+        elsif attachment.variable?
           acc << {
             style: s,
             params: p,
