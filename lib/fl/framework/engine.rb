@@ -38,6 +38,7 @@ module Fl
 
         require 'fl/framework/core'
         require 'fl/framework/query'
+        require 'fl/framework/text_search_helper'
         require 'fl/framework/access'
 #        require 'fl/framework/comment'
         require 'fl/framework/attachment'
