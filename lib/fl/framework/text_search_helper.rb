@@ -337,13 +337,15 @@ module Fl::Framework
       #  The hash value is passed to {ClassMethods#pg_rank} to generate the
       #  appropriate call to the ranking function; see that documentation for a description of the
       #  contents of this hash. Note that, in addition to the options in {ClassMethods#pg_rank},
-      #  the **tsv** option is used to set the name of the tsvector column ad described below.
+      #  the **tsv** option is used to set the name of the tsvector column as described below.
       #  Any other value is converted to an empty hash.
       #  The default is an empty hash.
       # @option opts[:rank] [String] :tsv The name of the column that contains the tsvector to use.
       #  If there is no tsvector column, you can pass "to_tsvector(<document>)" where <document>
       #  is the name of the document column; in this case, the rank function will convert the contents
       #  to a tsvector on the fly.
+      #  This option defaults to `tsv`, which is most likely incorrect; in the vast majority of the cases,
+      #  the caller will have to provide a value for the option.
       # @param pgqs [String] A Postgres query string as returned by a call to {#pg_query_string}.
       #
       # @return [Array] Returns an array containing two elements:
@@ -387,11 +389,19 @@ module Fl::Framework
                           else
                             {}
                           end
+
+              # The rank order clause triggers a warning in Rails 5:
+              # - Dangerous query method (method whose arguments are used as raw SQL) called with
+              #   non-attribute argument(s)
+              # - Non-attribute arguments will be disallowed in Rails 6.0
+              # Since we have put together the rank clause ourselves and we know it's safe, we wrap in
+              # an Arel.sql statement to let ActiveRecord know that all is good
+              
               rank = pg_rank(rank_opts[:tsv], PG_QUERY_STRING + pgqs, rank_opts)
               if a.count > 1
-                [ rank, a[1] ].join(' ')
+                Arel.sql([ rank, a[1] ].join(' '))
               else
-                [ rank, 'DESC' ].join(' ')
+                Arel.sql([ rank, 'DESC' ].join(' '))
               end
             else
               'updated_at DESC'

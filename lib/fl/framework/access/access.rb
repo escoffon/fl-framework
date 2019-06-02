@@ -69,7 +69,7 @@ module Fl::Framework::Access
       # the checker may modify the class declaration as needed.
       #
       # @param checker [Fl::Framework::Access::Checker] The checker to use for access control.
-      # @param cfg [Hash] A hash containing configuration parameters.
+      # @param opts [Hash] A hash containing configuration parameters.
       #
       # @raise [RuntimeError] Raises an exception if *checker* is not an instance of
       #  {Fl::Framework::Access::Checker}.

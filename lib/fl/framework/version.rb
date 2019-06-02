@@ -2,10 +2,10 @@ module Fl
   module Framework
     # The version number of the fl-framework gem.
 
-    VERSION = '0.10.4'
+    VERSION = '0.10.5'
 
     # The version date for the fl-framework gem.
 
-    DATE = '2019-05-30'
+    DATE = '2019-06-02'
   end
 end
