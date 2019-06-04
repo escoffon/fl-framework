@@ -91,6 +91,8 @@ module Fl::Framework
       #
       # 1. Operators; these are special values that indicate an operation:
       #    - The string 'OR' (we allow for 'or' to be a bit lenient).
+      #      We also allow the string '|' to stand for 'OR', so that the Postgres-style operator name is
+      #      also supported.
       #    - The string 'AND' (we allow for 'and' to be a bit lenient). This operator is not really needed,
       #      because any words not connected by an operator are connected by '&'.
       #    - The string 'AROUND(n)' (we allow for 'around(n)' to be a bit lenient).
@@ -138,12 +140,45 @@ module Fl::Framework
             else
               raise MalformedQuery.new(qs, idx)
             end
-          when '-'
+          when '|'
+            case state
+            when :scan
+              tokens << [ :or ]
+              cur = ''
+            when :quote
+              cur << c
+            when :token
+              tokens << [ :word, cur ]
+              tokens << [ :or ]
+              state = :scan
+              cur = ''
+            else
+              raise MalformedQuery.new(qs, idx)
+            end
+          when '&'
+            case state
+            when :scan
+              tokens << [ :and ]
+              cur = ''
+            when :quote
+              cur << c
+            when :token
+              tokens << [ :word, cur ]
+              tokens << [ :and ]
+              state = :scan
+              cur = ''
+            else
+              raise MalformedQuery.new(qs, idx)
+            end
+          when '-', '!'
             case state
             when :scan
               tokens << [ :minus ]
             when :quote
               cur << c
+            when :around
+              raise MalformedQuery.new(qs, idx) unless c == '-'
+              cur = '1'
             when :token
               if cur.upcase == 'OR'
                 tokens << [ :or ]
@@ -160,6 +195,31 @@ module Fl::Framework
                 tokens << [ :minus ]
                 state = :scan
               end
+              cur = ''
+            else
+              raise MalformedQuery.new(qs, idx)
+            end
+          when '<'
+            case state
+            when :scan
+              state = :around
+              cur = ''
+            when :quote
+              cur << c
+            when :token
+              tokens << [ :word, cur ]
+              state = :around
+              cur = ''
+            else
+              raise MalformedQuery.new(qs, idx)
+            end
+          when '>'
+            case state
+            when :quote
+              cur << c
+            when :around
+              tokens << [ :around, cur.to_i ]
+              state = :scan
               cur = ''
             else
               raise MalformedQuery.new(qs, idx)
@@ -414,6 +474,42 @@ module Fl::Framework
         [ olist, rank ]
       end
 
+      # Build a WHERE clause for a Postgres query.
+      #
+      # @param doc_name [String] The name of the document (column in our case) that holds the contents
+      #  to search. If you provide a tsvector name in *tsv*, this value is ignored. This is useful in
+      #  situations where the document is actually generated from a collection of fields; in this case,
+      #  build a tsvector and use that instead of the document field.
+      #  You can pass `nil` if you provide a non-nil value to *tsv*.
+      # @param tsv [String] The name of the column that contains the tsvector to use.
+      #  This value is placed in the WHERE clause.
+      #  If there is no tsvector column, you can pass `nil` and the method will use the
+      #  output of "to_tsvector(#{doc_name})" (in other words, it will convert the contents to a tsvector
+      #  on the fly).
+      # @param qs [String] The query string to use. If *qs* starts with 'pg:', the method assumes that
+      #  the rest of the value has already been converted to Postgres form; otherwise, the method calls
+      #  {#tokenize_query_string} and {#generate_query_text} to convert it to a query string
+      #  for the `to_tsquery` Postgres function.
+      # @param cfg [String] The name of the configuration to use in the call to `to_tsquery`.
+      #  If the value is `nil`, this parameter is not passed to `to_tsquery`; if it does not start
+      #  with 'pg_catalog`, that value is added to the parameter.
+      # 
+      # @return [String] Returns a string that can be passed to the `where` method in the ActiveRecord
+      #  query interface.
+
+      def pg_where(doc_name, tsv, qs, cfg = nil)
+        pgqs = pg_query_string(qs)
+        scfg = if cfg.is_a?(String) || cfg.is_a?(Symbol)
+                 s = cfg.to_s.downcase
+                 (s.start_with?('pg_catalog.')) ? "'#{s}', " : "'pg_catalog.#{s}', "
+               else
+                 ''
+               end
+        tsv = "to_tsvector(#{doc_name})" unless (tsv.is_a?(String) && (tsv.length > 0)) || tsv.is_a?(Symbol)
+
+        "(#{tsv} @@ to_tsquery(#{scfg}'#{pgqs}'))"
+      end
+
       # Modify an ActiveRecord::Relation object to trigger a full text query.
       # This method adds one or two calls to *q*:
       #
@@ -423,7 +519,7 @@ module Fl::Framework
       # @param q [ActiveRecord::Relation] The relation object to modify; if `nil`, uses **self**.
       # @param doc_name [String] The name of the document (column in our case) that holds the contents
       #  to search. If you provide a tsvector name in *tsv*, this value is ignored. This is useful in
-      #  situation where the document is actually generated from a collection of fields; in this case,
+      #  situations where the document is actually generated from a collection of fields; in this case,
       #  build a tsvector and use that instead of the document field.
       # @param tsv [String] The name of the column that contains the tsvector to use.
       #  This value is placed in the WHERE clause.
@@ -438,6 +534,10 @@ module Fl::Framework
       # @option opts [String] :with_headline Return a "headline" pseudoattribute if present and
       #  non-false. If the vaue is a string, it is the name of the attribute; if `true`, the name
       #  defaults to **:headline**.
+      # @option opts [String] :with_configuration The name of the configuration to use in the call to
+      #  `to_tsquery`.
+      #  If the value is `nil`, this parameter is not passed to `to_tsquery`; if it does not start
+      #  with 'pg_catalog`, that value is added to the parameter.
       # 
       # @return [ActiveRecord::Relation] Returns a relation object that has been modified to include a
       #  full text query WHERE condition, and a SELECT condition if a "headline" is desired.
@@ -451,9 +551,7 @@ module Fl::Framework
           q = q.select(strip_select_list(hl).append(pg_headline_select_item(doc_name, pgqs, hl)))
         end
 
-        tsv = "to_tsvector(#{doc_name})" unless (tsv.is_a?(String) && (tsv.length > 0)) || tsv.is_a?(Symbol)
-
-        q = q.where("(#{tsv} @@ to_tsquery('#{pgqs}'))")
+        q = q.where(pg_where(doc_name, tsv, qs, opts[:with_configuration]))
 
         q
       end

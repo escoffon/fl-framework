@@ -69,46 +69,74 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
       end.to raise_error(Fl::Framework::TextSearchHelper::MalformedQuery)
     end
 
-    it 'should parse the - operator' do
+    it 'should parse the - (and !) operator' do
       qs = Wrapper.tokenize_query_string('one - two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one ! two')
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string(' - two')
       expect(qs).to eql([ [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string(' ! two')
+      expect(qs).to eql([ [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('-two')
+      expect(qs).to eql([ [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string(' !two')
       expect(qs).to eql([ [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('one -two')
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one !two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('one- two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one! two')
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('one-two')
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one!two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('"one one" - "two two"')
+      expect(qs).to eql([ [ :quoted, 'one one' ], [ :minus ], [ :quoted, 'two two' ] ])
+      qs = Wrapper.tokenize_query_string('"one one" ! "two two"')
       expect(qs).to eql([ [ :quoted, 'one one' ], [ :minus ], [ :quoted, 'two two' ] ])
 
       qs = Wrapper.tokenize_query_string(' - "two two"')
       expect(qs).to eql([ [ :minus ], [ :quoted, 'two two' ] ])
+      qs = Wrapper.tokenize_query_string(' ! "two two"')
+      expect(qs).to eql([ [ :minus ], [ :quoted, 'two two' ] ])
 
       qs = Wrapper.tokenize_query_string('-"two two"')
+      expect(qs).to eql([ [ :minus ], [ :quoted, 'two two' ] ])
+      qs = Wrapper.tokenize_query_string('!"two two"')
       expect(qs).to eql([ [ :minus ], [ :quoted, 'two two' ] ])
 
       qs = Wrapper.tokenize_query_string('one -"two two"')
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :quoted, 'two two' ] ])
+      qs = Wrapper.tokenize_query_string('one !"two two"')
+      expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :quoted, 'two two' ] ])
 
       qs = Wrapper.tokenize_query_string('"one one"- two')
+      expect(qs).to eql([ [ :quoted, 'one one' ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('"one one"! two')
       expect(qs).to eql([ [ :quoted, 'one one' ], [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('"one one"-"two two"')
       expect(qs).to eql([ [ :quoted, 'one one' ], [ :minus ], [ :quoted, 'two two' ] ])
+      qs = Wrapper.tokenize_query_string('"one one"!"two two"')
+      expect(qs).to eql([ [ :quoted, 'one one' ], [ :minus ], [ :quoted, 'two two' ] ])
     end
 
-    it 'should parse the OR operator' do
+    it 'should parse the OR (and |) operator' do
       qs = Wrapper.tokenize_query_string('one OR two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one | two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one|two')
       expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('one or two')
@@ -122,13 +150,25 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
 
       qs = Wrapper.tokenize_query_string('one OR "two two"')
       expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :quoted, 'two two' ] ])
+      qs = Wrapper.tokenize_query_string('one|"two two"')
+      expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :quoted, 'two two' ] ])
 
       qs = Wrapper.tokenize_query_string('one OR -two')
       expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one | -two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one|-two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one|!two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :or ], [ :minus ], [ :word, 'two' ] ])
     end
 
-    it 'should parse the AND operator' do
+    it 'should parse the AND (and &) operator' do
       qs = Wrapper.tokenize_query_string('one AND two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one & two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one&two')
       expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('one and two')
@@ -136,17 +176,32 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
 
       qs = Wrapper.tokenize_query_string('one AND "two two"')
       expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :quoted, 'two two' ] ])
+      qs = Wrapper.tokenize_query_string('one & "two two"')
+      expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :quoted, 'two two' ] ])
 
       qs = Wrapper.tokenize_query_string('one AND -two')
       expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one & -two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one &-two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :minus ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one &!two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :minus ], [ :word, 'two' ] ])
     end
 
-    it 'should parse the AROUND(n) operator' do
+    it 'should parse the AROUND(n) (and <n>) operator' do
       qs = Wrapper.tokenize_query_string('AROUND(4)')
+      expect(qs).to eql([ [ :around, 4 ] ])
+      qs = Wrapper.tokenize_query_string('<4>')
       expect(qs).to eql([ [ :around, 4 ] ])
 
       qs = Wrapper.tokenize_query_string('one AROUND(4) two')
       expect(qs).to eql([ [ :word, 'one' ], [ :around, 4 ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('one <4> two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :around, 4 ], [ :word, 'two' ] ])
+
+      qs = Wrapper.tokenize_query_string('one <-> two')
+      expect(qs).to eql([ [ :word, 'one' ], [ :around, 1 ], [ :word, 'two' ] ])
 
       expect do
         qs = Wrapper.tokenize_query_string('one AROUND( 4) two')
@@ -440,6 +495,36 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
     end
   end
 
+  describe ".pg_where" do
+    it "should use default options" do
+      w = Wrapper.pg_where('mydoc', 'mytsv', 'pg:one | two')
+      expect(w).to eql("(mytsv @@ to_tsquery('one | two'))")
+    end
+
+    it "should handle a null tsvector name" do
+      w = Wrapper.pg_where('mydoc', nil, 'pg:one | two')
+      expect(w).to eql("(to_tsvector(mydoc) @@ to_tsquery('one | two'))")
+    end
+
+    it "should handle a null document name" do
+      w = Wrapper.pg_where(nil, 'mytsv', 'pg:one | two')
+      expect(w).to eql("(mytsv @@ to_tsquery('one | two'))")
+    end
+
+    it "should convert a query string" do
+      w = Wrapper.pg_where(nil, 'mytsv', 'one two')
+      expect(w).to eql("(mytsv @@ to_tsquery('one & two'))")
+    end
+
+    it "should add a configuration parameter if one is given" do
+      w = Wrapper.pg_where(nil, 'mytsv', 'pg:one | two', 'pg_catalog.simple')
+      expect(w).to eql("(mytsv @@ to_tsquery('pg_catalog.simple', 'one | two'))")
+
+      w = Wrapper.pg_where(nil, 'mytsv', 'pg:one | two', 'simple')
+      expect(w).to eql("(mytsv @@ to_tsquery('pg_catalog.simple', 'one | two'))")
+    end
+  end
+
   describe ".add_full_text_query" do
     it "should use default options" do
       q = Relation.new
@@ -474,11 +559,11 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
 
       qr = Wrapper.add_full_text_query(q, 'mydoc', 'mytsv', 'one two', with_headline: true)
       expect(qr.where_args).to eql([ "(mytsv @@ to_tsquery('one & two'))" ])
-      expect(qr.select_args).to eql([ [ "one", "two", "ts_headline(mydoc, to_tsquery('one & & & two')) AS headline" ] ])
+      expect(qr.select_args).to eql([ [ "one", "two", "ts_headline(mydoc, to_tsquery('one & two')) AS headline" ] ])
 
       qr = Wrapper.add_full_text_query(q, 'mydoc', 'mytsv', 'one two', with_headline: 'myhl')
       expect(qr.where_args).to eql([ "(mytsv @@ to_tsquery('one & two'))" ])
-      expect(qr.select_args).to eql([ [ "one", "two", "ts_headline(mydoc, to_tsquery('one & & & two')) AS myhl" ] ])
+      expect(qr.select_args).to eql([ [ "one", "two", "ts_headline(mydoc, to_tsquery('one & two')) AS myhl" ] ])
     end
   end
 
