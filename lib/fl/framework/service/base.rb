@@ -552,6 +552,8 @@ module Fl::Framework::Service
     public
 
     # Runs a query based on the request parameters.
+    # The method catches any exceptions and sets the error state of the service from the
+    # exception properties.
     #
     # @param query_opts [Hash] Query options to merge with the contents of <i>_q</i> and <i>_pg</i>.
     #  This is used to define service-specific defaults.
@@ -562,16 +564,22 @@ module Fl::Framework::Service
     #  - *:results* are the results from the query; this is an array of objects.
     #  - *:_pg* are the pagination controls returned by {#pagination_controls}.
     #  If no query is generated (in other words, if {#index_query} fails), it returns `nil`.
+    #  It also returns `nil` if an exception was raised.
 
     def index(query_opts = {}, _q = {}, _pg = {})
-      qo = init_query_opts(query_opts, _q, _pg)
-      q = index_query(qo)
-      if q
-        r = q.to_a
-        {
-          result: r,
-          _pg: pagination_controls(r, qo, self.params)
-        }
+      begin
+        qo = init_query_opts(query_opts, _q, _pg)
+        q = index_query(qo)
+        if q
+          r = q.to_a
+          return {
+            result: r,
+            _pg: pagination_controls(r, qo, self.params)
+          }
+        end
+      rescue => exc
+        self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY, exc.message)
+        return nil
       end
     end
 
