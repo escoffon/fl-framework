@@ -142,7 +142,9 @@ module Fl::Framework::Service
       @status[:status] = status
       m = @status[status.to_sym] || {}
       m[:message] = msg
-      m[:details] = details if details
+      # We need to save a copy just in case the caller has passed something like obj.errors.messages,
+      # which is reset when the object is reset
+      m[:details] = JSON.parse(JSON.generate(details)) if details
       @status[status.to_sym] = m
     end
 
