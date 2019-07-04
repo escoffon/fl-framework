@@ -218,7 +218,7 @@ module Fl::Framework::Attachment::ActiveStorage
           acc << {
             style: s,
             params: p,
-            url: variant_path(attachment.variant(p))
+            url: variant_path(attachment.variant(combine_options: p))
           }
         end
         

@@ -120,11 +120,11 @@ module Fl::Framework::Attachment::ActiveStorage
         pp = (sname.is_a?(Symbol) || sname.is_a?(String)) ? self.class.attachment_style(aname, sname) : sname
         a = (aname.is_a?(String) || aname.is_a?(Symbol)) ? send(aname) : aname
         if a.is_a?(ActiveStorage::Attached::One)
-          a.variant(pp)
+          a.variant(combine_options: pp)
         elsif a.is_a?(ActiveStorage::Attached::Many)
           if rest.count > 0
             idx = rest[0].to_i
-            a[idx].variant(pp)
+            a[idx].variant(combine_options: pp)
           else
             nil
           end
