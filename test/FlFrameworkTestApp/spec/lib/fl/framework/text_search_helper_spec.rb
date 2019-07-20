@@ -237,6 +237,14 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
       expect(qs).to eql([ [ :word, 'one' ], [ :and ], [ :minus ], [ :open ], [ :word, 'two' ],
                           [ :or ], [ :open ], [ :word, 'three' ], [ :and ], [ :word, 'four' ],
                           [ :close ], [ :close ] ])
+
+      qs = Wrapper.tokenize_query_string('(one three) OR (two AND four)')
+      expect(qs).to eql([ [ :open ], [ :word, 'one' ], [ :word, 'three' ], [ :close ],
+                          [ :or ], [ :open ], [ :word, 'two' ], [ :and ], [ :word, 'four' ], [ :close ] ])
+
+      qs = Wrapper.tokenize_query_string('(one three) OR (two four)')
+      expect(qs).to eql([ [ :open ], [ :word, 'one' ], [ :word, 'three' ], [ :close ],
+                          [ :or ], [ :open ], [ :word, 'two' ], [ :word, 'four' ], [ :close ] ])
     end
 
     it 'should handle edge conditions' do
@@ -365,6 +373,12 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
 
       qs = Wrapper.tokenize_query_string('one AND - ("two two" OR (three AND four))')
       expect(Wrapper.pg_query_text(qs)).to eql('pg:one & !(("two" <-> "two") | (three & four))')
+
+      qs = Wrapper.tokenize_query_string('(one three) OR (two AND four)')
+      expect(Wrapper.pg_query_text(qs)).to eql('pg:(one & three) | (two & four)')
+
+      qs = Wrapper.tokenize_query_string('(one three) OR (two four)')
+      expect(Wrapper.pg_query_text(qs)).to eql('pg:(one & three) | (two & four)')
     end
 
     it 'should handle edge conditions' do
