@@ -346,9 +346,10 @@ module Fl::Framework
           when :around
             qs << " <#{tok[1]}>"
           when :open
-            unless last == :start
-              qs << ' ' unless (last == :open) || (last == :minus)
-              qs << '&' unless (last == :or) || (last == :and) || (last == :minus)
+            if (last == :word) || (last == :close)
+              qs << ' & '
+            elsif (last == :and) || (last == :or)
+              qs << ' '
             end
             qs << '('
           when :close
