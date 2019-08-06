@@ -92,6 +92,7 @@ module Fl::Framework::Actor
     validate :validate_unique_name
     validate :check_group_members
 
+    before_destroy :abort_for_public_group
     before_create :set_fingerprints
 
     filtered_attribute :name, [ FILTER_HTML_TEXT_ONLY ]
@@ -105,6 +106,33 @@ module Fl::Framework::Actor
     # The note about the group.
     # @return [String] the note.
 
+    # The name of the public group.
+    PUBLIC_GROUP_NAME = '$$public$$'
+
+    private
+    @_public_group = nil
+
+    public
+    
+    # Get the public group.
+    # The public group is a system group that is used mainly to provide a grantee for permissions on
+    # an object. It has no explicit members, and cannot be deleted.
+    #
+    # @return [Group,nil] Return the instance of {Group} for the systemwide public group.
+
+    def self.public_group()
+      if @_public_group.nil?
+        begin
+          @_public_group = self.where('(name = :n)', n: PUBLIC_GROUP_NAME).first
+        rescue => x
+          Rails.logger.warn("error getting the public group: #{x.message}")
+          @_public_group = nil
+        end
+      end
+      
+      @_public_group
+    end
+    
     # Constructor.
     #
     # @param attrs [Hash] A hash of initialization parameters.
@@ -452,6 +480,13 @@ module Fl::Framework::Actor
       end
     end
 
+    def abort_for_public_group()
+      pg = Fl::Framework::Actor::Group.public_group
+      if !pg.nil? && (self.id == pg.id)
+        raise ActiveRecord::Rollback.new('you may not destroy the public group')
+      end
+    end
+    
     def set_fingerprints()
       self.owner_fingerprint = self.owner.fingerprint if self.owner
     end

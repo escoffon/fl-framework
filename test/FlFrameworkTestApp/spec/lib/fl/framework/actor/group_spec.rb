@@ -17,6 +17,30 @@ RSpec.describe Fl::Framework::Actor::Group, type: :model do
   let(:g10) { create(:actor_group, name: 'g10') }
   let(:g11) { create(:actor_group, name: 'g11') }
 
+  describe 'public group' do
+    it 'should exist' do
+      expect(Fl::Framework::Actor::Group.public_group).to be_a(Fl::Framework::Actor::Group)
+    end
+
+    it 'should not be deleted' do
+      pg = Fl::Framework::Actor::Group.public_group
+
+      expect(pg).to be_a(Fl::Framework::Actor::Group)
+      pg_id = pg.id
+      npg = nil
+      expect do
+        npg = Fl::Framework::Actor::Group.find(pg_id)
+      end.not_to raise_error
+      expect(npg.id).to eql(pg_id)
+      
+      pg.destroy
+      expect do
+        npg = Fl::Framework::Actor::Group.find(pg_id)
+      end.not_to raise_error
+      expect(npg.id).to eql(pg_id)
+    end
+  end
+  
   describe 'validation' do
     it 'should fail with empty attributes' do
       g1 = Fl::Framework::Actor::Group.new
@@ -183,11 +207,11 @@ RSpec.describe Fl::Framework::Actor::Group, type: :model do
 
     it 'should return all lists with default options' do
       # trigger the list creation
-      xl = [ g1, g2, g3, g4, g5, g6 ]
+      gl = [ g1, g2, g3, g4, g5, g6 ]
       
       q = Fl::Framework::Actor::Group.build_query()
-      ll = q.to_a
-      expect(obj_fingerprints(ll)).to match_array(obj_fingerprints(xl))
+      xl = gl  | [ Fl::Framework::Actor::Group.public_group ]
+      expect(obj_fingerprints(q)).to match_array(obj_fingerprints(xl))
     end
 
     it 'should support :only_owners and :except_owners' do
@@ -227,19 +251,17 @@ RSpec.describe Fl::Framework::Actor::Group, type: :model do
 
     it 'should support order and pagination options' do
       # trigger the list creation
-      xl = [ g1, g2, g3, g4, g5, g6 ]
+      gl = [ g1, g2, g3, g4, g5, g6 ]
       
       q = Fl::Framework::Actor::Group.build_query(order: 'id')
-      ll = q.to_a
-      expect(obj_fingerprints(ll)).to eql(obj_fingerprints(xl))
+      xl = gl  | [ Fl::Framework::Actor::Group.public_group ]
+      expect(obj_fingerprints(q)).to eql(obj_fingerprints(xl).sort)
 
       q = Fl::Framework::Actor::Group.build_query(only_owners: a10, order: 'id')
-      ll = q.to_a
-      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ g1, g2, g6 ]))
+      expect(obj_fingerprints(q)).to eql(obj_fingerprints([ g1, g2, g6 ]))
 
       q = Fl::Framework::Actor::Group.build_query(only_owners: a10, order: 'id', limit: 2, offset: 1)
-      ll = q.to_a
-      expect(obj_fingerprints(ll)).to eql(obj_fingerprints([ g2, g6 ]))
+      expect(obj_fingerprints(q)).to eql(obj_fingerprints([ g2, g6 ]))
     end      
   end
   
