@@ -2,13 +2,14 @@
 
 class TestDatumOne < ApplicationRecord
   include Fl::Framework::Core::ModelHash
+  include Fl::Framework::Access::Target
   include Fl::Framework::List::Listable
-  include Fl::Framework::Asset::Asset
+  # include Fl::Framework::Asset::Asset
   
   belongs_to :owner, class_name: 'TestActor'
 
   is_listable
-  is_asset
+  #is_asset
 
   validates :owner, :title, :value, presence: true
 

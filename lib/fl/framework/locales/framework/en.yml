@@ -107,6 +107,10 @@ en:
         permission:
           duplicate: "duplicate permission '%{name}' (%{class_name})"
           missing: "the permission '%{name}' is not registered"
+        grant:
+          model:
+            validate:
+              empty_grants: "empty permission mask; you must grant at least one permission"
 
       asset:
         checker:
@@ -117,11 +121,6 @@ en:
           validate:
             not_an_asset: "asset %{fingerprint} is not a registered asset type"
             exists: "a record for asset %{fingerprint} already exists"
-
-      access_grant:
-        model:
-          validate:
-            unknown_permission: "unknown permission '%{permission}'"
 
       actor_group:
         model:

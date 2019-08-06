@@ -6,7 +6,6 @@ module Fl::Framework
 end
 
 require 'fl/framework/asset/asset'
-require 'fl/framework/asset/permission'
 require 'fl/framework/asset/helper'
 require 'fl/framework/asset/asset_record'
 require 'fl/framework/asset/access_grant'

@@ -7,39 +7,48 @@ module Fl::Framework::Access
   # ```
   # class MyPermission < Fl::Framework::Access::Permission
   #  NAME = :my_permission
+  #  BIT = 0x00000010
   #  GRANTS = [ Fl::Framework::Access::Permission::Read::NAME ]
   #
   #  def initialize(ext)
   #    @ext = ext
-  #    super(NAME, GRANTS)
+  #    super(NAME, BIT, GRANTS)
   #  end
   #
   #  attr_reader :ext
   # end
   #
-  # myp = MyPermission.new('additional data')
+  # myp = MyPermission.new('additional data').register()
   # ```
   # The `MyPermission.new` call registers `MyPermission` with the permission registry.
   #
-  # #### Cumulative (forwarded) permissions
+  # #### Simple and cumulative (forwarding) permissions
   #
-  # A permission can grant other permissions by listing them in the constructor's *grants* argument.
+  # There are two types of permissions. A *simple* permission describes an atomic grant, like `read` or
+  # `write`; these permissions define a bit value and have an empty grants array.
+  # A permission can also grant other permissions by listing them in the constructor's *grants* argument;
+  # we call this a *forwarding* permission.
+  # In this case, the bit value is 0, and there is a nonempty *grants* array; the permission mask for
+  # forwarding permissions is the ORed value of permission masks from the grants.
   # Access checkers need to consider this "forwarding" of grants when determining if an actor has
-  # access to a given asset.
+  # access to a given asset; they do so by using the permission's {#permission_mask} rather than the
+  # {#bit}. (Actually typically a checker would use the class method {.permission_mask} instead.
   # For example, the standard {Permission::Edit} permission defines *grants* to have value
   # `[ :read, :write ]`; an access checker for the **:write** permission should grant access if
   # **:edit** is granted.
   #
-  # Use the class methods {.permission_grantors} and {.grantors_for_permission} to support forwarded access
-  # checks.
+  # Use the class methods {.permission_mask}, {.permission_grantors}, {.grantors_for_permission} to
+  # support forwarded access checks.
   #
   # #### Standard permission classes
   #
   # The following permission classes are registered:
   #
+  # - {Permission::Owner} grants ownership.
   # - {Permission::Read} grants read only access.
   # - {Permission::Write} grants write only access.
   # - {Permission::Delete} grants delete only access.
+  # - {Permission::Index} grants index access.
   # - {Permission::Edit} grants read and write access to assets.
   # - {Permission::Manage} grants read, write, and delete access to assets.
 
@@ -56,7 +65,8 @@ module Fl::Framework::Access
       def initialize(permission, msg = nil)
         @permission = permission
         msg = I18n.tx('fl.framework.access.permission.duplicate',
-                      name: permission.name, class_name: permission.class.name) unless msg.is_a?(String)
+                      name: permission.name, bit: permission.bit,
+                      class_name: permission.class.name) unless msg.is_a?(String)
         super(msg)
       end
 
@@ -89,8 +99,10 @@ module Fl::Framework::Access
     
     @_permission_registry = {}
     @_permission_grants = nil
+    @_permission_masks = nil
 
     # Get the permission name for this class.
+    # Each registered class must have a unique name.
     #
     # @return [Symbol] Returns the name of the permission implemented by this class.
 
@@ -99,19 +111,29 @@ module Fl::Framework::Access
     end
     
     # Register a permission object.
-    # There is no real need to call this method, since {#initialize} does this automatically.
+    # This method is called by the instance method {#register}.
     #
     # @param permission [Fl::Framework::Access::Permission] The permission to register.
+    #
+    # @return [Fl::Framework::Access::Permission] Returns *permission*.
     #
     # @raise [Fl::Framework::Access::Permission::Duplicate] Raised if *name* is already registered.
 
     def self.register(permission)
       k = permission.name.to_sym
       raise Fl::Framework::Access::Permission::Duplicate.new(permission) if @_permission_registry.has_key?(k)
+
+      b = permission.bit.to_i
+      @_permission_registry.each do |k, p|
+        raise Fl::Framework::Access::Permission::Duplicate.new(permission) if p.bit == p
+      end
+        
       @_permission_registry[k] = permission
 
       # A registration invalidates the permission grants registry
       _invalidate_permission_grants()
+
+      permission
     end
 
     # Look up a permission in the registry.
@@ -167,42 +189,64 @@ module Fl::Framework::Access
     # @return [Array<Symbol>] Returns an array that lists the permission that grant *name*.
       
     def self.grantors_for_permission(permission)
-      # g = class_variable_get(:@_permission_grants)
-      # k = name.to_sym
-      # (g.has_key?(k)) ? g[k] : [ ]
-
       k = Fl::Framework::Access::Helper.permission_name(permission)
       g = _permission_grants
       (g.has_key?(k)) ? g[k] : [ ]
     end
+
+    # Return the permission mask for a given permission in the registry.
+    # You should use this method to generate permission masks, rather than relying on the
+    # {Permission#bit} attribute, since composite permissions set their bit value to 0, and use the
+    # {Permission#grants} attribute to generate the permission bitmask.
+    #
+    # @param permission [Symbol,String,Fl::Framework::Access::Permission,Class] The permission whose mask
+    #  to get. The value of this parameter is described in {Fl::Framework::Access::Helper.permission_name}.
+    #
+    # @return [Integer] Returns an integer containing the bitmask of all permissions granted by *permission*.
+      
+    def self.permission_mask(permission)
+      k = Fl::Framework::Access::Helper.permission_name(permission)
+      m = _permission_masks
+      (m.has_key?(k)) ? m[k] : 0
+    end
+
+    # Shows the grants in a permission mask.
+    # Extracts the bits from *mask* and returns the corresponding simple permission name if one
+    # is found.
+    #
+    # @param mask [Integer] An integer containing the permission mask.
+    #
+    # @return [Array<Symbol>] Returns an array containing the names of the simple permissions that are
+    #  present in *mask*.
+
+    def self.extract_permissions(mask)
+      @_permission_registry.reduce([ ]) do |acc, pkv|
+        pk, pv = pkv
+        acc << pk if (mask & pv.bit) != 0
+        acc
+      end
+    end
       
     # Initializer.
-    # The initializer registers the instance with the permission registry.
-    #
-    # Note that, because the initializer calls {.register}, which in turn calls {#grants},
-    # any permissions listed in *grants* must have already been registered.
     #
     # @param name [Symbol,String] The name of the permission; this value must be unique for all
     #  permission instances.
+    # @param bit [Integer] An integer whose value consists of all zeros except for a single bit that
+    #  identifies the permission; this value must be unique for all permission instances.
     # @param grants [Array<Symbol,String,Fl::Framework::Access::Permission,Class>] An array containing
-    #  the list other permissions that are also granted by *name*. For example, a **:manage** permission
-    #  may grant **:read**, **:write**, and **:delete**.
+    #  the list of other permissions that are also granted by *name*. For example, a **:manage** permission
+    #  may grant **:read**, **:write**, and **:delete**. This list is used to build the permission mask
+    #  to use when checking access.
     #  The element values are as described in {Fl::Framework::Access::Helper.permission_name}.
-    #
-    # @raise [Fl::Framework::Access::Permission::Duplicate] Raised if *name* is already registered.
-    #
-    # @raise [Fl::Framework::Access::Permission::Missing] Raised if any of the permissions listed
-    #  in *grants* are not yet registered.
 
-    def initialize(name, grants = [ ])
+    def initialize(name, bit, grants = [ ])
       @name = name.to_sym
-#      @grants_raw = (grants.is_a?(Array)) ? grants.map { |g| Fl::Framework::Access::Helper.permission_name(g) } : [ ]
+      @bit = bit.to_i
       @grants = (grants.is_a?(Array)) ? grants.map { |g| Fl::Framework::Access::Helper.permission_name(g) } : [ ]
 
       rv = super()
         
       self.class.instance_variable_set(:@_permission_name, name)
-      Fl::Framework::Access::Permission.register(self)
 
       rv
     end
@@ -212,6 +256,11 @@ module Fl::Framework::Access
 
     attr_reader :name
 
+    # The permission bit.
+    # @return [Integer] Returns the permission bit.
+
+    attr_reader :bit
+
     # The grants list.
     # This is the normalized value of the *grants* argument to {#initialize}, and it lists the permission
     # that this permission grants.
@@ -219,19 +268,37 @@ module Fl::Framework::Access
 
     attr_reader :grants
 
-    # # Get the expanded grants list.
-    # # The list is generated lazily, but at the time the method is first called all the permissions
-    # # in the original unexpanded list must have been registered.
-    # #
-    # # @return [Array<Symbol>] Returns the list of permissions granted by this permission.
-    # #
-    # # @raise [Fl::Framework::Access::Permission::Missing] Raised if a listed permission has not been
-    # #  registered.
+    # Registers the instance with the permission registry.
+    #
+    # Note that, because this method calls {.register}, which in turn calls {#grants},
+    # any permissions listed in *grants* must have already been registered.
+    #
+    # @return [Fl::Framework::Access::Permission] Returns `self`.
+    #
+    # @raise [Fl::Framework::Access::Permission::Duplicate] Raised if *name* or *bit* are already registered.
+    #
+    # @raise [Fl::Framework::Access::Permission::Missing] Raised if any of the permissions listed
+    #  in *grants* are not yet registered.
 
-    # def grants()
-    #   self.class.grants_for_permission(self.name)
-    # end
+    def register()
+      Fl::Framework::Access::Permission.register(self)
+    end
 
+    # Get the permission mask.
+    # You should use {.permission_mask} instead of this method, since {.permission_mask} caches the value
+    # of the permission mask so that it does not need to be recalculated.
+    #
+    # @return [Integer] Returns an integer that contains the ORed permission masks from all grants.
+    #  This value contains the set of all permission that this permission grants.
+
+    def permission_mask()
+      self.grants.reduce(self.bit) do |mask, g|
+        p = Fl::Framework::Access::Permission.lookup(g)
+        mask |= p.permission_mask if p
+        mask
+      end
+    end
+    
     # Get the grantor list.
     # This is the list of permission that grant this permission; it is the (global) reverse of the
     # {#grants} list.
@@ -246,6 +313,7 @@ module Fl::Framework::Access
 
     def self._invalidate_permission_grants()
       @_permission_grants = nil
+      @_permission_masks = nil
     end
 
     def self._permission_grants()
@@ -276,7 +344,44 @@ module Fl::Framework::Access
         _register_grants(gp.grants, pn) if gp && (gp.grants.count > 0)
       end
     end
+
+    def self._permission_masks()
+      _rebuild_permission_masks unless @_permission_masks.is_a?(Hash)
+      @_permission_masks
+    end
+
+    def self._rebuild_permission_masks()
+      @_permission_masks = {}
+      @_permission_registry.each do |pk, pv|
+        @_permission_masks[pk] = pv.permission_mask
+      end
+      
+      @_permission_masks
+    end
   end
+
+  # The **:owner** permission class.
+  # This permission grants ownership rights to an object.
+  # It is used to create a record that marks an actor as the "owner" of an asset; this record is essential
+  # in permission queries that return lists of assets visible to a given actor.
+  
+  class Permission::Owner < Permission
+    # The permission name.
+    NAME = :owner
+
+    # The permission bit.
+    BIT = 0x00000001
+
+    # dependent permissions granted by **:owner**.
+    GRANTS = [ ]
+
+    # Initializer.
+    def initialize()
+     super(NAME, BIT, GRANTS)
+    end
+  end
+
+  Permission::Owner.new.register
 
   # The **:create** permission class.
   # This permission grants the ability to create assets (typically of a specific class).
@@ -285,16 +390,19 @@ module Fl::Framework::Access
     # The permission name.
     NAME = :create
 
+    # The permission bit.
+    BIT = 0x00000002
+
     # dependent permissions granted by **:create**.
     GRANTS = [ ]
 
     # Initializer.
     def initialize()
-     super(NAME, GRANTS)
+     super(NAME, BIT, GRANTS)
     end
   end
 
-  Permission::Create.new
+  Permission::Create.new.register
 
   # The **:read** permission class.
   # This permission grants read only access to assets.
@@ -303,16 +411,19 @@ module Fl::Framework::Access
     # The permission name.
     NAME = :read
 
+    # The permission bit.
+    BIT = 0x00000004
+
     # dependent permissions granted by **:read**.
     GRANTS = [ ]
 
     # Initializer.
     def initialize()
-     super(NAME, GRANTS)
+     super(NAME, BIT, GRANTS)
     end
   end
 
-  Permission::Read.new
+  Permission::Read.new.register
 
   # The **:write** permission class.
   # Note that this permission grants write only access to assets; for read and write access,
@@ -322,16 +433,19 @@ module Fl::Framework::Access
     # The permission name.
     NAME = :write
 
+    # The permission bit.
+    BIT = 0x00000008
+
     # dependent permissions granted by **:write**.
     GRANTS = [ ]
 
     # Initializer.
     def initialize()
-     super(NAME, GRANTS)
+     super(NAME, BIT, GRANTS)
     end
   end
 
-  Permission::Write.new
+  Permission::Write.new.register
 
   # The **:delete** permission class.
   # This permission grants delete only access to assets; for additional read and write access,
@@ -341,16 +455,41 @@ module Fl::Framework::Access
     # The permission name.
     NAME = :delete
 
+    # The permission bit.
+    BIT = 0x00000010
+
     # dependent permissions granted by **:delete**.
     GRANTS = [ ]
 
     # Initializer.
     def initialize()
-     super(NAME, GRANTS)
+     super(NAME, BIT, GRANTS)
     end
   end
 
-  Permission::Delete.new
+  Permission::Delete.new.register
+
+  # The **:index** permission class.
+  # This permission grants index only access to assets, which controls if the children of an asset can
+  # be listed.
+  
+  class Permission::Index < Permission
+    # The permission name.
+    NAME = :index
+
+    # The permission bit.
+    BIT = 0x00000020
+
+    # dependent permissions granted by **:index**.
+    GRANTS = [ ]
+
+    # Initializer.
+    def initialize()
+     super(NAME, BIT, GRANTS)
+    end
+  end
+
+  Permission::Index.new.register
 
   # The **:edit** permission class.
   # This permission grants read and write access to assets.
@@ -359,16 +498,19 @@ module Fl::Framework::Access
     # The permission name.
     NAME = :edit
 
+    # The permission bit.
+    BIT = 0x00000000
+
     # dependent permissions granted by **:edit**.
     GRANTS = [ :read, :write ]
 
     # Initializer.
     def initialize()
-     super(NAME, GRANTS)
+     super(NAME, BIT, GRANTS)
     end
   end
 
-  Permission::Edit.new
+  Permission::Edit.new.register
 
   # The **:manage** permission class.
   # This permission grants read, write, and delete access to assets.
@@ -377,14 +519,17 @@ module Fl::Framework::Access
     # The permission name.
     NAME = :manage
 
+    # The permission bit.
+    BIT = 0x00000000
+
     # dependent permissions granted by **:manage**.
     GRANTS = [ :edit, :delete ]
 
     # Initializer.
     def initialize()
-     super(NAME, GRANTS)
+     super(NAME, BIT, GRANTS)
     end
   end
 
-  Permission::Manage.new
+  Permission::Manage.new.register
 end

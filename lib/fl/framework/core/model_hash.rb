@@ -61,6 +61,7 @@ module Fl::Framework::Core
       # @param opts [Hash] Options for the method; this is an object-specific set of options.
       #  The following options are considered to be standard and either processed the same way,
       #  or ignored, by the subclasses:
+      #
       #  - *:as_visible_to* An actor object to use for access determination instead of _actor_; when
       #    this option is present, the return value will contain the "slice" of the object that is
       #    visible to the actor in *:as_visible_to*, as opposed to the actor in _actor_.
@@ -93,6 +94,9 @@ module Fl::Framework::Core
       #    is removed from the final list of keys after the *:only* and *:include* lists have been taken into
       #    consideration.
       #    A scalar value is converted to a one-element array.
+      #  - *:permissions* Controls the list of permissions returned in the **:permissions** key.
+      #    The value is an array of permission names to chec.
+      #    Defaults to `[ :read, :write, :delete, :index ]`.
       #  - *:image_sizes* An array listing the image sizes whose URLs are returned for objects that
       #    contain images (pictures, group avatars, user avatars, and so on).
       #  - *:to_hash* A Hash containing options to pass to nested calls to this method for other
@@ -403,7 +407,8 @@ module Fl::Framework::Core
       def to_hash_operations_list
         [ Fl::Framework::Access::Permission::Read::NAME,
           Fl::Framework::Access::Permission::Write::NAME,
-          Fl::Framework::Access::Permission::Delete::NAME ]
+          Fl::Framework::Access::Permission::Delete::NAME,
+          Fl::Framework::Access::Permission::Index::NAME]
       end
 
       # Get the options to pass to {#to_hash_url_path}.
@@ -581,7 +586,7 @@ module Fl::Framework::Core
       # Generate a permission hash for +self+.
       #
       # @param actor [Object] The actor requesting the hash.
-      # @param plist [Array<Symbol>] The list of operations for which to return permissions; if +nil+, the 
+      # @param plist [Array<Symbol>] The list of permission names for which to check; if +nil+, the 
       #  value is obtained via a call to {#to_hash_operations_list}.
       #
       # @return [Hash] Returns a hash where the keys are permission names, and the values the permissions;
@@ -591,13 +596,23 @@ module Fl::Framework::Core
         return [ ] if actor.nil?
         
         plist = self.to_hash_operations_list unless plist
-        rv = {}
-        plist.each do |p|
-          ps = p.to_sym
-          rv[ps] = self.has_permission?(ps, actor)
-        end
 
-        rv
+        # see if *actor* is the owner of `self`; if so, all permissions are allowed
+
+        is_owner = self.has_permission?(Fl::Framework::Access::Permission::Owner::NAME, actor)
+        if is_owner
+          plist.reduce({ }) do |acc, p|
+            psym = p.to_sym
+            acc[psym] = true
+            acc
+          end
+        else
+          plist.reduce({ }) do |acc, p|
+            psym = p.to_sym
+            acc[psym] = self.has_permission?(psym, actor)
+            acc
+          end
+        end
       end
 
       # Build the base Hash representation of the model.
@@ -663,9 +678,9 @@ module Fl::Framework::Core
             base[:updated_at] = self.updated_at if self.respond_to?(:updated_at)
           when :permissions
             base[:permissions] = if opts.has_key?(:as_visible_to)
-                                   to_hash_permission_list(opts[:as_visible_to])
+                                   to_hash_permission_list(opts[:as_visible_to], opts[:permissions])
                                  else
-                                   to_hash_permission_list(actor)
+                                   to_hash_permission_list(actor, opts[:permissions])
                                  end
           end
         end

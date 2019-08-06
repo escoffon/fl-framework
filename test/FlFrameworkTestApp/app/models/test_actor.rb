@@ -3,6 +3,7 @@
 class TestActor < ApplicationRecord
   include Fl::Framework::Core::ModelHash
   include Fl::Framework::Actor::Actor
+  include Fl::Framework::Access::Actor
 
   is_actor title: :my_name
   
