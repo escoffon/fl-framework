@@ -9,7 +9,7 @@ module Fl::Framework::Access
   # The methods in this module define and implement a framework for standardizing access control
   # management, but don't provide a specific access control algorithm, and don't enforce access
   # control at the record level. (That functionality is left to a higher level layer, typically in a
-  # service object.
+  # service object.)
   # Classes define the access check strategy by providing an instance of (a subclass of)
   # {Fl::Framework::Access::AccessChecker} to {ClassMacros#has_access_control}.
   #
@@ -177,9 +177,9 @@ module Fl::Framework::Access
 
       # Check if an actor has permission to perform an operation on an asset.
       # The *actor* requests permission *permission* on `self`.
-      # The method gets the current access checker from {#access_checker}, and trigger a call to
+      # The method gets the current access checker from {#access_checker}, and triggers a call to
       # {Fl::Framework::Access::Checker#access_check}.
-      # Because  is a wrapper around {Fl::Framework::Access::Checker#access_check}, it has
+      # Because it is a wrapper around {Fl::Framework::Access::Checker#access_check}, it has
       # essentially the same behavior.
       #
       # The common case is that the class access checker is used; however, if individual instances

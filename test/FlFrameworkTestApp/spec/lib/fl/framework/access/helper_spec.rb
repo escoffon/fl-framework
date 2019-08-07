@@ -14,9 +14,10 @@ end
 
 class MyPermission < MyBase
   NAME = :my_permission
-
+  BIT = 0x00100000
+  
   def initialize()
-    super(NAME, [ ])
+    super(NAME, BIT, [ ])
   end
 end
 
@@ -30,9 +31,13 @@ end
 
 RSpec.describe Fl::Framework::Access::Permission, type: :model do
   after(:example) do
-    cleanup_permission_registry([ MyPermission::NAME ])
+    cleanup_permission_registry([ MyPermission::NAME,
+                                  TestAccess::P1::NAME, TestAccess::P2::NAME, TestAccess::P3::NAME,
+                                  TestAccess::P4::NAME, TestAccess::P5::NAME, TestAccess::P6::NAME ])
   end
-  
+
+  let(:_h) { Fl::Framework::Access::Helper }
+
   describe ".permission_name" do
     it "should return symbol and string arguments" do
       n = Fl::Framework::Access::Permission::Read::NAME
@@ -104,6 +109,91 @@ RSpec.describe Fl::Framework::Access::Permission, type: :model do
       expect(Fl::Framework::Access::Helper.permission_name(c)).to eql(n)
 
       expect(Fl::Framework::Access::Helper.permission_name(S)).to be_nil
+    end
+  end
+  
+  describe ".permission_mask" do
+    it 'should accept an integer value' do
+      expect(_h.permission_mask(0x00100010)).to eq(0x00100010)
+    end
+    
+    it "should support class instances" do
+      mp1 = TestAccess::P1.new.register
+      mp2 = TestAccess::P2.new.register
+      mp3 = TestAccess::P3.new.register
+      mp4 = TestAccess::P4.new.register
+      mp5 = TestAccess::P5.new.register
+      mp6 = TestAccess::P6.new.register
+
+      pl = [ mp1, mp2 ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit)
+
+      pl = [ mp1, mp2, mp5 ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit | mp3.bit)
+
+      pl = [ mp1, mp5, mp6 ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit | mp3.bit)
+    end
+
+    it "should support names" do
+      mp1 = TestAccess::P1.new.register
+      mp2 = TestAccess::P2.new.register
+      mp3 = TestAccess::P3.new.register
+      mp4 = TestAccess::P4.new.register
+      mp5 = TestAccess::P5.new.register
+      mp6 = TestAccess::P6.new.register
+
+      pl = [ mp1.name, mp2 ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit)
+
+      pl = [ mp1, mp2.name.to_s, mp5.name.to_s ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit | mp3.bit)
+
+      pl = [ mp1.name, mp5.name, mp6.name ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit | mp3.bit)
+    end
+
+    it "should support classes" do
+      mp1 = TestAccess::P1.new.register
+      mp2 = TestAccess::P2.new.register
+      mp3 = TestAccess::P3.new.register
+      mp4 = TestAccess::P4.new.register
+      mp5 = TestAccess::P5.new.register
+      mp6 = TestAccess::P6.new.register
+
+      pl = [ mp1.class, TestAccess::P2 ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit)
+
+      pl = [ mp1.name, mp2.class, TestAccess::P5 ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit | mp3.bit)
+
+      pl = [ mp1.class, mp5.class, mp6.class ]
+      expect(_h.permission_mask(pl)).to eql(mp1.bit | mp2.bit | mp3.bit)
+    end
+
+    it "should convert arguments to array" do
+      mp1 = TestAccess::P1.new.register
+      mp2 = TestAccess::P2.new.register
+      mp3 = TestAccess::P3.new.register
+      mp4 = TestAccess::P4.new.register
+      mp5 = TestAccess::P5.new.register
+      mp6 = TestAccess::P6.new.register
+
+      expect(_h.permission_mask(mp1)).to eql(mp1.bit)
+      expect(_h.permission_mask(TestAccess::P5)).to eql(mp1.bit | mp2.bit | mp3.bit)
+      expect(_h.permission_mask(mp6.name)).to eql(mp1.bit | mp2.bit | mp3.bit)
+    end
+
+    it "should supprt mixed arrays" do
+      mp1 = TestAccess::P1.new.register
+      mp2 = TestAccess::P2.new.register
+      mp3 = TestAccess::P3.new.register
+      mp4 = TestAccess::P4.new.register
+      mp5 = TestAccess::P5.new.register
+      mp6 = TestAccess::P6.new.register
+
+      pl = [ 0x00100000, mp1, mp2.name, TestAccess::P5 ]
+      expect(_h.permission_mask(pl)).to eql(0x00100000 | mp1.bit | mp2.bit | mp3.bit)
     end
   end
 end

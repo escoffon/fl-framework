@@ -2,9 +2,10 @@
 
 class TestDatumThree < ApplicationRecord
   include Fl::Framework::Core::ModelHash
-  include Fl::Framework::Asset::Asset
+  include Fl::Framework::Access::Target
+#  include Fl::Framework::Asset::Asset
 
-  is_asset
+ # is_asset
   
   belongs_to :owner, class_name: 'TestActor'
 

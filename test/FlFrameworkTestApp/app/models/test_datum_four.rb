@@ -2,6 +2,7 @@
 
 class TestDatumFour < ApplicationRecord
   include Fl::Framework::Core::ModelHash
+  include Fl::Framework::Access::Target
   
   belongs_to :owner, class_name: 'TestActor'
 

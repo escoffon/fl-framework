@@ -9,15 +9,18 @@ module Fl::Framework::Actor
       # The permission name.
       NAME = :manage_actor_group_members
 
+      # The permission bit.
+      BIT = 0x00000040
+
       # dependent permissions granted by **:manage_actor_group_members**.
       GRANTS = [ ]
 
       # Initializer.
       def initialize()
-        super(NAME, GRANTS)
+        super(NAME, BIT, GRANTS)
       end
     end
 
-    ManageMembers.new
+    ManageMembers.new.register
   end
 end

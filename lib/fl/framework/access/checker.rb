@@ -47,18 +47,14 @@ module Fl::Framework::Access
     # @param context [any] The context in which to do the check; this is arbitrary data to pass to the
     #  checker parameter.
     #
-    # @return [Symbol,nil,Boolean] An access check method is expected to return a symbol containing the
-    #  name of the granted permission if access rights were granted.
-    #  Note that the returned value may be different from *permission* if the permission is granted through
-    #  forwarding (for example, if the request was for **:write** and it was granted because of an
-    #  **:edit** permission).
-    #  It should return `nil` if access grants were not granted.
-    #  Under some conditions, it may elect to return `false` to indicate that there was some kind of error
-    #  when checking for access; a `false` return value indicates that access rights were not granted,
+    # @return [Boolean,nil] An access check method is expected to return a boolean value `true` if access
+    #  rights were granted, and `false` if access rights were denied.
+    #  Under some conditions, it may elect to return `nil` to indicate that there was some kind of error
+    #  when checking for access; a `nil` return value indicates that access rights were not granted,
     #  and it *must* be interpreted as such.
 
     def access_check(permission, actor, asset, context = nil)
-      return nil
+      return false
     end
 
     protected

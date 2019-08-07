@@ -37,23 +37,21 @@ ActiveRecord::Schema.define(version: 2019_04_13_230447) do
   end
 
   create_table "fl_framework_access_grants", force: :cascade do |t|
-    t.string "permission"
-    t.bigint "asset_id"
-    t.string "data_object_type"
-    t.bigint "data_object_id"
-    t.string "data_object_fingerprint"
-    t.string "actor_type"
-    t.bigint "actor_id"
-    t.string "actor_fingerprint"
+    t.integer "grants"
+    t.string "target_type"
+    t.bigint "target_id"
+    t.string "target_fingerprint"
+    t.string "granted_to_type"
+    t.bigint "granted_to_id"
+    t.string "granted_to_fingerprint"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["actor_fingerprint"], name: "fl_fmwk_acl_grants_fp_idx"
-    t.index ["actor_type", "actor_id"], name: "fl_fmwk_acl_grants_actor_idx"
-    t.index ["asset_id"], name: "fl_fmwk_acl_grants_asset_idx"
-    t.index ["data_object_fingerprint"], name: "fl_fmwk_acl_grants_data_fp_idx"
-    t.index ["data_object_type", "data_object_id"], name: "fl_fmwk_acl_grants_data_idx"
-    t.index ["data_object_type"], name: "fl_fmwk_acl_grants_data_type_idx"
-    t.index ["permission"], name: "fl_fmwk_acl_grants_perm_idx"
+    t.index ["granted_to_fingerprint"], name: "fl_fmwk_acl_g_to_fp_idx"
+    t.index ["granted_to_type", "granted_to_id"], name: "fl_fmwk_acl_grants_g_to_idx"
+    t.index ["grants"], name: "fl_fmwk_acl_grants_perm_idx"
+    t.index ["target_fingerprint"], name: "fl_fmwk_acl_grants_target_fp_idx"
+    t.index ["target_type", "target_id"], name: "fl_fmwk_acl_grants_target_idx"
+    t.index ["target_type"], name: "fl_fmwk_acl_grants_data_type_idx"
   end
 
   create_table "fl_framework_actor_group_members", force: :cascade do |t|
@@ -210,7 +208,6 @@ ActiveRecord::Schema.define(version: 2019_04_13_230447) do
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "fl_framework_access_grants", "fl_framework_assets", column: "asset_id", name: "fl_fmwk_acl_grants_asset_fk"
   add_foreign_key "fl_framework_list_items", "fl_framework_list_item_state_t", column: "state", name: "fl_fmwk_list_items_sta_fk"
   add_foreign_key "fl_framework_list_items", "fl_framework_lists", column: "list_id", name: "fl_fmwk_list_items_list_fk"
 end

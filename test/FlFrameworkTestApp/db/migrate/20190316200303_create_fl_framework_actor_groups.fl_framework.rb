@@ -41,6 +41,13 @@ class CreateFlFrameworkActorGroups < ActiveRecord::Migration[5.2]
     reversible do |o|
       o.up do
         execute "CREATE UNIQUE INDEX fl_fmwk_act_grp_name_u_idx ON fl_framework_actor_groups(lower(name))"
+
+        # The built-in public group is a special group used mostly to grant permissions on assets to all
+        # actors in the system
+
+        Fl::Framework::Actor::Group.create(name: Fl::Framework::Actor::Group::PUBLIC_GROUP_NAME,
+                                           note: 'Public group')
+        say "created the public group #{Fl::Framework::Actor::Group::PUBLIC_GROUP_NAME}"
       end
 
       o.down do
