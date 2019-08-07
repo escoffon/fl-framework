@@ -620,8 +620,7 @@ module Fl::Framework::Access
     #  A `nil` value turns off the permission filter, and returns all grants to *actor*.
     # @param opts [Hash] A Hash containing configuration options for the query.
     #  See the description for *opts* in {.build_query}.
-    #  Note that the options **:only_granted_to**, **:except_granted_to**, **:only_permissions**,
-    #  and **:except_permissions** are ignored.
+    #  Note that the options **:only_granted_to**, **:except_granted_to**, and **:permissions** are ignored.
     #
     # @return [ActiveRecord::Relation] If the query options are empty, the method returns `self`
     #  (and therefore the class object); if they are not empty, it returns an association relation.
