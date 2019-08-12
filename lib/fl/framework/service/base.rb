@@ -313,11 +313,14 @@ module Fl::Framework::Service
 
     # Create an instance of the model class.
     # This method attempts to create and save an instance of the model class; if either operation fails,
-    # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the +:details+
-    # key in the error status from the object's +errors+. 
+    # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the
+    # **:details** key in the error status from the object's **errors**. 
     #
     # The method calls {#class_allow_op?} for `opts[:permission]` to confirm that the
-    # service's _actor_ has permission to create objects. If the permission is not granted, `nil` is returned.
+    # service's *actor* has permission to create objects. If the permission is not granted, `nil` is returned.
+    #
+    # If an object is created successfully, the method calls {#after_create} to give subclasses a hook
+    # to perform additional processing.
     #
     # @param opts [Hash] Options to the method. This section describes the common options; subclasses may
     #  define type-specific ones.
@@ -333,9 +336,9 @@ module Fl::Framework::Service
     #  See {Fl::Framework::Access::Helper.permission_name}.
     #  Defaults to {Fl::Framework::Access::Permission::Create::NAME}.
     # @option opts [Object] :context The context to pass to the access checker method {#class_allow_op?}.
-    #  The special value +:params+ (a Symbol named +params+) indicates that the create parameters are to be
+    #  The special value **:params** (a Symbol named `params`) indicates that the create parameters are to be
     #  passed as the context.
-    #  Defaults to +:params+.
+    #  Defaults to **:params**.
     #
     # @return [Object, nil] Returns an instance of the {#model_class}. Note that a non-nil return value
     #  does not indicate that the call was successful; for that, you should call {#success?} or check if
@@ -357,7 +360,9 @@ module Fl::Framework::Service
         if rs['success']
           begin
             obj = self.model_class.new(p)
-            unless obj.save
+            if obj.save
+              after_create(obj, p)
+            else
               self.set_status(Fl::Framework::Service::UNPROCESSABLE_ENTITY,
                               I18n.tx(localization_key('creation_failure')),
                               (obj) ? obj.errors.messages : nil)
@@ -377,7 +382,7 @@ module Fl::Framework::Service
         nil
       end
     end
-
+    
     # Update an instance of the model class.
     # This method attempts to update an instance of the model class; if the operation fails,
     # it sets the status to {Fl::Framework::Service::UNPROCESSBLE_ENTITY} and loads a message and the
@@ -792,6 +797,16 @@ module Fl::Framework::Service
 
     def index_results(q)
       q.to_a
+    end
+
+    # Callback triggered after an object is created.
+    # The defauly implementation is empty; subclasses can implement additional processing by overriding
+    # the method.
+    #
+    # @param [ActiveRecord::Base] obj The newly created object.
+    # @param [Hash,ActionController::Parameters] p The parameters that were used to create the object.
+
+    def after_create(obj, p)
     end
 
     # @!visibility private
