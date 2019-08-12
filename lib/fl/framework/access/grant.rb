@@ -25,6 +25,7 @@ module Fl::Framework::Access
   class Grant < Fl::Framework::ApplicationRecord
     include Fl::Framework::Core::ModelHash
     extend Fl::Framework::Query
+    include Fl::Framework::Access::Query
     
     self.table_name = 'fl_framework_access_grants'
     
@@ -477,8 +478,6 @@ module Fl::Framework::Access
           end
         end
       end
-#      all_permissions = _get_permissions_mask(opts, :all_permissions)
-#      any_permissions = _get_permissions_mask(opts, :any_permissions)
 
       # if :only_granted_to is nil, and :except_granted_to is also nil, the two options will create
       # an empty set, so we can short circuit here.
@@ -516,13 +515,7 @@ module Fl::Framework::Access
         q = q.where('(target_type NOT IN (:ul))', { ul: ty_lists[:except_types] })
       end
       
- #     if all_permissions.is_a?(Integer)
- #       q = q.where('((grants & :pm) = :pm)', { pm: all_permissions })
- #     elsif any_permissions.is_a?(Integer)
- #       q = q.where('((grants & :pm) != 0)', { pm: any_permissions })
- #     end
-
-      q = _add_permission_clauses(q, opts)
+      q = q.add_permission_clauses(opts[:permissions], table_alias: nil) if opts.has_key?(:permissions)
       
       ts = _date_filter_timestamps(opts)
       wt = []
@@ -718,109 +711,6 @@ module Fl::Framework::Access
     end
 
     private
-
-    def self._get_permissions_mask(opts, pk)
-      if opts.has_key?(pk)
-        v = (opts[pk].is_a?(Array)) ? opts[pk] : [ opts[pk] ]
-
-        v.reduce(0) do |acc, e|
-          if e.is_a?(Integer)
-            acc |= e
-          elsif e.is_a?(String)
-            if (e =~ /^[0-9]+$/) || (e =~ /^0x[0-9a-f]+/i)
-              acc |= e.to_i
-            else
-              n = Fl::Framework::Access::Helper.permission_name(e)
-              acc |= Fl::Framework::Access::Permission.permission_mask(n) if n
-            end
-          elsif e.is_a?(Symbol) || (e < Fl::Framework::Access::Permission)
-            n = Fl::Framework::Access::Helper.permission_name(e)
-            acc |= Fl::Framework::Access::Permission.permission_mask(n) if n
-          end
-          
-          acc
-        end
-      else
-        nil
-      end
-    end
-
-    PERMISSION_OPS = [ :or, :OR, :and, :AND, 'or', 'OR', 'and', 'AND' ]
-    
-    def self._add_permission_clauses(q, opts)
-      if opts.has_key?(:permissions)
-        pl = (opts[:permissions].is_a?(Array)) ? opts[:permissions] : [ opts[:permissions] ]
-
-        prev = nil
-        wh = { }
-        wi = 0
-        ws = pl.reduce('(') do |acc, p|
-          if (p.is_a?(String) || p.is_a?(Symbol)) && PERMISSION_OPS.include?(p)
-            prev = p.to_sym
-            acc << " #{p.to_s.upcase} "
-          else
-            acc << ' AND ' if !prev.nil? && !prev.is_a?(Symbol)
-
-            if p.is_a?(Hash) || p.is_a?(ActionController::Parameters)
-              if p.has_key?(:all)
-                k = "pm#{wi}".to_sym
-                prev = "((grants & :#{k}) = :#{k})"
-                acc << prev
-                wh[k] = _get_permissions_mask(p, :all)
-                wi += 1
-              elsif p.has_key?(:any)
-                k = "pm#{wi}".to_sym
-                prev = "((grants & :#{k}) != 0)"
-                acc << prev
-                wh[k] = _get_permissions_mask(p, :any)
-                wi += 1
-              else
-                # if the hash does not contain :all or :any, we just shut down the query here
-                
-                k = "pm#{wi}".to_sym
-                prev = "((grants & :#{k}) = :#{k})"
-                acc << prev
-                wh[k] = 0
-                wi += 1
-              end
-            else
-              k = "pm#{wi}".to_sym
-              prev = "((grants & :#{k}) = :#{k})"
-              acc << prev
-              wh[k] = _get_permissions_mask({ all: p }, :all)
-              wi += 1
-            end
-          end
-
-          acc
-        end
-
-        # OK we have built the clauses
-
-        q = q.where(ws + ')', wh)
-      end
-
-      q
-    end
-
-
-    # @param actor [ActiveRecord::Base,String,Array<ActiveRecord::Base,String>] The actor (or actors)
-    #  for which to return accessible objects. The most common value is a scalar, but you can pass an
-    #  array if you want objects accessible by a number of actors (for example, to add group visibility).
-    #  An invalid value (including `nil`) sets up the query to return an empty set.
-    # @param permissions [Integer, Array<String,Fl::Framework::Access::Permission>] The permissions used
-    #  to determine accessibility.
-    #  An integer value contains a permission mask. An array value is converted to a list of permission
-    #  masks, which are then ORed to get the final mask. Each element in the array is a string containing
-    #  a permission name, or a permission object.
-    #  A `nil` value turns off the permission filter, and returns all grants to *actor*.
-    # @param opts [Hash] A Hash containing configuration options for the query.
-    #  See the description for *opts* in {.build_query}.
-    #  Note that the options **:only_granted_to**, **:except_granted_to**, **:only_permissions**,
-    #  and **:except_permissions** are ignored.
-    #
-    # @return [ActiveRecord::Relation] If the query options are empty, the method returns `self`
-    #  (and therefore the class object); if they are not empty, it returns an association relation.
 
     def self._normalize_actor(actor)
       a = (actor.is_a?(Array)) ? actor : [ actor ]

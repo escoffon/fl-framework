@@ -26,11 +26,10 @@ def extract_targets(gl)
   end
 end
 
-def extract_grants(gl)
+def x_grants(gl)
   gl.map do |g|
     a = g.granted_to
     t = g.target
-    #"#{sprintf('0x%08x', g.grants)} - #{a.fingerprint} - #{a.name} - #{t.fingerprint} - #{t.value}"
     "#{sprintf('0x%08x', g.grants)} - #{a.name} - #{t.value}"
   end
 end
@@ -322,19 +321,19 @@ RSpec.describe Fl::Framework::Access::Grant do
         dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
         gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
-        xl = obj_fingerprints([ g1, g4 ]) | obj_fingerprints(actor_owner_grants(a2))
-        expect(obj_fingerprints(_ag.grants_for_actor(a2))).to match_array(xl)
+        xl = x_grants([ g1, g4 ]) | x_grants(actor_owner_grants(a2))
+        expect(x_grants(_ag.grants_for_actor(a2)).sort).to eql(xl.sort)
 
-        xl = obj_fingerprints([ g2, g6 ]) | obj_fingerprints(actor_owner_grants(a3))
-        expect(obj_fingerprints(_ag.grants_for_actor(a3))).to match_array(xl)
+        xl = x_grants([ g2, g6 ]) | x_grants(actor_owner_grants(a3))
+        expect(x_grants(_ag.grants_for_actor(a3)).sort).to eql(xl.sort)
       end
 
       it 'should support fingerprints' do
         dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
         gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
-        xl = obj_fingerprints([ g5, g7, g9, g10 ]) | obj_fingerprints(actor_owner_grants(a4))
-        expect(obj_fingerprints(_ag.grants_for_actor(a4.fingerprint))).to match_array(xl)
+        xl = x_grants([ g5, g7, g9, g10 ]) | x_grants(actor_owner_grants(a4))
+        expect(x_grants(_ag.grants_for_actor(a4.fingerprint))).to match_array(xl)
       end
     end
 
@@ -343,18 +342,18 @@ RSpec.describe Fl::Framework::Access::Grant do
         dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
         gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
-        xl = obj_fingerprints([ g1, g2 ]) | obj_fingerprints(target_owner_grants(d10))
-        expect(obj_fingerprints(_ag.grants_for_target(d10))).to match_array(xl)
+        xl = x_grants([ g1, g2 ]) | x_grants(target_owner_grants(d10))
+        expect(x_grants(_ag.grants_for_target(d10))).to match_array(xl)
 
-        xl = obj_fingerprints([ g4, g5 ]) | obj_fingerprints(target_owner_grants(d20))
-        expect(obj_fingerprints(_ag.grants_for_target(d20))).to match_array(xl)
+        xl = x_grants([ g4, g5 ]) | x_grants(target_owner_grants(d20))
+        expect(x_grants(_ag.grants_for_target(d20))).to match_array(xl)
       end
 
       it 'should support fingerprints' do
         gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
-        xl = obj_fingerprints([ g6, g7 ]) | obj_fingerprints(target_owner_grants(d21))
-        expect(obj_fingerprints(_ag.grants_for_target(d21.fingerprint))).to match_array(xl)
+        xl = x_grants([ g6, g7 ]) | x_grants(target_owner_grants(d21))
+        expect(x_grants(_ag.grants_for_target(d21.fingerprint))).to match_array(xl)
       end
     end
 
@@ -500,11 +499,11 @@ RSpec.describe Fl::Framework::Access::Grant do
   describe '.build_query' do
     it 'should return all grants with default options' do
       # trigger the data and grant creation
-      ogl = obj_fingerprints(target_owner_grants([ d10, d11, d20, d21, d12, d30, d40 ]))
+      ogl = x_grants(target_owner_grants([ d10, d11, d20, d21, d12, d30, d40 ]))
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
       
       q = Fl::Framework::Access::Grant.build_query()
-      expect(obj_fingerprints(q)).to match_array(ogl | obj_fingerprints(gl))
+      expect(x_grants(q)).to match_array(ogl | x_grants(gl))
     end
 
     it 'should support :only_granted_to and :except_granted_to' do
@@ -512,39 +511,39 @@ RSpec.describe Fl::Framework::Access::Grant do
       dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
       
-      xl = obj_fingerprints([ g2, g6 ]) | obj_fingerprints(target_owner_grants([ d30, d40 ]))
+      xl = x_grants([ g2, g6 ]) | x_grants(target_owner_grants([ d30, d40 ]))
       q = Fl::Framework::Access::Grant.build_query(only_granted_to: a3)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       q = Fl::Framework::Access::Grant.build_query(only_granted_to: a3.fingerprint)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g2, g5, g6, g7, g9, g10 ]) \
-           | obj_fingerprints(target_owner_grants([ d30, d40 ]))
+      xl = x_grants([ g2, g5, g6, g7, g9, g10 ]) \
+           | x_grants(target_owner_grants([ d30, d40 ]))
       q = Fl::Framework::Access::Grant.build_query(only_granted_to: [ a3.fingerprint, a4 ])
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g1, g3, g4, g5, g7, g8, g9, g10 ]) \
-           | obj_fingerprints(target_owner_grants([ d10, d11, d110, d12, d20, d21, d22 ]))
+      xl = x_grants([ g1, g3, g4, g5, g7, g8, g9, g10 ]) \
+           | x_grants(target_owner_grants([ d10, d11, d110, d12, d20, d21, d22 ]))
       q = Fl::Framework::Access::Grant.build_query(except_granted_to: a3)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       q = Fl::Framework::Access::Grant.build_query(except_granted_to: a3.fingerprint)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g1, g3, g4, g8 ]) \
-           | obj_fingerprints(target_owner_grants([ d10, d11, d110, d12, d20, d21, d22 ]))
+      xl = x_grants([ g1, g3, g4, g8 ]) \
+           | x_grants(target_owner_grants([ d10, d11, d110, d12, d20, d21, d22 ]))
       q = Fl::Framework::Access::Grant.build_query(except_granted_to: [ a3.fingerprint, a4 ])
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g5, g7, g9, g10 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g5, g7, g9, g10 ]) | x_grants(target_owner_grants([ ]))
       q = Fl::Framework::Access::Grant.build_query(only_granted_to: [ a3.fingerprint, a4 ],
                                                    except_granted_to: a3.fingerprint)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ ]))
       q = Fl::Framework::Access::Grant.build_query(only_granted_to: [ a1.fingerprint ],
                                                    except_granted_to: a1.fingerprint)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
     end
 
     it 'should support :only_targets and :except_targets' do
@@ -552,37 +551,37 @@ RSpec.describe Fl::Framework::Access::Grant do
       dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
       
-      xl = obj_fingerprints([ g1, g2 ]) | obj_fingerprints(target_owner_grants(d10))
+      xl = x_grants([ g1, g2 ]) | x_grants(target_owner_grants(d10))
       q = Fl::Framework::Access::Grant.build_query(only_targets: d10)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       q = Fl::Framework::Access::Grant.build_query(only_targets: d10.fingerprint)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g1, g2, g6, g7 ]) | obj_fingerprints(target_owner_grants([ d10, d21 ]))
+      xl = x_grants([ g1, g2, g6, g7 ]) | x_grants(target_owner_grants([ d10, d21 ]))
       q = Fl::Framework::Access::Grant.build_query(only_targets: [ d10.fingerprint, d21 ])
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g3, g4, g5, g6, g7, g8, g9, g10 ]) \
-           | obj_fingerprints(target_owner_grants([ d11, d110, d20, d21, d22, d12, d30, d40 ]))
+      xl = x_grants([ g3, g4, g5, g6, g7, g8, g9, g10 ]) \
+           | x_grants(target_owner_grants([ d11, d110, d20, d21, d22, d12, d30, d40 ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: d10)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       q = Fl::Framework::Access::Grant.build_query(except_targets: d10.fingerprint)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g3, g4, g5, g8, g10 ]) \
-           | obj_fingerprints(target_owner_grants([ d11, d110, d20, d22, d12, d40 ]))
+      xl = x_grants([ g3, g4, g5, g8, g10 ]) \
+           | x_grants(target_owner_grants([ d11, d110, d20, d22, d12, d40 ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21, d30 ])
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g6, g7 ]) | obj_fingerprints(target_owner_grants([ d21 ]))
+      xl = x_grants([ g6, g7 ]) | x_grants(target_owner_grants([ d21 ]))
       q = Fl::Framework::Access::Grant.build_query(only_targets: [ d10.fingerprint, d21 ],
                                                    except_targets: d10.fingerprint)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ ]))
       q = Fl::Framework::Access::Grant.build_query(only_targets: [ d10.fingerprint ],
                                                    except_targets: d10.fingerprint)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
     end
 
     context 'with :permissions' do
@@ -593,19 +592,19 @@ RSpec.describe Fl::Framework::Access::Grant do
 
         m = _ap.permission_mask(_ap::Write::NAME)
         q = _ag.build_query(permissions: m)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         m = _ap.permission_mask(_ap::Write::NAME) | _ap.permission_mask(_ap::Read::NAME)
         q = _ag.build_query(permissions: m)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         m = _ap.permission_mask(_ap::Edit::NAME)
         q = _ag.build_query(permissions: m)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         m = _ap.permission_mask(_ap::Manage::NAME)
         q = _ag.build_query(permissions: m)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g9 ]))
       end
 
       it 'should accept various input types for scalar values' do
@@ -614,37 +613,37 @@ RSpec.describe Fl::Framework::Access::Grant do
         gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
         q = _ag.build_query(permissions: _ap::Write::NAME)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         q = _ag.build_query(permissions: _ap::Write::BIT)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         q = _ag.build_query(permissions: _ap::Write)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         q = _ag.build_query(permissions: _ap::Write::BIT | _ap::Read::BIT)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: [ _ap::Write, _ap::Read::NAME ])
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: [ _ap::Write::BIT, _ap::Read ])
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: _ap::Edit::NAME)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: _ap::Edit)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: [ _ap::Edit ])
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: _ap::Manage::NAME)
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g9 ]))
 
         q = _ag.build_query(permissions: [ _ap::Manage ])
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g9 ]))
       end
 
       it 'should support a single :all value' do
@@ -654,19 +653,19 @@ RSpec.describe Fl::Framework::Access::Grant do
 
         m = _ap.permission_mask(_ap::Write::NAME)
         q = _ag.build_query(permissions: { all: m })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         m = _ap.permission_mask(_ap::Write::NAME) | _ap.permission_mask(_ap::Read::NAME)
         q = _ag.build_query(permissions: { all: m })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         m = _ap.permission_mask(_ap::Edit::NAME)
         q = _ag.build_query(permissions: { all: m })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         m = _ap.permission_mask(_ap::Manage::NAME)
         q = _ag.build_query(permissions: { all: m })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g9 ]))
       end
 
       it 'should accept various input types for :all values' do
@@ -675,37 +674,37 @@ RSpec.describe Fl::Framework::Access::Grant do
         gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
         q = _ag.build_query(permissions: { all: _ap::Write::NAME })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         q = _ag.build_query(permissions: { all: _ap::Write::BIT })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         q = _ag.build_query(permissions: { all: _ap::Write })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         q = _ag.build_query(permissions: { all: _ap::Write::BIT | _ap::Read::BIT })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: { all: [ _ap::Write, _ap::Read::NAME ] })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: { all: [ _ap::Write::BIT, _ap::Read ] })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: { all: _ap::Edit::NAME })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: { all: _ap::Edit })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: { all: [ _ap::Edit ] })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
 
         q = _ag.build_query(permissions: { all: _ap::Manage::NAME })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g9 ]))
 
         q = _ag.build_query(permissions: { all: [ _ap::Manage ] })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g9 ]))
       end
 
       it 'should support a single :any value' do
@@ -715,15 +714,15 @@ RSpec.describe Fl::Framework::Access::Grant do
 
         m = _ap.permission_mask(_ap::Write::NAME)
         q = _ag.build_query(permissions: { any: m })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g3, g5, g8, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g3, g5, g8, g9 ]))
 
         m = _ap.permission_mask(_ap::Write::NAME) | _ap.permission_mask(_ap::Read::NAME)
         q = _ag.build_query(permissions: { any: m })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]))
 
         m = _ap.permission_mask(_ap::Edit::NAME)
         q = _ag.build_query(permissions: { any: m })
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]))
       end
 
       it 'should accept various input types for :any values' do
@@ -732,20 +731,20 @@ RSpec.describe Fl::Framework::Access::Grant do
         gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
         q = _ag.build_query(permissions: { any: _ap::Write })
-        xl = obj_fingerprints([ g1, g3, g5, g8, g9 ])
-        expect(obj_fingerprints(q)).to match_array(xl)
+        xl = x_grants([ g1, g3, g5, g8, g9 ])
+        expect(x_grants(q)).to match_array(xl)
 
         q = _ag.build_query(permissions: { any: _ap::Write::BIT | _ap::Read::BIT })
-        xl = obj_fingerprints([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ])
-        expect(obj_fingerprints(q)).to match_array(xl)
+        xl = x_grants([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ])
+        expect(x_grants(q)).to match_array(xl)
 
         q = _ag.build_query(permissions: { any: [ _ap::Write::BIT, _ap::Read::BIT ] })
-        xl = obj_fingerprints([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ])
-        expect(obj_fingerprints(q)).to match_array(xl)
+        xl = x_grants([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ])
+        expect(x_grants(q)).to match_array(xl)
 
         q = _ag.build_query(permissions: { any: [ _ap::Write, _ap::Read ] })
-        xl = obj_fingerprints([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ])
-        expect(obj_fingerprints(q)).to match_array(xl)
+        xl = x_grants([ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ])
+        expect(x_grants(q)).to match_array(xl)
       end
 
       it 'should support simple array values' do
@@ -754,18 +753,18 @@ RSpec.describe Fl::Framework::Access::Grant do
         gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
         m = _ap.permission_mask(_ap::Write::NAME)
-        xl = obj_fingerprints([ g1, g3, g5, g8, g9 ]) | obj_fingerprints(target_owner_grants(nil))
+        xl = x_grants([ g1, g3, g5, g8, g9 ]) | x_grants(target_owner_grants(nil))
         q = _ag.build_query(permissions: [ { all: m }, :or, { all: _ap::Owner } ])
-        expect(obj_fingerprints(q)).to match_array(xl)
+        expect(x_grants(q)).to match_array(xl)
 
         # This should really be done with a single any: parameter
         q = _ag.build_query(permissions: [ { all: _ap::Write }, :or, { all: _ap::Read::NAME } ])
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g1, g2, g3, g4, g5, g6, g7, g8,
+        expect(x_grants(q)).to match_array(x_grants([ g1, g2, g3, g4, g5, g6, g7, g8,
                                                                       g9, g10 ]))
 
         # And this should really be done with a single all: parameter
         q = _ag.build_query(permissions: [ { all: _ap::Write }, :and, { all: _ap::Read::NAME } ])
-        expect(obj_fingerprints(q)).to match_array(obj_fingerprints([ g3, g5, g9 ]))
+        expect(x_grants(q)).to match_array(x_grants([ g3, g5, g9 ]))
       end
     end
 
@@ -774,52 +773,52 @@ RSpec.describe Fl::Framework::Access::Grant do
       dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8 ]
       
-      xl = obj_fingerprints([ g1, g2, g3, g8 ]) \
-           | obj_fingerprints(target_owner_grants([ d10, d11, d110, d12 ]))
+      xl = x_grants([ g1, g2, g3, g8 ]) \
+           | x_grants(target_owner_grants([ d10, d11, d110, d12 ]))
       q = Fl::Framework::Access::Grant.build_query(only_types: TestDatumOne)
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       q = Fl::Framework::Access::Grant.build_query(only_types: TestDatumOne.name)
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g1, g2, g3, g4, g5, g6, g7, g8 ]) \
-           | obj_fingerprints(target_owner_grants([ d10, d11, d110, d12, d20, d21, d22 ]))
+      xl = x_grants([ g1, g2, g3, g4, g5, g6, g7, g8 ]) \
+           | x_grants(target_owner_grants([ d10, d11, d110, d12, d20, d21, d22 ]))
       q = Fl::Framework::Access::Grant.build_query(only_types: [ TestDatumOne, TestDatumTwo ])
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g4, g5, g6, g7, g9, g10 ]) \
-           | obj_fingerprints(target_owner_grants([ d20, d21, d22, d30, d40 ]))
+      xl = x_grants([ g4, g5, g6, g7, g9, g10 ]) \
+           | x_grants(target_owner_grants([ d20, d21, d22, d30, d40 ]))
       q = Fl::Framework::Access::Grant.build_query(except_types: TestDatumOne)
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       q = Fl::Framework::Access::Grant.build_query(except_types: TestDatumOne.name)
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g4, g5, g6, g7, g10 ]) \
-           | obj_fingerprints(target_owner_grants([ d20, d21, d22, d40 ]))
+      xl = x_grants([ g4, g5, g6, g7, g10 ]) \
+           | x_grants(target_owner_grants([ d20, d21, d22, d40 ]))
       q = Fl::Framework::Access::Grant.build_query(except_types: [ TestDatumOne, TestDatumThree ])
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g9, g10 ]) | obj_fingerprints(target_owner_grants([ d30, d40 ]))
+      xl = x_grants([ g9, g10 ]) | x_grants(target_owner_grants([ d30, d40 ]))
       q = Fl::Framework::Access::Grant.build_query(except_types: [ TestDatumOne, TestDatumTwo ])
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g4, g5, g6, g7 ]) | obj_fingerprints(target_owner_grants([ d20, d21, d22 ]))
+      xl = x_grants([ g4, g5, g6, g7 ]) | x_grants(target_owner_grants([ d20, d21, d22 ]))
       q = Fl::Framework::Access::Grant.build_query(only_types: [ TestDatumOne, TestDatumTwo ],
                                                    except_types: TestDatumOne)
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ ]))
       q = Fl::Framework::Access::Grant.build_query(only_types: [ TestDatumOne ],
                                                    except_types: TestDatumOne)
       ll = q.to_a
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
     end
 
     it 'should support selector combinations' do
@@ -827,61 +826,61 @@ RSpec.describe Fl::Framework::Access::Grant do
       dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
       
-      xl = obj_fingerprints([ g2 ])
+      xl = x_grants([ g2 ])
       q = Fl::Framework::Access::Grant.build_query(only_targets: d10, only_granted_to: a3)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g1 ]) | obj_fingerprints(target_owner_grants([ d10 ]))
+      xl = x_grants([ g1 ]) | x_grants(target_owner_grants([ d10 ]))
       q = Fl::Framework::Access::Grant.build_query(only_targets: d10, except_granted_to: a3)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g3, g8 ]) | obj_fingerprints(target_owner_grants([ d20, d22 ]))
+      xl = x_grants([ g3, g8 ]) | x_grants(target_owner_grants([ d20, d22 ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21 ],
                                                    only_granted_to: a1)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g3, g8 ])
+      xl = x_grants([ g3, g8 ])
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21 ],
                                                    only_granted_to: a1,
                                                    only_types: TestDatumOne)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints(target_owner_grants([ d20, d22 ]))
+      xl = x_grants(target_owner_grants([ d20, d22 ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21 ],
                                                    only_granted_to: a1,
                                                    except_types: TestDatumOne)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g5, g9, g10 ]) | obj_fingerprints(target_owner_grants([ d30, d40 ]))
+      xl = x_grants([ g5, g9, g10 ]) | x_grants(target_owner_grants([ d30, d40 ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21 ],
                                                    except_granted_to: [ a1, a2 ])
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
       m = _ap.permission_mask(_ap::Read::NAME)
-      xl = obj_fingerprints([ g3, g4, g5, g9, g10 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g3, g4, g5, g9, g10 ]) | x_grants(target_owner_grants([ ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21 ],
                                                    permissions: m)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
       m = _ap::Read
-      xl = obj_fingerprints([ g4, g5, g9, g10 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g4, g5, g9, g10 ]) | x_grants(target_owner_grants([ ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21 ],
                                                    permissions: { all: m },
                                                    except_granted_to: a1)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
       m = _ap::Edit::NAME
-      xl = obj_fingerprints([ g3, g5, g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g3, g5, g9 ]) | x_grants(target_owner_grants([ ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21 ],
                                                    permissions: m)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
       m = _ap::Edit
-      xl = obj_fingerprints([ g5, g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g5, g9 ]) | x_grants(target_owner_grants([ ]))
       q = Fl::Framework::Access::Grant.build_query(except_targets: [ d10.fingerprint, d21 ],
                                                    permissions: { all: m },
                                                    except_granted_to: a1)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
     end
 
     it 'should support order and pagination options' do
@@ -889,13 +888,13 @@ RSpec.describe Fl::Framework::Access::Grant do
       xl = [ g1, g2, g3, g4, g5, g6, g7, g8 ]
       
       q = _ag.build_query(order: 'id', permissions: { any: _ap::Edit })
-      expect(obj_fingerprints(q)).to eql(obj_fingerprints(xl))
+      expect(x_grants(q)).to eql(x_grants(xl))
 
       q = _ag.build_query(order: 'id DESC', permissions: { any: _ap::Edit })
-      expect(obj_fingerprints(q)).to eql(obj_fingerprints(xl).reverse)
+      expect(x_grants(q)).to eql(x_grants(xl).reverse)
       
       q = _ag.build_query(order: 'id', offset: 2, limit: 2, permissions: { any: _ap::Edit })
-      expect(obj_fingerprints(q)).to eql(obj_fingerprints([ g3, g4 ]))
+      expect(x_grants(q)).to eql(x_grants([ g3, g4 ]))
     end
   end
   
@@ -905,47 +904,47 @@ RSpec.describe Fl::Framework::Access::Grant do
       dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
-      xl = obj_fingerprints([ g3 ]) | obj_fingerprints(target_owner_grants([ d10, d20, d22 ]))
+      xl = x_grants([ g3 ]) | x_grants(target_owner_grants([ d10, d20, d22 ]))
       q = _ag.accessible_query(a1, _ap::Read)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g5, g7, g9, g10 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g5, g7, g9, g10 ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(a4, _ap::Read::BIT)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g5, g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g5, g9 ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(a4, _ap::Write)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g5, g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g5, g9 ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(a4, _ap::Edit)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g1, g4 ]) | obj_fingerprints(target_owner_grants([ d11, d110, d12, d21 ]))
+      xl = x_grants([ g1, g4 ]) | x_grants(target_owner_grants([ d11, d110, d12, d21 ]))
       q = _ag.accessible_query(a2, nil)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
       # [ _ap::Read, _ap::Write ] expands to the OR of the bit values, and that is passed to :all,
       # so only targets with both read and write permission are returned. There are none (except for
       # those owned by a2)
       
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ d11, d110, d12, d21 ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ d11, d110, d12, d21 ]))
       q = _ag.accessible_query(a2, [ _ap::Read, _ap::Write ])
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
       # see above
       
-      xl = [ ] | obj_fingerprints(target_owner_grants([ d11, d110, d12, d21 ]))
+      xl = [ ] | x_grants(target_owner_grants([ d11, d110, d12, d21 ]))
       q = _ag.accessible_query(a2, [ _ap::Edit ])
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
       
-      xl = obj_fingerprints([ g5, g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g5, g9 ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(a4, [ _ap::Read, _ap::Write ])
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g5, g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g5, g9 ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(a4, [ _ap::Edit ])
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
     end
 
     it 'should support filtering by type' do
@@ -953,29 +952,29 @@ RSpec.describe Fl::Framework::Access::Grant do
       dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
-      xl = obj_fingerprints([ g1 ]) | obj_fingerprints(target_owner_grants([ d11, d110, d12 ]))
+      xl = x_grants([ g1 ]) | x_grants(target_owner_grants([ d11, d110, d12 ]))
       q = _ag.accessible_query(a2, nil, only_types: TestDatumOne)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g4 ]) | obj_fingerprints(target_owner_grants([ d21 ]))
+      xl = x_grants([ g4 ]) | x_grants(target_owner_grants([ d21 ]))
       q = _ag.accessible_query(a2, nil, only_types: TestDatumTwo, order: 'id')
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g9 ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(a4, _ap::Read, only_types: [ TestDatumOne, TestDatumThree ], order: 'id')
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g5, g7, g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g5, g7, g9 ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(a4, _ap::Read, only_types: [ TestDatumTwo, TestDatumThree ], order: 'id')
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ g9 ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ g9 ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(a4, _ap::Write, except_types: [ TestDatumTwo ], order: 'id')
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ d21 ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ d21 ]))
       q = _ag.accessible_query(a2, [ _ap::Read, _ap::Write ], only_types: TestDatumTwo, order: 'id')
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
     end
     
     it 'should support order and pagination options' do
@@ -983,17 +982,17 @@ RSpec.describe Fl::Framework::Access::Grant do
       dl = [ d10, d11, d110, d12, d20, d21, d22, d30, d40 ]
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
 
-      xl = (obj_fingerprints([ g1 ]) | obj_fingerprints(target_owner_grants([ d11, d110, d12 ]))).sort
+      xl = (x_grants([ g1 ]) | x_grants(target_owner_grants([ d11, d110, d12 ]))).sort
       q = _ag.accessible_query(a2, nil, only_types: TestDatumOne, order: 'id')
-      expect(obj_fingerprints(q)).to eql(xl)
+      expect(x_grants(q)).to eql(xl)
 
-      xl = (obj_fingerprints([ g1 ]) | obj_fingerprints(target_owner_grants([ d11, d110, d12 ]))).sort.reverse
+      xl = (x_grants([ g1 ]) | x_grants(target_owner_grants([ d11, d110, d12 ]))).sort.reverse
       q = _ag.accessible_query(a2, nil, only_types: TestDatumOne, order: 'id DESC')
-      expect(obj_fingerprints(q)).to eql(xl)
+      expect(x_grants(q)).to eql(xl)
 
-      xl = (obj_fingerprints([ g1 ]) | obj_fingerprints(target_owner_grants([ d11, d110, d12 ]))).sort.slice(1..2)
+      xl = (x_grants([ g1 ]) | x_grants(target_owner_grants([ d11, d110, d12 ]))).sort.slice(1..2)
       q = _ag.accessible_query(a2, nil, only_types: TestDatumOne, order: 'id', offset: 1, limit: 2)
-      expect(obj_fingerprints(q)).to eql(xl)
+      expect(x_grants(q)).to eql(xl)
     end
 
     it 'should support multiple actors' do
@@ -1002,9 +1001,9 @@ RSpec.describe Fl::Framework::Access::Grant do
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
       ggl = [ gg1 ]
 
-      xl = obj_fingerprints([ g3, gg1 ]) | obj_fingerprints(target_owner_grants([ d10, d20, d22 ]))
+      xl = x_grants([ g3, gg1 ]) | x_grants(target_owner_grants([ d10, d20, d22 ]))
       q = _ag.accessible_query([ a1, group1 ], _ap::Read)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
     end
 
     it 'should return an empty set with invalid actors' do
@@ -1013,21 +1012,21 @@ RSpec.describe Fl::Framework::Access::Grant do
       gl = [ g1, g2, g3, g4, g5, g6, g7, g8, g9, g10 ]
       ggl = [ gg1 ]
 
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(nil, _ap::Read)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query(1234, _ap::Read)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query([ nil, a1 ], _ap::Read)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
 
-      xl = obj_fingerprints([ ]) | obj_fingerprints(target_owner_grants([ ]))
+      xl = x_grants([ ]) | x_grants(target_owner_grants([ ]))
       q = _ag.accessible_query([ a1, 1234 ], _ap::Read)
-      expect(obj_fingerprints(q)).to match_array(xl)
+      expect(x_grants(q)).to match_array(xl)
     end
   end
 end
