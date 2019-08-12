@@ -7,6 +7,7 @@ end
 
 require 'fl/framework/access/helper'
 require 'fl/framework/access/permission'
+require 'fl/framework/access/query'
 require 'fl/framework/access/grant'
 require 'fl/framework/access/target'
 require 'fl/framework/access/actor'

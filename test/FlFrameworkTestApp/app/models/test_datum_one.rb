@@ -3,6 +3,7 @@
 class TestDatumOne < ApplicationRecord
   include Fl::Framework::Core::ModelHash
   include Fl::Framework::Access::Target
+  include Fl::Framework::Access::Query
   include Fl::Framework::List::Listable
   # include Fl::Framework::Asset::Asset
   
