@@ -20,7 +20,9 @@ module Fl::Framework::Access
       GRANTS_TABLE_ALIAS = 'grants'
       
       # Joins the grants table.
-      # This method calls the `joins` ActiveRecord query method to generate a join between
+      # You will have to join the grant table in order to use {#add_granted_to_clause} and
+      # {#add_permission_clauses}.
+      # The method calls the `joins` ActiveRecord query method to generate a join between
       # the access grant table and the model's table. The grants table will be accessible in the query
       # with the alias specified by *opts[:table_alias]*.
       #
@@ -138,6 +140,43 @@ module Fl::Framework::Access
         end
       end
 
+      # Normalize permissions.
+      # This method converts *permissions* into a normalized value:
+      #
+      # - If *permissions* is not an array, it is converted to a one-element array.
+      # - Elements that contain operators are converted to uppercase strings.
+      # - In elements that contain A Hash (or ActionController::Parameters) with **:all** or **:any**
+      #   keys, the key's value is converted to a permission mask via a call to {#get_permissions_mask}.
+      # - Scalar element values are converted to a permission mask via a call to {#get_permissions_mask}.
+      #
+      # @param permissions The permissions to normalize; see {#add_permission_clauses}.
+      #
+      # @return [Array] Returns an array containing the normalized permissions.
+
+      def normalize_permissions(permissions)
+        pl = (permissions.is_a?(Array)) ? permissions : [ permissions ]
+
+        pl.reduce([ ]) do |acc, p|
+          if (p.is_a?(String) || p.is_a?(Symbol)) && PERMISSION_OPS.include?(p)
+            acc << p.to_s.upcase
+          else
+            if p.is_a?(Hash) || p.is_a?(ActionController::Parameters)
+              if p.has_key?(:all)
+                acc << { all: get_permissions_mask(p, :all) }
+              elsif p.has_key?(:any)
+                acc << { any: get_permissions_mask(p, :any) }
+              else
+                acc << p
+              end
+            else
+              acc << { all: get_permissions_mask({ all: p }, :all) }
+            end
+          end
+
+          acc
+        end
+      end
+
       # Adds a clause to select records associated to a set of permissions.
       # This method assumes that {#join_grants_table} has been called to set up the join.
       # It generates a call to `where` that selects records where the **grants** field in the
@@ -216,7 +255,13 @@ module Fl::Framework::Access
       # q = MyClass.add_granted_to_clause(MyClass, u)
       # q = q.add_permission_clauses(q, [ Fl::Framework::Access::Write, :or, Fl::Framework::Access::Owner ])
       # ```
-      # (This is what {Fl::Framework::Access::Grant.accessible_query} does.)
+      #
+      # Note that the generated clauses use only the values in *permissions*; since ownership involves
+      # full access to an object, when check ing for pretty much any permission you should also add the
+      # {Fl::Framework::Access::Owner} permission, using `:or`, as shown in the example above.
+      # This is what {Fl::Framework::Access::Grant.accessible_query} does.
+      # This behavior gives you full control over what permissions to check, but it does require that
+      # you add the ownership grant in typical checks.
       #
       # @param permissions The permissions to place in the clause. See above for details.
       # @param opts [Hash] Options for the method.
@@ -233,30 +278,28 @@ module Fl::Framework::Access
                    GRANTS_TABLE_ALIAS + '.'
                  end
 
-        pl = (permissions.is_a?(Array)) ? permissions : [ permissions ]
-
         prev = nil
         wh = { }
         wi = 0
-        ws = pl.reduce('(') do |acc, p|
+        ws = normalize_permissions(permissions).reduce('(') do |acc, p|
           if (p.is_a?(String) || p.is_a?(Symbol)) && PERMISSION_OPS.include?(p)
             prev = p.to_sym
             acc << " #{p.to_s.upcase} "
           else
             acc << ' AND ' if !prev.nil? && !prev.is_a?(Symbol)
 
-            if p.is_a?(Hash) || p.is_a?(ActionController::Parameters)
+            if p.is_a?(Hash)
               if p.has_key?(:all)
                 k = "pm#{wi}".to_sym
                 prev = "((#{galias}grants & :#{k}) = :#{k})"
                 acc << prev
-                wh[k] = get_permissions_mask(p, :all)
+                wh[k] = p[:all]
                 wi += 1
               elsif p.has_key?(:any)
                 k = "pm#{wi}".to_sym
                 prev = "((#{galias}grants & :#{k}) != 0)"
                 acc << prev
-                wh[k] = get_permissions_mask(p, :any)
+                wh[k] = p[:any]
                 wi += 1
               else
                 # if the hash does not contain :all or :any, we just shut down the query here
@@ -267,12 +310,6 @@ module Fl::Framework::Access
                 wh[k] = 0
                 wi += 1
               end
-            else
-              k = "pm#{wi}".to_sym
-              prev = "((#{galias}grants & :#{k}) = :#{k})"
-              acc << prev
-              wh[k] = get_permissions_mask({ all: p }, :all)
-              wi += 1
             end
           end
 

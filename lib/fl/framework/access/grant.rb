@@ -627,8 +627,9 @@ module Fl::Framework::Access
         
       iopts = { only_granted_to: actor_param }
       if !permissions.nil?
-        iopts[:permissions] = [ { all: permissions }, :or,
-                                { any: Fl::Framework::Access::Permission::Owner::BIT } ]
+        iopts[:permissions] = self.normalize_permissions(permissions) \
+                                .concat([ :or,
+                                          { any: Fl::Framework::Access::Permission::Owner::BIT } ])
       end
       no = opts.reduce(iopts) do |acc, kvp|
         pk, pv = kvp
