@@ -254,6 +254,52 @@ RSpec.describe Fl::Framework::Access::Query do
     end
   end
 
+  describe '.normalize_permissions' do
+    it 'should convert scalars' do
+      expect(TestDatumOne.normalize_permissions(0x00001010)).to eql([ { all: 0x00001010 } ])
+      expect(TestDatumOne.normalize_permissions(_ap::Owner)).to eql([ { all: _ap::Owner::BIT } ])
+      expect(TestDatumOne.normalize_permissions(_ap::Read::NAME)).to eql([ { all: _ap::Read::BIT } ])
+      expect(TestDatumOne.normalize_permissions(_ap::Owner::BIT)).to eql([ { all: _ap::Owner::BIT } ])
+
+      expect(TestDatumOne.normalize_permissions({ all: 0x00001010 })).to eql([ { all: 0x00001010 } ])
+      expect(TestDatumOne.normalize_permissions({ all: _ap::Owner })).to eql([ { all: _ap::Owner::BIT } ])
+      expect(TestDatumOne.normalize_permissions({ all: _ap::Read::NAME })).to eql([ { all: _ap::Read::BIT } ])
+      expect(TestDatumOne.normalize_permissions({ all: _ap::Owner::BIT })).to eql([ { all: _ap::Owner::BIT } ])
+
+      expect(TestDatumOne.normalize_permissions({ any: 0x00001010 })).to eql([ { any: 0x00001010 } ])
+      expect(TestDatumOne.normalize_permissions({ any: _ap::Owner })).to eql([ { any: _ap::Owner::BIT } ])
+      expect(TestDatumOne.normalize_permissions({ any: _ap::Read::NAME })).to eql([ { any: _ap::Read::BIT } ])
+      expect(TestDatumOne.normalize_permissions({ any: _ap::Owner::BIT })).to eql([ { any: _ap::Owner::BIT } ])
+    end
+
+    it 'should process simple arrays' do
+      expect(TestDatumOne.normalize_permissions([ 0x00001010 ])).to eql([ { all: 0x00001010 } ])
+      expect(TestDatumOne.normalize_permissions([ _ap::Owner ])).to eql([ { all: _ap::Owner::BIT } ])
+      expect(TestDatumOne.normalize_permissions([ _ap::Read::NAME ])).to eql([ { all: _ap::Read::BIT } ])
+      expect(TestDatumOne.normalize_permissions([ _ap::Owner::BIT ])).to eql([ { all: _ap::Owner::BIT } ])
+
+      expect(TestDatumOne.normalize_permissions([ { all: 0x00001010 } ])).to eql([ { all: 0x00001010 } ])
+      expect(TestDatumOne.normalize_permissions([ { all: _ap::Owner } ])).to eql([ { all: _ap::Owner::BIT } ])
+      expect(TestDatumOne.normalize_permissions([ { all: _ap::Read::NAME } ])).to eql([ { all: _ap::Read::BIT } ])
+      expect(TestDatumOne.normalize_permissions([ { all: _ap::Owner::BIT } ])).to eql([ { all: _ap::Owner::BIT } ])
+
+      expect(TestDatumOne.normalize_permissions([ { any: 0x00001010 } ])).to eql([ { any: 0x00001010 } ])
+      expect(TestDatumOne.normalize_permissions([ { any: _ap::Owner } ])).to eql([ { any: _ap::Owner::BIT } ])
+      expect(TestDatumOne.normalize_permissions([ { any: _ap::Read::NAME } ])).to eql([ { any: _ap::Read::BIT } ])
+      expect(TestDatumOne.normalize_permissions([ { any: _ap::Owner::BIT } ])).to eql([ { any: _ap::Owner::BIT } ])
+    end
+
+    it 'should process complex arrays' do
+      p = [ 0x00001010, :or, _ap::Owner ]
+      x = [ { all: 0x00001010 }, 'OR', { all: _ap::Owner::BIT } ]
+      expect(TestDatumOne.normalize_permissions(p)).to eql(x)
+
+      p = [ _ap::Read::NAME, 'and', _ap::Write ]
+      x = [ { all: _ap::Read::BIT }, 'AND', { all: _ap::Write::BIT } ]
+      expect(TestDatumOne.normalize_permissions(p)).to eql(x)
+    end
+  end
+    
   describe '.add_permission_clauses' do
     it 'should support :all' do
       # trigger the data and grant creation
