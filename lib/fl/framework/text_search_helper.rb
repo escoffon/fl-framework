@@ -90,6 +90,7 @@ module Fl::Framework
       # text query rules. These tokens are of four types:
       #
       # 1. Operators; these are special values that indicate an operation:
+      #
       #    - The string 'OR' (we allow for 'or' to be a bit lenient).
       #      We also allow the string '|' to stand for 'OR', so that the Postgres-style operator name is
       #      also supported.
@@ -97,7 +98,9 @@ module Fl::Framework
       #      because any words not connected by an operator are connected by '&'.
       #    - The string 'AROUND(n)' (we allow for 'around(n)' to be a bit lenient).
       #      Here `n` is an integer to indicate the distance between the two operands.
-      #    - The string '-'.
+      #    - The string '-'. Note that '-' not preceded by whitespace is not considered an operator, but
+      #      rather part of the preceding token; therefore, `my-tag` is parsed as the single token `my-tag`,
+      #      whereas `my -tag` is parsed as the three tokens 'my', '-', qnd 'tag'.
       # 2. Words; these are collections of characters that drive the matches.
       # 3. Quoted strings; collections of words to be matched as a unit.
       # 4. Grouping: the strings '(' and ')' to control operator precedence.
@@ -180,22 +183,26 @@ module Fl::Framework
               raise MalformedQuery.new(qs, idx) unless c == '-'
               cur = '1'
             when :token
-              if cur.upcase == 'OR'
-                tokens << [ :or ]
-                tokens << [ :minus ]
-                state = :scan
-              elsif cur.upcase == 'AND'
-                tokens << [ :and ]
-                tokens << [ :minus ]
-                state = :scan
-              elsif cur.upcase == 'AROUND'
-                state = :around
+              if c == '-'
+                cur << c
               else
-                tokens << [ :word, cur ]
-                tokens << [ :minus ]
-                state = :scan
+                if cur.upcase == 'OR'
+                  tokens << [ :or ]
+                  tokens << [ :minus ]
+                  state = :scan
+                elsif cur.upcase == 'AND'
+                  tokens << [ :and ]
+                  tokens << [ :minus ]
+                  state = :scan
+                elsif cur.upcase == 'AROUND'
+                  state = :around
+                else
+                  tokens << [ :word, cur ]
+                  tokens << [ :minus ]
+                  state = :scan
+                end
+                cur = ''
               end
-              cur = ''
             else
               raise MalformedQuery.new(qs, idx)
             end

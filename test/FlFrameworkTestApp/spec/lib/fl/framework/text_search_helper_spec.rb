@@ -68,7 +68,7 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
         qs = Wrapper.tokenize_query_string('AROUND("4")')
       end.to raise_error(Fl::Framework::TextSearchHelper::MalformedQuery)
     end
-
+    
     it 'should parse the - (and !) operator' do
       qs = Wrapper.tokenize_query_string('one - two')
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
@@ -91,12 +91,12 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('one- two')
-      expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
+      expect(qs).to eql([ [ :word, 'one-' ], [ :word, 'two' ] ])
       qs = Wrapper.tokenize_query_string('one! two')
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
 
       qs = Wrapper.tokenize_query_string('one-two')
-      expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
+      expect(qs).to eql([ [ :word, 'one-two' ] ])
       qs = Wrapper.tokenize_query_string('one!two')
       expect(qs).to eql([ [ :word, 'one' ], [ :minus ], [ :word, 'two' ] ])
 
@@ -129,6 +129,11 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
       expect(qs).to eql([ [ :quoted, 'one one' ], [ :minus ], [ :quoted, 'two two' ] ])
       qs = Wrapper.tokenize_query_string('"one one"!"two two"')
       expect(qs).to eql([ [ :quoted, 'one one' ], [ :minus ], [ :quoted, 'two two' ] ])
+
+      qs = Wrapper.tokenize_query_string('"one-one" two')
+      expect(qs).to eql([ [ :quoted, 'one-one' ], [ :word, 'two' ] ])
+      qs = Wrapper.tokenize_query_string('"one!one" two')
+      expect(qs).to eql([ [ :quoted, 'one!one' ], [ :word, 'two' ] ])
     end
 
     it 'should parse the OR (and |) operator' do
@@ -292,9 +297,11 @@ RSpec.describe Fl::Framework::TextSearchHelper, type: :helper do
       qs = Wrapper.tokenize_query_string('one -two')
       expect(Wrapper.pg_query_text(qs)).to eql('pg:one & !two')
       qs = Wrapper.tokenize_query_string('one- two')
+      expect(Wrapper.pg_query_text(qs)).to eql('pg:one- & two')
+      qs = Wrapper.tokenize_query_string('one - two')
       expect(Wrapper.pg_query_text(qs)).to eql('pg:one & !two')
       qs = Wrapper.tokenize_query_string('one-two')
-      expect(Wrapper.pg_query_text(qs)).to eql('pg:one & !two')
+      expect(Wrapper.pg_query_text(qs)).to eql('pg:one-two')
 
       qs = Wrapper.tokenize_query_string('"one one" - "two two"')
       expect(Wrapper.pg_query_text(qs)).to eql('pg:("one" <-> "one") & !("two" <-> "two")')
