@@ -24,7 +24,7 @@ module Fl::Framework::Core
     #
     #     filtered_attribute :myProp, [ FILTER_HTML_STRIP_DANGEROUS_ELEMENTS, :my_filter ]
     #
-    #     def my_filter(value)
+    #     def my_filter(attr, value)
     #      # process *value* and return the filtered value.
     #     end
     #   end
